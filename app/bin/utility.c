@@ -399,6 +399,219 @@ double CircleDistance( coOrd *p, coOrd c, double r, double a0, double a1 )
 	return d;
 }
 
+/********************************************************************************
+ *
+ * Bezier Functions
+ *
+ ********************************************************************************/
+
+
+/**
+ * Return point on Bezier using "t" (from 0 to 1)
+ */
+extern coOrd BezierPointByParameter(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t)
+{
+    //checkParameterT(t);
+    
+    double cx = 3 * (p1.x - p0.x);
+    double bx = 3 * (p2.x- p1.x) - cx;
+    double ax = p3.x - p0.x - cx - bx;
+    
+    double cy = 3 * (p1.y - p0.y);
+    double by = 3 * (p2.y - p1.y) - cy;
+    double ay = p3.y - p0.y - cy - by;
+    
+    double tSquared = t * t;
+    double tCubed = tSquared * t;
+    double resultX = (ax * tCubed) + (bx * tSquared) + (cx * t) + p0.x;
+    double resultY = (ay * tCubed) + (by * tSquared) + (cy * t) + p1.y;
+    coOrd c;
+    c.x = resultX;
+    c.y = resultY;
+    return c;
+}
+/**
+ * Find distance from point to Bezier. Return also the "t" value of that closest point.
+ */
+extern double BezierDistance( coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3, int segments, double * t_value)
+{
+    double dd = FindDistance(*p,p0);
+    double t = 0.0;
+    coOrd pt;
+    for (int i = 1;i<=segments;i++) {
+        pt = BezierPointByParameter(p0, p1, p2, p3, (double)i/segments);
+        if (FindDistance(*p,pt) < dd) { dd=FindDistance(*p,pt); t= (double)i/segments; }
+    }
+    if (t_value) *t_value = t;
+    return dd;
+}
+
+extern coOrd BezierFindNearestPoint(coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3, int segments) {
+    double t = 0.0;
+    double dd = BezierDistance (p, p0, p1, p2, p3, segments, &t);
+    return BezierPointByParameter(p0, p1, p2, p3, t);
+}
+
+/**
+ * Split bezier into two parts
+ */
+extern void BezierSplit(coOrd input[4], coOrd left[4], coOrd right[4] , double t) {
+    
+    int   i, j;                               /* Index variables  */
+    coOrd  Vtemp[4][4];                      /* Triangle Matrix */
+    /* Copy control points  */
+    for (j =0; j <= 3; j++)
+        Vtemp[0][j] = input[j];
+    
+    /* Triangle computation */
+    for (i = 1; i <= 3; i++) {
+        for (j =0 ; j <= 3 - i; j++) {
+            Vtemp[i][j].x =
+            (1-t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].x;
+            Vtemp[i][j].y =
+            (1-t) * Vtemp[i-1][j].y + t * Vtemp[i-1][j+1].y;
+            
+        }                                   /* end for i */
+    }                                       /* end for j */
+    for (j =0;j <=3;j++)
+        left[j]  = Vtemp[j][0];
+    
+    for (j = 0;j <=3;j++)
+        right[j] = Vtemp[3-j][j];
+    
+}
+
+
+/**
+ * If close enough (length of control polygon exceeds chord by < error) add length of polygon.
+ * Else split and recurse
+ */
+void BezierAddLengthIfClose(coOrd start[4], double length, double error) {
+    coOrd left[4], right[4];                  /* bez poly splits */
+    double len = 0.0;                         /* arc length */
+    double chord;                             /* chord length */
+    int index;                                /* misc counter */
+    
+    for (index = 0; index <= 2; index++)
+        len = len + FindDistance(start[index],start[index+1]); //add up control polygon
+    
+    chord = FindDistance(start[0],start[3]); //find chord length
+    
+    if((len-chord) > error)  {					// If error too large -
+        BezierSplit(start,left,right,0.5);               /* split in two */
+        BezierAddLengthIfClose(left, length, error);        /* recurse left side */
+        BezierAddLengthIfClose(right, length, error);       /* recurse right side */
+        return;
+    }
+    length = length + len;						// Add length of this curve
+    return;
+    
+}
+
+/**
+ * Use recursive splitting to get close approximation ot length of bezier
+ *
+ */
+extern double BezierLength(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double error)
+{
+    double length; /* length of curve */
+    coOrd coOrds[4];
+    if (error == 0.0) error = 0.01;
+    coOrds[0] = p0;
+    coOrds[1] = p1;
+    coOrds[2] = p2;
+    coOrds[3] = p3;
+    BezierAddLengthIfClose(coOrds, length, error);  /* kick off recursion */
+    return length;                                  /* that's it! */
+    
+}
+
+coOrd  BezierFirstDerivative(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t)
+{
+    //checkParameterT(t);
+    
+    double tSquared = t * t;
+    double s0 = -3 + 6 * t - 3 * tSquared;
+    double s1 = 3 - 12 * t + 9 * tSquared;
+    double s2 = 6 * t - 9 * tSquared;
+    double s3 = 3 * tSquared;
+    double resultX = p0.x * s0 + p1.x * s1 + p2.x * s2 + p3.x * s3;
+    double resultY = p0.y * s0 + p1.y * s1 + p2.y * s2 + p3.y * s3;
+    
+    coOrd v;
+    
+    v.x = resultX;
+    v.y = resultY;
+    return v;
+}
+
+/**
+ * Gets 2nd derivate wrt t of a Bezier curve at a point
+ 
+ */
+coOrd BezierSecondDerivative(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t)
+{
+    //checkParameterT(t);
+    
+    double s0 = 6 - 6 * t;
+    double s1 = -12 + 18 * t;
+    double s2 = 6 - 18 * t;
+    double s3 = 6 * t;
+    double resultX = p0.x * s0 + p1.x * s1 + p2.x * s2 + p3.x * s3;
+    double resultY = p0.y * s0 + p1.y * s1 + p2.y * s2 + p3.y * s3;
+    
+    coOrd v;
+    v.x = resultX;
+    v.y = resultY;
+    return v;
+}
+
+/**
+ * Get curvature of a Bezier at a point
+*/
+extern double BezierCurvature(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t, coOrd * center)
+{
+    //checkParameterT(t);
+    
+    coOrd d1 = BezierFirstDerivative(p0, p1, p2, p3, t);
+    coOrd d2 = BezierSecondDerivative(p0, p1, p2, p3, t);
+    
+    if (center) {
+        double curvnorm = (d1.x * d1.x + d1.y* d1.y)/(d1.x * d2.y - d2.x * d1.y);
+        coOrd p = BezierPointByParameter(p0, p1, p2, p3, t);
+        center->x = p.x-d1.y*curvnorm;
+        center->y = p.y+d1.x*curvnorm;
+    }
+    
+    double r1 = sqrt(pow(d1.x * d1.x + d1.y* d1.y, 3.0));
+    double r2 = fabs(d1.x * d2.y - d2.x * d1.y);
+    return r2 / r1;
+}
+
+/**
+ * Get Maximum Curvature
+ */
+extern double BezierMaxCurve(coOrd p0, coOrd p1, coOrd p2, coOrd p3) {
+    double max = 0;
+    for (int t = 0;t<100;t++) {
+        double curv = BezierCurvature(p0, p1, p2, p3, t/100, NULL);
+        if (max<curv) max = curv;
+    }
+    return max;
+}
+
+/**
+ * Get Minimum Radius
+ */
+extern double BezierMinRadius(coOrd p0, coOrd p1, coOrd p2, coOrd p3) {
+    double curv = BezierMaxCurve(p0, p1, p2, p3);
+    if (curv >= 1000.0 || curv <= 0.001 ) return 0.0;
+    return 1/curv;
+}
+
+
+/***********************************************************************/
+
 
 
 coOrd AddCoOrd( coOrd p0, coOrd p1, double a )

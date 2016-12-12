@@ -91,7 +91,7 @@ struct wDraw_t psPrint_d;
 #define OUTMAPX(D,X)	(X)
 #define OUTMAPY(D,Y)	(((D)->h-1) - (Y))
 
-
+
 /*******************************************************************************
  *
  * Basic Drawing Functions
@@ -191,8 +191,9 @@ static cairo_t* gtkDrawCreateCairoContext(
 	return cairo;
 }
 
-static cairo_t* gtkDrawDestroyCairoContext(cairo_t *cairo) {
+static void gtkDrawDestroyCairoContext(cairo_t *cairo) {
 	cairo_destroy(cairo);
+    
 }
 
 EXPORT void wDrawDelayUpdate(
@@ -211,6 +212,88 @@ EXPORT void wDrawDelayUpdate(
 	bd->delayUpdate = delay;
 }
 
+/**
+ * Draw a bezier curve using 4 control points
+ *
+ * \param bd IN ?
+ * \param x0, y0 IN  start of curve
+ * \param x1, y1 IN  control point
+ * \param x2, y2 IN  control point
+ * \param x3, y3 IN  end of curve
+ * \param width line width
+ * \param lineType
+ * \param color color
+ * \param opts ?
+ */
+
+
+EXPORT void wDrawCurve(
+        wDraw_p bd,
+        wPos_t x0, wPos_t y0,
+        wPos_t x1, wPos_t y1,
+        wPos_t x2, wPos_t y2,
+        wPos_t x3, wPos_t y3,
+        wDrawWidth width,
+        wDrawLineType_e lineType,
+        wDrawColor color,
+        wDrawOpts opts )
+{
+    GdkGC * gc;
+    GdkRectangle update_rect;
+
+    
+    if ( bd == &psPrint_d) {
+        psPrintCurve( x0, y0, x1, y1, x2, y2, x3, y3, width, lineType, color, opts );\
+        return;
+    }
+    int minx, miny, maxx, maxy, w, h;
+    
+    gc = selectGC( bd, width, lineType, color, opts);
+    x0 = INMAPX(bd,x0);
+    y0 = INMAPY(bd,y0);
+    x1 = INMAPX(bd,x1);
+    y1 = INMAPY(bd,y1);
+    x2 = INMAPX(bd,x2);
+    y2 = INMAPY(bd,y2);
+    x3 = INMAPX(bd,x3);
+    y3 = INMAPY(bd,y3);
+    
+    minx = x0<x1?x0:x1;
+    minx = minx<x2?minx:x2;
+    minx = minx<x3?minx:x3;
+    maxx = x0>x1?x0:x1;
+    maxx = maxx>x2?maxx:x2;
+    maxx = maxx>x3?maxx:x3;
+    
+    miny = y0<y1?y0:y1;
+    miny = minx<y2?minx:y2;
+    miny = miny<y3?minx:y3;
+    maxy = y0>y1?y0:y1;
+    maxy = maxx>y2?maxx:y2;
+    maxy = maxx>y3?maxx:y3;
+    
+    cairo_t* cairo = gtkDrawCreateCairoContext(bd, width, lineType, color, opts);
+    cairo_move_to(cairo, x0+0.5, y0+0.5);
+    cairo_curve_to(cairo, x1+0.5, y1+0.5, x2+0.5, y2+0.5, x3+0.5, x3+0.5);
+    cairo_stroke(cairo);
+    gtkDrawDestroyCairoContext(cairo);
+    
+    if (bd->delayUpdate || bd->widget == NULL ) return;
+    
+    // Curve lies within the "tent" of the four control points
+    w = maxx - minx;
+    h = maxy - miny;
+
+    width /= 2;
+    
+    update_rect.x = minx-1;
+    update_rect.width = w + width+width+2;
+    update_rect.y = miny-1;
+    update_rect.height = h+width+width+2;
+    
+    gtk_widget_draw( bd->widget, &update_rect );
+    
+}
 
 EXPORT void wDrawLine(
 		wDraw_p bd,

@@ -200,7 +200,10 @@ typedef struct {
 				ANGLE_T angle;
 				long option;
 			} l;
-			struct {
+            struct {
+                coOrd pos[4];
+            } b;
+            struct {
 				coOrd center;
 				ANGLE_T a0, a1;
 				DIST_T radius;
@@ -248,8 +251,10 @@ typedef struct {
 #define SEG_BENCH		('B')
 #define SEG_DIMLIN		('M')
 #define SEG_TBLEDGE		('Q')
+#define SEG_BZRTRK      ('W')
+#define SEG_BZRLIN      ('V')
 
-#define IsSegTrack( S ) ( (S)->type == SEG_STRTRK || (S)->type == SEG_CRVTRK || (S)->type == SEG_JNTTRK )
+#define IsSegTrack( S ) ( (S)->type == SEG_STRTRK || (S)->type == SEG_CRVTRK || (S)->type == SEG_JNTTRK || (S)->type == SEG_BZRTRK )
 
 dynArr_t tempSegs_da;
 #define tempSegs(N) DYNARR_N( trkSeg_t, tempSegs_da, N )

@@ -107,7 +107,7 @@ STATUS_T DrawGeomMouse(
 		drawContext_t *context )
 {
 	static int lastValid = FALSE;
-	static coOrd pos0, pos0x, pos1, lastPos;
+	static coOrd pos0, pos0x, pos1, ctl1, ctl2, lastPos;
 	trkSeg_p segPtr;
 	coOrd *pts;
 	int inx;
@@ -133,7 +133,7 @@ STATUS_T DrawGeomMouse(
 
 	case wActionLDown:
 		context->Started = TRUE;
-		if ((context->Op == OP_CURVE1 || context->Op == OP_CURVE2 || context->Op == OP_CURVE3 || context->Op == OP_CURVE4) && context->State == 1) {
+		if ((context->Op == OP_CURVE1 || context->Op == OP_CURVE2 || context->Op == OP_CURVE3 || context->Op == OP_CURVE4 || context->Op == OP_BEZLIN) && context->State == 1) {
 			;
 		} else {
 			if ( (MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_CTRL )
@@ -178,13 +178,14 @@ STATUS_T DrawGeomMouse(
 			tempSegs_da.cnt = 0;
 			context->message( _("Drag to place next end point") );
 			break;
-		case OP_CURVE1: case OP_CURVE2: case OP_CURVE3: case OP_CURVE4:
+        case OP_CURVE1: case OP_CURVE2: case OP_CURVE3: case OP_CURVE4: case OP_BEZLIN:
 			if (context->State == 0) {
 				switch ( context->Op ) {
 				case OP_CURVE1: drawGeomCurveMode = crvCmdFromEP1; break;
 				case OP_CURVE2: drawGeomCurveMode = crvCmdFromTangent; break;
 				case OP_CURVE3: drawGeomCurveMode = crvCmdFromCenter; break;
 				case OP_CURVE4: drawGeomCurveMode = crvCmdFromChord; break;
+                case OP_BEZLIN: drawGeomCurveMode = crvCmdBezFromChord; break;
 				}
 				CreateCurve( C_DOWN, pos, FALSE, context->Color, width, drawGeomCurveMode, context->message );
 			} else {
@@ -318,6 +319,35 @@ STATUS_T DrawGeomMouse(
 				}
 			}
 			break;
+        case OP_BEZLIN:
+                if (context->State == 0) {
+                    pos0x = pos;
+                    context->State = 1;
+                    CreateCurve( C_MOVE, pos, TRUE, context->Color, width, drawGeomCurveMode, context->message);
+                } else if (context->State == 1) {
+                    PlotBezier( drawGeomCurveMode, pos0, pos0x, pos1, &context->ArcData, FALSE );
+                    context->message( _("Bezier Line: Min_Radius=%s Length=%s"),
+                                     FormatDistance(context->ArcData.minRadius),
+                                     FormatDistance(context->ArcData.length));
+                    
+                } else if (context->State == 2) {
+                    tempSegs(0).type = SEG_BZRLIN;
+                    context->ArcData.pos[context->Selected_Point] = pos;
+                    tempSegs(0).u.b.pos[0] = context->ArcData.pos[0];
+                    tempSegs(0).u.b.pos[3] = context->ArcData.pos[3];
+                    tempSegs(0).u.b.pos[1] = context->ArcData.pos[1];
+                    tempSegs(0).u.b.pos[2] = context->ArcData.pos[2];
+                    DrawControlArm(&tempSegs(1),context->ArcData.pos[0],context->ArcData.pos[1],drawColorRed);
+                    DrawControlArm(&tempSegs(3),context->ArcData.pos[3],context->ArcData.pos[2],drawColorRed);
+                    context->ArcData.minRadius = BezierMinRadius(context->ArcData.pos[0],context->ArcData.pos[1],                     context->ArcData.pos[2],context->ArcData.pos[3]);
+                    context->ArcData.length = BezierLength(context->ArcData.pos[0],context->ArcData.pos[1],                     context->ArcData.pos[2],context->ArcData.pos[2], 0.01);
+                    context->message( _("Bezier Line: Min_Radius=%s Length=%s"),
+                                     FormatDistance(context->ArcData.minRadius),
+                                     FormatDistance(context->ArcData.length));
+                    tempSegs_da.cnt = 7;
+
+                }
+            break;
 		case OP_CIRCLE1:
 		case OP_FILLCIRCLE1:
 			break;
