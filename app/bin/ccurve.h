@@ -27,12 +27,16 @@ typedef struct {
 		coOrd pos1;
 		DIST_T curveRadius;
 		ANGLE_T a0, a1;
+        coOrd pos[4];
+        DIST_T minRadius;
+        DIST_T length;
 		} curveData_t;
 
 #define crvCmdFromEP1			(0)
 #define crvCmdFromTangent		(1)
 #define crvCmdFromCenter		(2)
 #define crvCmdFromChord			(3)
+#define crvCmdBezFromChord      (4)
 
 #define circleCmdFixedRadius	(0)
 #define circleCmdFromTangent	(1)
@@ -43,6 +47,8 @@ STATUS_T CreateCurve( wAction_t, coOrd, BOOL_T, wDrawColor, DIST_T, long, curveM
 int IsCurveCircle( track_p );
 void PlotCurve( long, coOrd, coOrd, coOrd, curveData_t *, BOOL_T );
 track_p NewCurvedTrack( coOrd, DIST_T, ANGLE_T, ANGLE_T, long );
+track_p NewBezierTrack( coOrd, coOrd, coOrd, coOrd);
 DIST_T CurveDescriptionDistance( coOrd, track_p );
 STATUS_T CurveDescriptionMove( track_p, wAction_t, coOrd );
 BOOL_T GetCurveMiddle( track_p, coOrd * );
+void DrawControlArm(trkSeg_p, coOrd, coOrd, wDrawColor);

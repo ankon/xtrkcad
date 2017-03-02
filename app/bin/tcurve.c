@@ -32,15 +32,16 @@
 static TRKTYP_T T_CURVE = -1;
 
 struct extraData {
-		coOrd pos;
+		coOrd pos[4];
+
 		DIST_T radius;
 		BOOL_T circle;
 		long helixTurns;
 		coOrd descriptionOff;
 		};
-#define xpos extraData->pos
-#define xradius extraData->radius
-#define xcircle extraData->circle
+#define xpos xx->pos[0]
+#define xradius xx->radius
+#define xcircle xx->circle
 
 static int log_curve = 0;
 
@@ -71,15 +72,15 @@ static void SetCurveAngles( track_p p, ANGLE_T a0, ANGLE_T a1, struct extraData 
 {
 	coOrd pos0, pos1;
 	xx->circle = (a0 == 0.0 && a1 == 0.0);
-	PointOnCircle( &pos0, xx->pos, xx->radius, a0 );
-	PointOnCircle( &pos1, xx->pos, xx->radius, a0+a1 );
+	PointOnCircle( &pos0, xpos, xradius, a0 );
+	PointOnCircle( &pos1, xpos, xradius, a0+a1 );
 	SetTrkEndPoint( p, 0, pos0, NormalizeAngle(a0-90.0) );
 	SetTrkEndPoint( p, 1, pos1, NormalizeAngle(a0+a1+90.0) );
 }
 
 static void ComputeCurveBoundingBox( track_p trk, struct extraData * xx )
 {
-	coOrd p = xx->pos;
+	coOrd p = xpos;
 	DIST_T r = xx->radius;
 	ANGLE_T a0, a1, aa;
 	POS_T x0, x1, y0, y1;
@@ -116,10 +117,10 @@ static void AdjustCurveEndPt( track_p t, EPINX_T inx, ANGLE_T a )
 LOG( log_curve, 1, ( "adjustCurveEndPt T%d[%d] a=%0.3f\n", GetTrkIndex(t), inx, a ) )
 	aa = a = NormalizeAngle(a);
 	a += inx==0?90.0:-90.0;
-	(void)PointOnCircle( &pos, xx->pos, xx->radius, a );
+	(void)PointOnCircle( &pos, xpos, xx->radius, a );
 	SetTrkEndPoint( t, inx, pos, aa );
 	if (xx->circle) {
-		(void)PointOnCircle( &pos, xx->pos, xx->radius, aa );
+		(void)PointOnCircle( &pos, xpos, xx->radius, aa );
 		SetTrkEndPoint( t, 1-inx, pos, a );
 		xx->circle = 0;
 	}
@@ -133,7 +134,7 @@ LOG( log_curve, 1, ( "    E0:[%0.3f %0.3f] A%0.3f, E1:[%0.3f %0.3f] A%0.3f\n",
 static void GetTrkCurveCenter( track_p t, coOrd *p, DIST_T *r )
 {
 	struct extraData *xx = GetTrkExtraData(t);
-	*p = xx->pos;
+	*p = xpos;
 	*r = xx->radius;
 }
 
@@ -155,10 +156,10 @@ BOOL_T GetCurveMiddle( track_p trk, coOrd * pos )
 		return FALSE;
 	xx = GetTrkExtraData(trk);
 	if (xx->circle || xx->helixTurns>0) {
-		PointOnCircle( pos, xx->pos, xx->radius, 0 );
+		PointOnCircle( pos, xpos, xx->radius, 0 );
 	} else {
 		GetCurveAngles( &a0, &a1, trk );
-		PointOnCircle( pos, xx->pos, xx->radius, a0+a1/2 );
+		PointOnCircle( pos, xpos, xx->radius, a0+a1/2 );
 	}
 	return TRUE;
 }
@@ -175,14 +176,14 @@ DIST_T CurveDescriptionDistance(
 	if ( GetTrkType( trk ) != T_CURVE || ( GetTrkBits( trk ) & TB_HIDEDESC ) != 0 )
 		return 100000;
 	if ( xx->helixTurns > 0 ) {
-		p1.x = xx->pos.x + xx->descriptionOff.x;
-		p1.y = xx->pos.y + xx->descriptionOff.y;
+		p1.x = xpos.x + xx->descriptionOff.x;
+		p1.y = xpos.y + xx->descriptionOff.y;
 	} else {
 		GetCurveAngles( &a0, &a1, trk );
 		ratio = ( xx->descriptionOff.x + 1.0 ) / 2.0;
 		a = a0 + ratio * a1;
 		ratio = ( xx->descriptionOff.y + 1.0 ) / 2.0;
-		Translate( &p1, xx->pos, a, xx->radius * ratio );
+		Translate( &p1, xpos, a, xx->radius * ratio );
 	}
 	return FindDistance( p1, pos );
 }
@@ -207,7 +208,7 @@ static void DrawCurveDescription(
 		return;
 
 	if ( xx->helixTurns > 0 ) {
-		pos = xx->pos;
+		pos = xpos;
 		pos.x += xx->descriptionOff.x;
 		pos.y += xx->descriptionOff.y;
 		dist = GetLengthCurve( trk );
@@ -237,20 +238,20 @@ static void DrawCurveDescription(
 		DrawBoxedString( BOX_BOX, d, pos, message, fp, (wFontSize_t)descriptionFontSize, color, 0.0 );
 	} else {
 		dist = trackGauge/2.0;
-		DrawArc( d, xx->pos, dist, 0.0, 360.0, FALSE, 0, color );
-		Translate( &p0, xx->pos, 90.0, dist );
-		Translate( &p1, xx->pos, 270.0, dist );
+		DrawArc( d, xpos, dist, 0.0, 360.0, FALSE, 0, color );
+		Translate( &p0, xpos, 90.0, dist );
+		Translate( &p1, xpos, 270.0, dist );
 		DrawLine( d, p0, p1, 0, color );
-		Translate( &p0, xx->pos, 0.0, dist );
-		Translate( &p1, xx->pos, 180.0, dist );
+		Translate( &p0, xpos, 0.0, dist );
+		Translate( &p1, xpos, 180.0, dist );
 		DrawLine( d, p0, p1, 0, color );
 		GetCurveAngles( &a0, &a1, trk );
 		ratio = ( xx->descriptionOff.x + 1.0 ) / 2.0;
 		a = a0 + ratio * a1;
-		PointOnCircle( &p0, xx->pos, xx->radius, a );
+		PointOnCircle( &p0, xpos, xx->radius, a );
 		sprintf( message, "R %s", FormatDistance( xx->radius ) );
 		ratio = ( xx->descriptionOff.y + 1.0 ) / 2.0;
-		DrawDimLine( d, xx->pos, p0, message, (wFontSize_t)descriptionFontSize, ratio, 0, color, 0x11 );
+		DrawDimLine( d, xpos, p0, message, (wFontSize_t)descriptionFontSize, ratio, 0, color, 0x11 );
 	}
 }
 
@@ -274,16 +275,16 @@ STATUS_T CurveDescriptionMove(
 		DrawCurveDescription( trk, &tempD, color );
 		if ( xx->helixTurns > 0 ) {
 			if (action != C_DOWN)
-				DrawLine( &tempD, xx->pos, p0, 0, wDrawColorBlack );
-			xx->descriptionOff.x = (pos.x-xx->pos.x);
-			xx->descriptionOff.y = (pos.y-xx->pos.y);
+				DrawLine( &tempD, xpos, p0, 0, wDrawColorBlack );
+			xx->descriptionOff.x = (pos.x-xpos.x);
+			xx->descriptionOff.y = (pos.y-xpos.y);
 			p0 = pos;
 			if (action != C_UP)
-				DrawLine( &tempD, xx->pos, p0, 0, wDrawColorBlack );
+				DrawLine( &tempD, xpos, p0, 0, wDrawColorBlack );
 		} else {
 			GetCurveAngles( &a0, &a1, trk );
 			if ( a1 < 1 ) a1 = 1.0;
-			a = FindAngle( xx->pos, pos );
+			a = FindAngle( xpos, pos );
 			if ( ! IsCurveCircle( trk ) ) {
 				a = NormalizeAngle( a - a0 );
 				if ( a > a1 ) {
@@ -295,7 +296,7 @@ STATUS_T CurveDescriptionMove(
 				}
 			}
 			xx->descriptionOff.x = ( a / a1 ) * 2.0 - 1.0;
-			d = FindDistance( xx->pos, pos ) / xx->radius;
+			d = FindDistance( xpos, pos ) / xx->radius;
 			if ( d > 0.9 )
 				d = 0.9;
 			if ( d < 0.1 )
@@ -308,7 +309,7 @@ STATUS_T CurveDescriptionMove(
 
 	case C_REDRAW:
 		if ( xx->helixTurns > 0 ) {
-			DrawLine( &tempD, xx->pos, p0, 0, wDrawColorBlack );
+			DrawLine( &tempD, xpos, p0, 0, wDrawColorBlack );
 		}
 		break;
 		
@@ -372,7 +373,7 @@ static void UpdateCurve( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	GetCurveAngles( &a0, &a1, trk );
 	switch ( inx ) {
 	case CE:
-		xx0.pos = crvData.center;
+		xx0.pos[0] = crvData.center;
 		updateEndPts = TRUE;
 		break;
 	case RA:
@@ -382,11 +383,11 @@ static void UpdateCurve( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 			crvDesc[RA].mode |= DESC_CHANGE;
 		} else {
 			if ( crvData.pivot == DESC_PIVOT_FIRST || GetTrkEndTrk(trk,0) ) {
-				Translate( &xx0.pos, xx0.pos, a0, xx0.radius-crvData.radius );
+				Translate( &xx0.pos[0], xx0.pos[0], a0, xx0.radius-crvData.radius );
 			} else if ( crvData.pivot == DESC_PIVOT_SECOND || GetTrkEndTrk(trk,1) ) {
-				Translate( &xx0.pos, xx0.pos, a0+a1, xx0.radius-crvData.radius );
+				Translate( &xx0.pos[0], xx0.pos[0], a0+a1, xx0.radius-crvData.radius );
 			} else {
-				Translate( &xx0.pos, xx0.pos, a0+a1/2.0, xx0.radius-crvData.radius );
+				Translate( &xx0.pos[0], xx0.pos[0], a0+a1/2.0, xx0.radius-crvData.radius );
 			}
 			crvDesc[CE].mode |= DESC_CHANGE;
 			xx0.radius = crvData.radius;
@@ -484,12 +485,12 @@ static void UpdateCurve( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	*xx = xx0;
 	if (updateEndPts) {
 		if ( GetTrkEndTrk(trk,0) == NULL ) {
-			(void)PointOnCircle( &crvData.endPt[0], xx0.pos, xx0.radius, a0 );
+			(void)PointOnCircle( &crvData.endPt[0], xx0.pos[0], xx0.radius, a0 );
 			SetTrkEndPoint( trk, 0, crvData.endPt[0], NormalizeAngle( a0-90.0 ) );
 			crvDesc[E0].mode |= DESC_CHANGE;
 		}
 		if ( GetTrkEndTrk(trk,1) == NULL ) {
-			(void)PointOnCircle( &crvData.endPt[1], xx0.pos, xx0.radius, a0+a1 );
+			(void)PointOnCircle( &crvData.endPt[1], xx0.pos[0], xx0.radius, a0+a1 );
 			SetTrkEndPoint( trk, 1, crvData.endPt[1], NormalizeAngle( a0+a1+90.0 ) );
 			crvDesc[E1].mode |= DESC_CHANGE;
 		}
@@ -530,7 +531,7 @@ static void DescribeCurve( track_p trk, char * str, CSIZE_T len )
 				FormatDistance(xx->radius),
 				xx->helixTurns,
 				FormatDistance(d),
-				FormatDistance(xx->pos.x), FormatDistance(xx->pos.y),
+				FormatDistance(xpos.x), FormatDistance(xpos.y),
 				GetTrkEndPosXY(trk,0), GetTrkEndAngle(trk,0),
 				GetTrkEndPosXY(trk,1), GetTrkEndAngle(trk,1) );
 	} else {
@@ -539,7 +540,7 @@ static void DescribeCurve( track_p trk, char * str, CSIZE_T len )
 				GetTrkLayer(trk)+1,
 				FormatDistance(xx->radius),
 				FormatDistance(d),
-				FormatDistance(xx->pos.x), FormatDistance(xx->pos.y),
+				FormatDistance(xpos.x), FormatDistance(xpos.y),
 				GetTrkEndPosXY(trk,0), GetTrkEndAngle(trk,0),
 				GetTrkEndPosXY(trk,1), GetTrkEndAngle(trk,1) );
 	}
@@ -550,7 +551,7 @@ static void DescribeCurve( track_p trk, char * str, CSIZE_T len )
 	crvData.endPt[0] = GetTrkEndPos(trk,0);
 	crvData.endPt[1] = GetTrkEndPos(trk,1);
 	crvData.length = GetLengthCurve(trk);
-	crvData.center = xx->pos;
+	crvData.center = xpos;
 	crvData.radius = xx->radius;
 	crvData.turns = xx->helixTurns;
 	crvData.angle0 = NormalizeAngle( a0 );
@@ -631,7 +632,7 @@ static DIST_T DistanceCurve( track_p t, coOrd * p )
 		a0 = 0.0;
 		a1 = 360.0;
 	}
-	d = CircleDistance( p, xx->pos, xx->radius, a0, a1 );
+	d = CircleDistance( p, xpos, xx->radius, a0, a1 );
 	return d;
 }
 
@@ -660,7 +661,7 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 		 ( GetTrkBits( t ) & TB_HIDEDESC ) == 0 ) {
 		DrawCurveDescription( t, d, color );
 	}
-	DrawCurvedTrack( d, xx->pos, xx->radius, a0, a1,
+	DrawCurvedTrack( d, xpos, xx->radius, a0, a1,
 				GetTrkEndPos(t,0), GetTrkEndPos(t,1),
 				t, GetTrkGauge(t), color, widthOptions );
 	if ( (d->funcs->options & wDrawOptTemp) == 0 &&
@@ -685,7 +686,7 @@ static BOOL_T WriteCurve( track_p t, FILE * f )
 		options |= 0x80;
 	rc &= fprintf(f, "CURVE %d %d %ld 0 0 %s %d %0.6f %0.6f 0 %0.6f %ld %0.6f %0.6f\n", 
 		GetTrkIndex(t), GetTrkLayer(t), (long)options,
-		GetTrkScaleName(t), GetTrkVisible(t), xx->pos.x, xx->pos.y, xx->radius,
+		GetTrkScaleName(t), GetTrkVisible(t), xpos.x, xpos.y, xx->radius,
 		xx->helixTurns, xx->descriptionOff.x, xx->descriptionOff.y )>0;
 	rc &= WriteEndPt( f, t, 0 );
 	rc &= WriteEndPt( f, t, 1 );
@@ -717,7 +718,7 @@ static void ReadCurve( char * line )
 	SetTrkScale(t, LookupScale(scale));
 	SetTrkLayer(t, layer );
 	SetTrkWidth(t, (int)(options&3));
-	xx->pos = p;
+	xpos = p;
 	xx->radius = r;
 	xx->helixTurns = 0;
 	xx->descriptionOff.x = xx->descriptionOff.y = 0.0;
@@ -737,23 +738,23 @@ static void ReadCurve( char * line )
 static void MoveCurve( track_p trk, coOrd orig )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	xx->pos.x += orig.x;
-	xx->pos.y += orig.y;
+	xpos.x += orig.x;
+	xpos.y += orig.y;
 	ComputeCurveBoundingBox( trk, xx );
 }
 
 static void RotateCurve( track_p trk, coOrd orig, ANGLE_T angle )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	Rotate( &xx->pos, orig, angle );
+	Rotate( &xpos, orig, angle );
 	ComputeCurveBoundingBox( trk, xx );
 }
 
 static void RescaleCurve( track_p trk, FLOAT_T ratio )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	xx->pos.x *= ratio;
-	xx->pos.y *= ratio;
+	xpos.x *= ratio;
+	xpos.y *= ratio;
 	xx->radius *= ratio;
 }
 
@@ -777,7 +778,7 @@ static BOOL_T SplitCurve( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover,
 		ErrorMessage( MSG_CANT_SPLIT_TRK, _("Helix") );
 		return FALSE;
 	}
-	a = FindAngle( xx->pos, pos );
+	a = FindAngle( xpos, pos );
 	GetCurveAngles( &a0, &a1, trk );
 	if (xx->circle) {
 		a0 = a;
@@ -792,7 +793,7 @@ static BOOL_T SplitCurve( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover,
 		a1 = NormalizeAngle(a0+a1-a);
 		a0 = a;
 	}
-	trk1 = NewCurvedTrack( xx->pos, xx->radius, a0, a1, 0 );
+	trk1 = NewCurvedTrack( xpos, xx->radius, a0, a1, 0 );
 	AdjustCurveEndPt( trk, ep, a+(ep==0?-90.0:90.0) );
 	*leftover = trk1;
 	*ep0 = 1-ep;
@@ -814,7 +815,7 @@ static BOOL_T TraverseCurve( traverseTrack_p trvTrk, DIST_T * distR )
 		return FALSE;
 	circum = 2*M_PI*xx->radius;
 	GetCurveAngles( &a0, &a1, trk );
-	a2 = FindAngle( xx->pos, trvTrk->pos );
+	a2 = FindAngle( xpos, trvTrk->pos );
 	a = NormalizeAngle( (a2-90.0) - trvTrk->angle );
 	if ( xx->helixTurns <= 0 ) {
 		if ( NormalizeAngle(a2-a0) > a1 ) {
@@ -866,28 +867,28 @@ static BOOL_T TraverseCurve( traverseTrack_p trvTrk, DIST_T * distR )
 	if ( a>270 || a<90 ) {
 		/* CCW */
 		if ( arcDist < *distR ) {
-			PointOnCircle( &trvTrk->pos, xx->pos, xx->radius, a0 );
+			PointOnCircle( &trvTrk->pos, xpos, xx->radius, a0 );
 			*distR -= arcDist;
 			trvTrk->angle = NormalizeAngle( a0-90.0 );
 			trk = GetTrkEndTrk( trk, 0 );
 		} else {
 			trvTrk->dist += *distR;
 			a2 -= *distR/circum*360.0;
-			PointOnCircle( &trvTrk->pos, xx->pos, xx->radius, a2 );
+			PointOnCircle( &trvTrk->pos, xpos, xx->radius, a2 );
 			*distR = 0;
 			trvTrk->angle = NormalizeAngle( a2-90.0 );
 		}
 	} else {
 		/* CW */
 		if ( arcDist < *distR ) {
-			PointOnCircle( &trvTrk->pos, xx->pos, xx->radius, a0+a1 );
+			PointOnCircle( &trvTrk->pos, xpos, xx->radius, a0+a1 );
 			*distR -= arcDist;
 			trvTrk->angle = NormalizeAngle( a0+a1+90.0 );
 			trk = GetTrkEndTrk( trk, 1 );
 		} else {
 			trvTrk->dist += *distR;
 			a2 += *distR/circum*360.0;
-			PointOnCircle( &trvTrk->pos, xx->pos, xx->radius, a2 );
+			PointOnCircle( &trvTrk->pos, xpos, xx->radius, a2 );
 			*distR = 0;
 			trvTrk->angle = NormalizeAngle( a2+90.0 );
 		}
@@ -963,7 +964,7 @@ static BOOL_T MergeCurve(
 	if ( xx0->helixTurns > 0 ||
 		 xx1->helixTurns > 0 )
 		return FALSE;
-	d = FindDistance( xx0->pos, xx1->pos );
+	d = FindDistance( xx0->pos[0], xx1->pos[0] );
 	d += fabs( xx0->radius - xx1->radius );
 	if ( d > connectDistance )
 		return FALSE;
@@ -980,11 +981,11 @@ static BOOL_T MergeCurve(
 		DisconnectTracks( trk1, 1-ep1, trk2, ep2 );
 	}
 	if (ep0 == 0) {
-		(void)PointOnCircle( &pos, xx0->pos, xx0->radius, a10 );
+		(void)PointOnCircle( &pos, xx0->pos[0], xx0->radius, a10 );
 		a10 = NormalizeAngle( a10-90.0 );
 		SetTrkEndPoint( trk0, ep0, pos, a10 );
 	} else {
-		(void)PointOnCircle( &pos, xx0->pos, xx0->radius, a10+a11 );
+		(void)PointOnCircle( &pos, xx0->pos[0], xx0->radius, a10+a11 );
 		a10 = NormalizeAngle( a10+a11+90.0 );
 		SetTrkEndPoint( trk0, ep0, pos, a10 );
 	}
@@ -1241,7 +1242,7 @@ static void FlipCurve(
 		ANGLE_T angle )
 {
 	struct extraData * xx = GetTrkExtraData(trk);
-	FlipPoint( &xx->pos, orig, angle );
+	FlipPoint( &xx->pos[0], orig, angle );
 	ComputeCurveBoundingBox( trk, xx );
 }
 
@@ -1259,14 +1260,14 @@ static BOOL_T MakeParallelCurve(
 	DIST_T rad;
 	ANGLE_T a0, a1;
 
-	rad = FindDistance( pos, xx->pos );
+	rad = FindDistance( pos, xpos );
 	if ( rad > xx->radius )
 		rad = xx->radius + sep;
 	else
 		rad = xx->radius - sep;
 	GetCurveAngles( &a0, &a1, trk );
 	if ( newTrkR ) {
-		*newTrkR = NewCurvedTrack( xx->pos, rad, a0, a1, 0 );
+		*newTrkR = NewCurvedTrack( xpos, rad, a0, a1, 0 );
 		xx1 = GetTrkExtraData(*newTrkR);
 		xx1->helixTurns = xx->helixTurns;
 		xx1->circle = xx->circle;
@@ -1280,13 +1281,13 @@ static BOOL_T MakeParallelCurve(
 		tempSegs(0).width = 0;
 		tempSegs_da.cnt = 1;
 		tempSegs(0).type = SEG_CRVTRK;
-		tempSegs(0).u.c.center = xx->pos;
+		tempSegs(0).u.c.center = xpos;
 		tempSegs(0).u.c.radius = rad;
 		tempSegs(0).u.c.a0 = a0;
 		tempSegs(0).u.c.a1 = a1;
 	}
-	if ( p0R ) PointOnCircle( p0R, xx->pos, rad, a0 );
-	if ( p1R ) PointOnCircle( p1R, xx->pos, rad, a0+a1 );
+	if ( p0R ) PointOnCircle( p0R, xpos, rad, a0 );
+	if ( p1R ) PointOnCircle( p1R, xpos, rad, a0+a1 );
 	return TRUE;
 }
 
@@ -1566,7 +1567,7 @@ EXPORT track_p NewCurvedTrack( coOrd pos, DIST_T r, ANGLE_T a0, ANGLE_T a1, long
 	track_p p;
 	p = NewTrack( 0, T_CURVE, 2, sizeof *xx );
 	xx = GetTrkExtraData(p);
-	xx->pos = pos;
+	xpos = pos;
 	xx->radius = r;
 	xx->helixTurns = helixTurns;
 	if ( helixTurns <= 0 )
@@ -1576,6 +1577,19 @@ LOG( log_curve, 1, ( "NewCurvedTrack( %0.3f, %0.3f, %0.3f )  = %d\n", pos.x, pos
 	ComputeCurveBoundingBox( p, xx );
 	CheckTrackLength( p );
 	return p;
+}
+
+EXPORT track_p NewBezierTrack( coOrd p0, coOrd p1, coOrd p2, coOrd p3) {
+    struct extraData *xx;
+    track_p p;
+    p = NewTrack(0, T_BEZIER, 2, sizeof *xx );
+    xx = GetTrkExtraData(p);
+    xx->pos[0] = p0;
+    xx->pos[1] = p1;
+    xx->pos[2] = p2;
+    xx->pos[3] = p3;
+    xx->radius = BezierMinRadius(p0,p1,p2,p3);
+    
 }
 
 

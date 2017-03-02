@@ -35,7 +35,8 @@
 #define OP_FILLCIRCLE3	(15)
 #define OP_FILLBOX		(16)
 #define OP_FILLPOLY		(17)
-#define OP_LAST			(OP_FILLPOLY)
+#define OP_BEZLIN       (18)
+#define OP_LAST			(OP_BEZLIN)
 
 typedef struct {
 				void (*message)( char *, ... );
@@ -50,6 +51,7 @@ typedef struct {
 				ANGLE_T ArcAngle;
 				int Started;
 				BOOL_T Changed;
+                int Selected_Point;
 		} drawContext_t;
 
 extern drawContext_t * drawContext;

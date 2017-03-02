@@ -298,6 +298,27 @@ static void psSetColor(
 							 gcolor->blue / 65535.0);
 }
 
+void psPrintCurve(
+                 wPos_t x0, wPos_t y0,
+                 wPos_t x1, wPos_t y1,
+                 wPos_t x2, wPos_t y2,
+                 wPos_t x3, wPos_t y3,
+                 wDrawWidth width,
+                 wDrawLineType_e lineType,
+                 wDrawColor color,
+                 wDrawOpts opts )
+{
+    if (color == wDrawColorWhite)
+        return;
+    if (opts&wDrawOptTemp)
+        return;
+    psSetColor(color);
+    setLineType( width, lineType, opts );
+    psPrintf(psFile,
+             "%0.3f %0.3f moveto %0.3f %0.3f %0.3f %0.3f %0.3f %0.3f curveto closepath stroke\n",
+             D2I(x0), D2I(y0), D2I(x1), D2I(y1), D2I(x2), D2I(y2), D2I(x3), D2I(y3) );
+}
+
 /**
  * Print a straight line
  *
@@ -308,6 +329,7 @@ static void psSetColor(
  * \param color color
  * \param opts ?
  */
+
 
 void psPrintLine(
 		wPos_t x0, wPos_t y0,

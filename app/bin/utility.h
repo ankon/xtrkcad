@@ -59,5 +59,15 @@ int PickArcEndPt( coOrd, coOrd, coOrd );
 int PickLineEndPt( coOrd, double, coOrd );
 coOrd AddCoOrd( coOrd, coOrd, double );
 int ClipLine( coOrd *, coOrd *, coOrd, double, coOrd );
+double BezierCurvature(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t, coOrd * center);
+double BezierMaxCurve(coOrd p0, coOrd p1, coOrd p2, coOrd p3);
+double BezierMinRadius(coOrd p0, coOrd p1, coOrd p2, coOrd p3);
+double BezierCurvature(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t, coOrd * center);
+double BezierLength(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double error);
+double BezierDistance( coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3, int segments, double *t);
+coOrd BezierPointByParameter(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t);
+extern coOrd BezierFindNearestPoint(coOrd *p, coOrd p0, coOrd p1, coOrd p2, coOrd p3, int segments);
+void BezierSplit(coOrd input[4], coOrd left[4], coOrd right[4], double t);
+coOrd BezierFirstDerivative(coOrd p0, coOrd p1, coOrd p2, coOrd p3, double t);
 
 #endif

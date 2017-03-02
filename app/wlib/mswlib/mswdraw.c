@@ -256,6 +256,49 @@ static int clip0( POINT * p0, POINT * p1, wDraw_p d )
 	return 1;
 }
 
+void wDrawCurve(
+        wDraw_p bd,
+        wPos_t p0x, wPos_t p0y,
+        wPos_t p1x, wPos_t p1y,
+        wPos_t p2x, wPos_t p2y,
+        wPos_t p3x, wPos_t p3y,
+        wDrawWidth dw,
+        wDrawLineType_e lt,
+        wDrawColor dc,
+        wDrawOpts dopt )
+{
+    POINT p0,p1,p2,p3;
+    RECT rect;
+    setDrawMode( d->hDc, d, dw, lt, dc, dopt );
+    p0.x = XINCH2PIX(d,p0x);
+    p0.y = YINCH2PIX(d,p0y);
+    p1.x = XINCH2PIX(d,p1x);
+    p1.y = YINCH2PIX(d,p1y);
+    p2.x = XINCH2PIX(d,p2x);
+    p2.y = YINCH2PIX(d,p2y);
+    p3.x = XINCH2PIX(d,p3x);
+    p3.y = YINCH2PIX(d,p3y);
+    
+    //Needs checking
+    if ( noNegDrawArgs>0 && !clip0( &p0, &p3, d ) )
+        return;
+    MoveTo( d->hDc, p0.x, p0.y );
+    CurveTo( d->hDc, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y );
+    if (d->hWnd) {
+        if (dw==0)
+            dw = 1;
+        dw++;
+        rect.top = max(p0.y,p1.y,p2.y,p3.y)-dw;
+        rect.bottom = min(p0.y,p1.y,p2.y,p3.y)+dw;
+        rect.left = min(p0.x,p1.x,p2.x,p3.x)-dw;
+        rect.right = max(p0.x,p1.x,p2.x,p3.x)+dw;
+        
+        myInvalidateRect( d, &rect );
+    }
+
+    
+}
+
 
 void wDrawLine(
 		wDraw_p d,

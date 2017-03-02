@@ -66,7 +66,7 @@ EXPORT coOrd GetSegEndPt(
 		ANGLE_T * angleR )
 {
 	coOrd pos;
-	ANGLE_T angle, a, a0, a1;
+	ANGLE_T angle, a, a0, a1 = 0.0;
 	DIST_T r;
 	POS_T x0, y0, x1, y1;
 
@@ -114,7 +114,12 @@ EXPORT coOrd GetSegEndPt(
 	case SEG_JNTTRK:
 		pos = GetJointSegEndPos( segPtr->u.j.pos, segPtr->u.j.angle, segPtr->u.j.l0, segPtr->u.j.l1, segPtr->u.j.R, segPtr->u.j.L, segPtr->u.j.negate, segPtr->u.j.flip, segPtr->u.j.Scurve, ep, &angle );
 		break;
-	default:
+    case SEG_BZRTRK:
+    case SEG_BZRLIN:
+        if (ep ==1) pos = segPtr -> u.b.pos[3];
+        else pos = segPtr->u.b.pos[0];
+        break;
+    default:
 		AbortProg("GetSegCntPt(%c)", segPtr->type );
 	}
 	if ( angleR )
@@ -195,6 +200,8 @@ static void Get1SegBounds( trkSeg_p segPtr, coOrd xlat, ANGLE_T angle, coOrd *lo
 	case SEG_TBLEDGE:
 	case SEG_CRVLIN:
 	case SEG_JNTTRK:
+    case SEG_BZRLIN:
+    case SEG_BZRTRK:
 			REORIGIN( p0, GetSegEndPt( segPtr, 0, FALSE, NULL ), angle, xlat )
 			REORIGIN( p1, GetSegEndPt( segPtr, 1, FALSE, NULL ), angle, xlat )
 			if (p0.x < p1.x) {
@@ -379,6 +386,17 @@ EXPORT void MoveSegs(
 			s->u.j.pos.x += orig.x;
 			s->u.j.pos.y += orig.y;
 			break;
+        case SEG_BZRTRK:
+        case SEG_BZRLIN:
+            s->u.b.pos[0].x +=orig.x;
+            s->u.b.pos[0].y +=orig.y;
+            s->u.b.pos[1].x +=orig.x;
+            s->u.b.pos[1].y +=orig.y;
+            s->u.b.pos[3].x +=orig.x;
+            s->u.b.pos[3].y +=orig.y;
+            s->u.b.pos[4].x +=orig.x;
+            s->u.b.pos[4].y +=orig.y;
+            break;
 		}
 	}
 }
@@ -423,7 +441,14 @@ EXPORT void RotateSegs(
 			Rotate( &s->u.j.pos, orig, angle );
 			s->u.j.angle = NormalizeAngle( s->u.j.angle+angle );
 			break;
-		}
+        case SEG_BZRTRK:
+        case SEG_BZRTRK:
+            Rotate( &s->u.b.pos[0], orig, angle );
+            Rotate( &s->u.b.pos[1], orig, angle );
+            Rotate( &s->u.b.pos[2], orig, angle );
+            Rotate( &s->u.b.pos[3], orig, angle );
+            break;
+        }
 	}
 }
 
@@ -474,6 +499,13 @@ EXPORT void FlipSegs(
 			s->u.j.angle = NormalizeAngle( 180.0 - s->u.j.angle );
 			s->u.j.negate = ! s->u.j.negate;
 			break;
+        case SEG_BZRTRK:
+        case SEG_BZRLIN:
+            s->u.b.pos[0] = -s->u.b.pos[0];
+            s->u.b.pos[1] = -s->u.b.pos[1];
+            s->u.b.pos[2] = -s->u.b.pos[2];
+            s->u.b.pos[3] = -s->u.b.pos[3];
+            break;
 		}
 	}
 }
@@ -529,6 +561,18 @@ EXPORT void RescaleSegs(
 			s->u.j.l0 *= scale_w;
 			s->u.j.l1 *= scale_w;
 			break;
+        case SEG_BZRTRK:
+        case SEG_BZRLIN:
+            s->u.l.pos[0].y *= scale_y;
+            s->u.l.pos[0].x *= scale_x;
+            s->u.l.pos[1].x *= scale_x;
+            s->u.l.pos[1].y *= scale_y;
+            s->u.l.pos[2].y *= scale_y;
+            s->u.l.pos[2].x *= scale_x;
+            s->u.l.pos[3].x *= scale_x;
+            s->u.l.pos[3].y *= scale_y;
+            break;
+
 		}
 	}
 }
@@ -645,6 +689,10 @@ EXPORT DIST_T DistanceSegs(
 				}
 			}
 			break;
+        case SEG_BZRTRK:
+        case SEG_BZRLIN:
+                dd = BezierDistance(&p1, segPtr->u.b.pos[0], segPtr->u.b.pos[1], segPtr->u.b.pos[2], segPtr->u.b.pos[3]);
+            break;
 		case SEG_TEXT:
 			/*GetTextBounds( segPtr->u.t.pos, angle+segPtr->u.t.angle, segPtr->u.t.string, segPtr->u.t.fontSize, &lo, &hi );*/
 			GetTextBounds( zero, 0, segPtr->u.t.string, segPtr->u.t.fontSize, &lo, &hi );
@@ -733,6 +781,11 @@ EXPORT ANGLE_T GetAngleSegs(
 		JointSegProc( SEGPROC_GETANGLE, segPtr, &segProcData );
 		angle = segProcData.getAngle.angle;
 		break;
+    case SEG_BZRTRK:
+    case SEG_BZRLIN:
+        BezierSegProc( SEGPROC_GETANGLE, segPtr, &segProcData );
+        angle = segProcData.getAngle.angle;
+        break;
 	case SEG_POLY:
 	case SEG_FILPOLY:
 		p0 = pos;
@@ -1094,6 +1147,38 @@ EXPORT BOOL_T ReadSegs( void )
 			s->u.j.Scurve = ( option&4 )!=0;
 			s->color = wDrawFindColor( rgb );
 			break;
+        case SEG_BZRTRK:
+            DYNARR_APPEND( trkSeg_t, tempSegs_da, 10);
+            s = &tempSegs(&tempSegs_da.cnt-1);
+            s.type=SEG_BZRTRK;
+            if ( !GetArgs( cp, hasElev?"lwppppf":"lwpppp",
+                &rgb, &s->width,
+                &s->u.b.pos[0],
+                &s->u.b.pos[1],
+                &s->u.b.pos[2],
+                &s->u.b.pos[3],
+                &elev0)) {
+                rc = FALSE;
+                break;
+            }
+            s->color = wDrawFind( rgb );
+            break;
+        case SEG_BZRLIN:
+            DYNARR_APPEND( trkSeg_t, tempSegs_da, 10);
+            s = &tempSegs(&tempSegs_da.cnt-1);
+            s.type=SEG_BZRLIN;
+            if ( !GetArgs( cp, hasElev?"lwppppf":"lwpppp",
+                &rgb, &s->width,
+                &s->u.b.pos[0],
+                &s->u.b.pos[1],
+                &s->u.b.pos[2],
+                &s->u.b.pos[3],
+                &elev0)) {
+                rc = FALSE;
+                break;
+            }
+            s->color = wDrawFind( rgb );
+            break;
 		case SEG_FILCRCL:
 			DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
 			s = &tempSegs(tempSegs_da.cnt-1);
@@ -1312,6 +1397,15 @@ EXPORT BOOL_T WriteSegs(
 				segs[i].u.j.L,
 				option )>0;
 			break;
+        case SEG_BZRTRK:
+        case SEG_BZRLIN:
+            rc &= fprintf( f, "\t%c3 %ld %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f",
+                segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
+                segs[i].u.l.pos[0].x, segs[i].u.l.pos[0].y,
+                segs[i].u.l.pos[1].x, segs[i].u.l.pos[1].y,
+                segs[i].u.l.pos[2].x, segs[i].u.l.pos[2].y,
+                segs[i].u.l.pos[3].x, segs[i].u.l.pos[3].y ) > 0;
+            break;
 		case SEG_CRVLIN:
 			rc &= fprintf( f, "\t%c3 %ld %0.6f %0.6f %0.6f %0.6f 0 %0.6f %0.6f\n",
 				segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
@@ -1362,7 +1456,11 @@ EXPORT void SegProc(
 	case SEG_JNTTRK:
 		JointSegProc( cmd, segPtr, data );
 		break;
-	default:
+    case SEG_BZRTRK:
+    case SEG_BZRLIN:
+        BzrSegProc( cmd, segPtr, data);
+        break;
+    default:
 		AbortProg( "SegProg( %d )", segPtr->type );
 		break;
 	}
@@ -1468,7 +1566,7 @@ EXPORT void DrawSegsO(
 		long options )
 {
 	wIndex_t i, j;
-	coOrd p0, p1, c;
+	coOrd p0, p1, p2, p3, c;
 	ANGLE_T a0;
 	wDrawColor color1, color2;
 	DIST_T factor = d->dpi/d->scale;
@@ -1503,13 +1601,21 @@ EXPORT void DrawSegsO(
 				REORIGIN( p0, segPtr->u.j.pos, angle, orig );
 				DrawJointTrack( d, p0, NormalizeAngle(segPtr->u.j.angle+angle), segPtr->u.j.l0, segPtr->u.j.l1, segPtr->u.j.R, segPtr->u.j.L, segPtr->u.j.negate, segPtr->u.j.flip, segPtr->u.j.Scurve, trk, -1, -1, trackGauge, color1, options );
 				break;
-			}
+            case SEG_BZRTRK:
+                REORIGIN(p0, segPtr->u.b,pos[0], angle, orig);
+                REORIGIN(p1, segPtr->u.b,pos[1], angle, orig);
+                REORIGIN(p2, segPtr->u.b,pos[2], angle, orig);
+                REORIGIN(p3, segPtr->u.b,pos[3], angle, orig);
+                DrawBezierTies( d, p0, p1, p2, p3, color1);
+                break;
+            }
 			continue;
 		}
 		switch (segPtr->type) {
 		case SEG_STRTRK:
 		case SEG_CRVTRK:
 		case SEG_JNTTRK:
+        case SEG_BZRTRK:
 		case SEG_TEXT:
 			break;
 		default:
@@ -1593,6 +1699,23 @@ EXPORT void DrawSegsO(
 						FALSE, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
 			}
 			break;
+        case SEG_BZRTRK:
+        case SEG_BZRLIN:
+            if (segPtr->type == SEG_BZRTRK) {
+                if (color1 == wDrawColorBlack)
+                    color1 = normalColor;
+                if ( segPtr->color == wDrawColorWhite )
+                    break;
+            }
+            REORIGIN(p0, segPtr->u.b,pos[0], angle, orig);
+            REORIGIN(p1, segPtr->u.b,pos[1], angle, orig);
+            REORIGIN(p2, segPtr->u.b,pos[2], angle, orig);
+            REORIGIN(p3, segPtr->u.b,pos[3], angle, orig);
+            if (seGPtr->type == SEG_BZRLIN)
+                DrawBezier( d, p0, p1, p2, p3, color1);
+            else
+                DrawBezierTrack( d, p0, p1, p2, p3, color1);
+            break;
 		case SEG_JNTTRK:
 			REORIGIN( p0, segPtr->u.j.pos, angle, orig );
 			DrawJointTrack( d, p0, NormalizeAngle(segPtr->u.j.angle+angle), segPtr->u.j.l0, segPtr->u.j.l1, segPtr->u.j.R, segPtr->u.j.L, segPtr->u.j.negate, segPtr->u.j.flip, segPtr->u.j.Scurve, NULL, -1, -1, trackGauge, color1, options );

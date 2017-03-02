@@ -36,8 +36,8 @@
 
 static struct {
 		STATE_T state;
-		coOrd pos0;
-		coOrd pos1;
+		coOrd pos[4];
+        int selectPoint;
 		curveData_t curveData;
 		} Da;
 
@@ -77,6 +77,30 @@ static void DrawArrowHeads(
 	}
 }
 
+EXPORT void DrawControlArm(
+                           trkSeg_p sp,
+                           coOrd pos,
+                           coOrd pos1,
+                           wDrawColor color )
+{
+    coOrd p0, p1;
+    DIST_T d, w;
+    int inx;
+    d = mainD.scale*0.25;
+    w = mainD.scale/mainD.dpi*4; /*double width*/
+    for ( inx=0; inx<5; inx++ ) {
+        sp[inx].type = SEG_STRLIN;
+        sp[inx].width = w;
+        sp[inx].color = color;
+    }
+    sp[0].u.l.pos[0] = pos;
+    sp[0].u.l.pos[1] = pos1;
+    sp[1].type = SEG_FILCRCL;
+    sp[1].u.c.center = pos1;
+    sp[1].u.c.radius = d;
+}
+
+
 
 
 
@@ -108,7 +132,8 @@ EXPORT STATUS_T CreateCurve(
 			InfoMessage( _("Drag from Center to End-Point") );
 			break;
 		case crvCmdFromChord:
-			InfoMessage( _("Drag to other end of chord") );
+        case crvCmdBezFromChord:
+			InfoMessage( _("Drag from one end of chord to the other") );
 			break;
 		}
 		return C_CONTINUE;
@@ -143,8 +168,15 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(0).width = width;
 				message( _("Drag to other end of chord") );
 				break;
+            case crvCmdBezFromChord:
+                tempSegs(0).type = (track?SEG_BZRTRK:SEG_BZRLIN);
+                tempSegs(0).color = color;
+                tempSegs(0).width = width;
+                message( _("Drag to other end of Bezier") );
+                break;
 			}
-			tempSegs(0).u.l.pos[0] = pos;
+            if (mode == crvCmdBezFromChord) tempSegs(0).u.b.pos[0] = pos;
+            else tempSegs(0).u.l.pos[0] = pos;
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -179,6 +211,19 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs_da.cnt = 1;
 			}
 			break;
+        case crvCmdBezFromChord:
+            message( _("Length=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
+                if (d >mainD.scale*0.5 ) {
+                    coOrd pos1, pos2;
+                    pos1.x = (pos.x+pos0.x)/3.0;
+                    pos1.y = (pos.y+pos0.y)/3.0;
+                    DrawControlArm(& tempSegs(1), pos0, pos1, wDrawColorBlack );
+                    pos2.x = (pos.x+pos0.x)*2.0/3.0;
+                    pos2.y = (pos.y+pos0.y)*2.0/3.0;
+                    DrawControlArm(& tempSegs(3), pos2, pos, wDrawColorBlack );
+                } else {
+                    tempSegs_da.cnt = 6;
+                }
 		}
 		return C_CONTINUE;
 
@@ -192,6 +237,7 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(1).color = drawColorRed;
 		case crvCmdFromTangent:
 		case crvCmdFromCenter:
+        case crvCmdBezFromChord:
 				tempSegs(2).color = drawColorRed;
 				tempSegs(3).color = drawColorRed;
 				tempSegs(4).color = drawColorRed;
@@ -199,7 +245,8 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(6).color = drawColorRed;
 				break;
 		}
-		message( _("Drag on Red arrows to adjust curve") );
+        if (mode == crvCmdBezFromChord) message( _("Select control Point or End to adjust") );
+        else message( _("Drag on Red arrows to adjust curve") );
 		return C_CONTINUE;
 
 	default:
@@ -233,56 +280,90 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 	case C_DOWN:
 		if ( Da.state == -1 ) {
 			SnapPos( &pos );
-			Da.pos0 = pos;
+			Da.pos[0] = pos;
 			Da.state = 0;
 			return CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
 		} else {
 			tempSegs_da.cnt = segCnt;
+            if (curveMode == crvCmdBezFromChord) {
+                long d = FindDistance(Da.pos[0],pos);
+                Da.selectPoint = 0;
+                for(int i=0;i<4;i++) {
+                    if (d>FindDistance(Da.pos[i],pos)) {
+                        d=FindDistance(Da.pos[i],pos);
+                        Da.selectPoint = i;
+                    }
+                }
+                if (IsClose(d)) {
+                    // use selected control arm point
+                    Da.state = 2;
+                    InfoMessage( _("Drag to reposition"));
+                } else {
+                    Da.selectPoint = 0;
+                    InfoMessage( _("Select an control point or End, Enter to create curve"));
+                }
+            }
 			return C_CONTINUE;
 		}
 
 	case C_MOVE:
 		mainD.funcs->options = wDrawOptTemp;
 		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-		if ( Da.state == 0 ) {
+        if ( Da.state == 0 ) {
 			SnapPos( &pos );
-			Da.pos1 = pos;
+			Da.pos[1] = pos;
 			rc = CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
 		} else {
 			SnapPos( &pos );
-			PlotCurve( curveMode, Da.pos0, Da.pos1, pos, &Da.curveData, TRUE );
-			if (Da.curveData.type == curveTypeStraight) {
-				tempSegs(0).type = SEG_STRTRK;
-				tempSegs(0).u.l.pos[0] = Da.pos0;
-				tempSegs(0).u.l.pos[1] = Da.curveData.pos1;
-				tempSegs_da.cnt = 1;
-				InfoMessage( _("Straight Track: Length=%s Angle=%0.3f"),
-						FormatDistance(FindDistance( Da.pos0, Da.curveData.pos1 )),
-						PutAngle(FindAngle( Da.pos0, Da.curveData.pos1 )) );
-			} else if (Da.curveData.type == curveTypeNone) {
-				tempSegs_da.cnt = 0;
-				InfoMessage( _("Back") );
-			} else if (Da.curveData.type == curveTypeCurve) {
-				tempSegs(0).type = SEG_CRVTRK;
-				tempSegs(0).u.c.center = Da.curveData.curvePos;
-				tempSegs(0).u.c.radius = Da.curveData.curveRadius;
-				tempSegs(0).u.c.a0 = Da.curveData.a0;
-				tempSegs(0).u.c.a1 = Da.curveData.a1;
-				tempSegs_da.cnt = 1;
-				d = D2R(Da.curveData.a1);
-				if (d < 0.0)
-					d = 2*M_PI+d;
-				if ( d*Da.curveData.curveRadius > mapD.size.x+mapD.size.y ) {
-					ErrorMessage( MSG_CURVE_TOO_LARGE );
-					tempSegs_da.cnt = 0;
-					Da.curveData.type = curveTypeNone;
-					mainD.funcs->options = 0;
-					return C_CONTINUE;
-				}
-				InfoMessage( _("Curved Track: Radius=%s Angle=%0.3f Length=%s"),
+            if (Da.state == 2 && curveMode == crvCmdBezFromChord) {
+                Da.pos[Da.selectPoint] = pos; // Move selected point
+                tempSegs(0).type = SEG_BZRLIN;
+                tempSegs(0).u.b.pos[0] = Da.pos[0];
+                tempSegs(0).u.b.pos[1] = Da.pos[1];
+                tempSegs(0).u.b.pos[2] = Da.pos[2];
+                tempSegs(0).u.b.pos[3] = Da.pos[3];
+                DrawControlArm(& tempSegs(1), Da.pos[0], Da.pos[1], drawColorRed);
+                DrawControlArm(& tempSegs(3), Da.pos[3], Da.pos[2], drawColorRed);
+                tempSegs_da.cnt = 6;
+                InfoMessage( _("BezierTrack: Length=%s Min Radius=%s"),
+                            FormatDistance(BezierLength(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3],0.0)),
+                            FormatDistance(BezierMaxCurve(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3])) );
+                rc = C_CONTINUE;
+            } else {
+                PlotCurve( curveMode, Da.pos[0], Da.pos[1], pos, &Da.curveData, TRUE );
+                if (Da.curveData.type == curveTypeStraight) {
+                    tempSegs(0).type = SEG_STRTRK;
+                    tempSegs(0).u.l.pos[0] = Da.pos[0];
+                    tempSegs(0).u.l.pos[1] = Da.curveData.pos1;
+                    tempSegs_da.cnt = 1;
+                    InfoMessage( _("Straight Track: Length=%s Angle=%0.3f"),
+						FormatDistance(FindDistance( Da.pos[0], Da.curveData.pos1 )),
+						PutAngle(FindAngle( Da.pos[0], Da.curveData.pos1 )) );
+                } else if (Da.curveData.type == curveTypeNone) {
+                    tempSegs_da.cnt = 0;
+                    InfoMessage( _("Back") );
+                } else if (Da.curveData.type == curveTypeCurve) {
+                    tempSegs(0).type = SEG_CRVTRK;
+                    tempSegs(0).u.c.center = Da.curveData.curvePos;
+                    tempSegs(0).u.c.radius = Da.curveData.curveRadius;
+                    tempSegs(0).u.c.a0 = Da.curveData.a0;
+                    tempSegs(0).u.c.a1 = Da.curveData.a1;
+                    tempSegs_da.cnt = 1;
+                    d = D2R(Da.curveData.a1);
+                    if (d < 0.0)
+                        d = 2*M_PI+d;
+                    if ( d*Da.curveData.curveRadius > mapD.size.x+mapD.size.y ) {
+                        ErrorMessage( MSG_CURVE_TOO_LARGE );
+                        tempSegs_da.cnt = 0;
+                        Da.curveData.type = curveTypeNone;
+                        mainD.funcs->options = 0;
+                        return C_CONTINUE;
+                    }
+                    InfoMessage( _("Curved Track: Radius=%s Angle=%0.3f Length=%s"),
 						FormatDistance(Da.curveData.curveRadius), Da.curveData.a1,
 						FormatDistance(Da.curveData.curveRadius*d) );
-			}
+                }
+            }
 		}
 		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		mainD.funcs->options = 0;
@@ -292,27 +373,28 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 	case C_UP:
 		mainD.funcs->options = wDrawOptTemp;
 		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-		if (Da.state == 0) {
+		if (Da.state == 0 || Da.state == 2) {
 			SnapPos( &pos );
-			Da.pos1 = pos;
+			Da.pos[1] = pos;
 			Da.state = 1;
 			CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
 			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 			mainD.funcs->options = 0;
 			segCnt = tempSegs_da.cnt;
-			InfoMessage( _("Drag on Red arrows to adjust curve") );
+			if (curveMode != crvCmdBezFromChord) InfoMessage( _("Drag on Red arrows to adjust curve") );
+            else InfoMessage( _("Select control point or end and drag to adjust, Space or Enter to finish") );
 			return C_CONTINUE;
-		} else {
+        } else {
 			mainD.funcs->options = 0;
 			tempSegs_da.cnt = 0;
 			Da.state = -1;
 			if (Da.curveData.type == curveTypeStraight) {
-				if ((d=FindDistance( Da.pos0, Da.curveData.pos1 )) <= minLength) {
+				if ((d=FindDistance( Da.pos[0], Da.curveData.pos1 )) <= minLength) {
 					ErrorMessage( MSG_TRK_TOO_SHORT, "Curved ", PutDim(fabs(minLength-d)) );
 					return C_TERMINATE;
 				}
 				UndoStart( _("Create Straight Track"), "newCurve - straight" );
-				t = NewStraightTrack( Da.pos0, Da.curveData.pos1 );
+				t = NewStraightTrack( Da.pos[0], Da.curveData.pos1 );
 				UndoEnd();
 			} else if (Da.curveData.type == curveTypeCurve) {
 				if ((d= Da.curveData.curveRadius * Da.curveData.a1 *2.0*M_PI/360.0) <= minLength) {
@@ -328,7 +410,21 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			}
 			DrawNewTrack( t );
 			return C_TERMINATE;
-		}
+        }
+		
+            
+    case C_OK:
+        if (curveMode == crvCmdBezFromChord) {
+            if ((d=BezierLength(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3],0.0))<=minLength) {
+                ErrorMessage( MSG_TRK_TOO_SHORT, "Bezier ", PutDim(fabs(minLength-d)) );
+                return C_TERMINATE;
+            }
+            UndoStart( _("Create Bezier Track"), "newCurve - Bezier");
+            t = NewBezierTrack(Da.pos[0],Da.pos[1],Da.pos[2],Da.pos[3]);
+            UndoEnd();
+        }
+        Da.state = -1;
+        return C_TERMINATE;
 
 	case C_REDRAW:
 		if ( Da.state >= 0 ) {
@@ -699,6 +795,7 @@ static STATUS_T CmdCircle2( wAction_t action, coOrd pos )
 #include "bitmaps/curve2.xpm"
 #include "bitmaps/curve3.xpm"
 #include "bitmaps/curve4.xpm"
+#include "bitmaps/curve5.xpm"
 #include "bitmaps/circle1.xpm"
 #include "bitmaps/circle2.xpm"
 #include "bitmaps/circle3.xpm"
@@ -713,6 +810,8 @@ EXPORT void InitCmdCurve( wMenu_p menu )
 	AddMenuButton( menu, CmdCurve, "cmdCurveTangent", _("Curve from Tangent"), wIconCreatePixMap( curve2_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CURVE2, (void*)1 );
 	AddMenuButton( menu, CmdCurve, "cmdCurveCenter", _("Curve from Center"), wIconCreatePixMap( curve3_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CURVE3, (void*)2 );
 	AddMenuButton( menu, CmdCurve, "cmdCurveChord", _("Curve from Chord"), wIconCreatePixMap( curve4_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CURVE4, (void*)3 );
+    AddMenuButton( menu, CmdCurve, "cmdBezierChord", _("Bezier from Chord"), wIconCreatePixMap( curve5_xpm ),
+        LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CURVE5, (void*)4 );
 	ButtonGroupEnd();
 
 	ButtonGroupBegin( _("Circle Track"), "cmdCurveSetCmd", _("Circle Tracks") );
