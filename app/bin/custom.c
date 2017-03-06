@@ -136,7 +136,8 @@ BOOL_T Initialize( void )
 	InitTrkDraw();
 	InitTrkNote();
 	InitTrkBlock();
-	InitTrkSwitchMotor();
+        InitTrkSwitchMotor();
+        InitTrkSignal();
 	InitCarDlg();
 
 	memset( message, 0, sizeof message );
