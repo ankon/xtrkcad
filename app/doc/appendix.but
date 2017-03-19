@@ -234,7 +234,7 @@ separated by a colon (:).  The first LCC event id is produced by the point
 sensor when the points are aligned in the "normal" position (typically aligned 
 to the main) and the second LCC event id is produced by the point sensor when 
 the points are aligned in the "reverse" position (typically aligned to the 
-spur).  The normal and reverse script each contain a signal LCC event id.  
+spur).  The normal and reverse script each contain a single LCC event id.  
 These events are produced by the CTC Panel when the control point Code button 
 is pressed (clicked) and are consumed by the switch motor.
 

@@ -52,19 +52,19 @@ The \f{Add Menu} has all the actions related to adding track pieces to the layou
 
 \u000
 
-\dd \f{Block} - Create, edit or delete a block.
+\dd \f{Block} - Create a block.
 
 \u000
 
-\dd \f{Switchmotor} - Create, edit or delete a switchmotor.
+\dd \f{Switchmotor} - Create a switchmotor.
 
 \u000
 
-\dd \f{Signal} - Create, edit or delete a signal.
+\dd \f{Signal} - Create a signal.
 
 \u000
 
-\dd \f{Control} - Create a signal.
+\dd \f{Control} - Create a control.
 
 \u000
 
@@ -278,7 +278,7 @@ The \f{Turntable Angle} control on the Preferences (\K{cmdPref}) dialog controls
 
 \rule
 
-\S{cmdBlock} Block
+\S{cmdBlockEdit} Block
 
 \G{png.d/bblock.png}
 
@@ -301,7 +301,7 @@ information, etc.
 
 \rule 
 
-\S{cmdSwitchmotor} Switchmotor
+\S{cmdSwitchmotorEdit} Switchmotor
 
 \G{png.d/bswitchmotor.png}
 
@@ -325,7 +325,7 @@ could be code snippets or I/O device address information, etc.
 
 \rule
 
-\S{cmdSignal} Signal
+\S{cmdSignalEdit} Signal
 
 \G{png.d/bsignal.png}
 
@@ -349,7 +349,7 @@ causes the aspect to be displayed.
 
 \rule
 
-\S{cmdControl} Control
+\S{cmdControlEdit} Control
 
 \G{png.d/bControl.png}
 
@@ -369,7 +369,7 @@ software to actually effect the state on the control (on or off).
 
 \rule
 
-\S{cmdSensor} Sensor
+\S{cmdSensorEdit} Sensor
 
 \G{png.d/bSensor.png}
 
