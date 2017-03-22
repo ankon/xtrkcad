@@ -1,4 +1,4 @@
-/** \file csignal.ccsignal.c
+/** \file csignal.c
  * Signals
  */
 
@@ -12,7 +12,7 @@
  *  Author        : $Author$
  *  Created By    : Robert Heller
  *  Created       : Sun Feb 19 13:11:45 2017
- *  Last Modified : <170222.1324>
+ *  Last Modified : <170314.1311>
  *
  *  Description	
  *
@@ -58,6 +58,7 @@ EXPORT TRKTYP_T T_SIGNAL = -1;
 static int log_signal = 0;
 
 
+#if 0
 static drawCmd_t signalD = {
 	NULL,
 	&screenDrawFuncs,
@@ -69,6 +70,7 @@ static drawCmd_t signalD = {
 
 static char signalName[STR_SHORT_SIZE];
 static int  signalHeadCount;
+#endif
 
 typedef struct signalAspect_t {
     char * aspectName;
@@ -212,6 +214,74 @@ static DIST_T DistanceSignal (track_p t, coOrd * p )
     return FindDistance(xx->orig, *p);
 }
 
+static struct {
+    char name[STR_SHORT_SIZE];
+    coOrd pos;
+    ANGLE_T orient;
+    long heads;
+} signalProperties;
+
+typedef enum { NM, PS, OR, HD } signalDesc_e;
+static descData_t signalDesc[] = {
+    /* NM */ { DESC_STRING, N_("Name"),     &signalProperties.name },
+    /* PS */ { DESC_POS,    N_("Position"), &signalProperties.pos },
+    /* OR */ { DESC_ANGLE,  N_("Angle"),    &signalProperties.orient },
+    /* HD */ { DESC_LONG,   N_("Number Of Heads"), &signalProperties.heads },
+    { DESC_NULL } };
+
+static void UpdateSignalProperties ( track_p trk, int inx, descData_p
+                                     descUpd, BOOL_T needUndoStart )
+{
+    signalData_p xx = GetsignalData( trk );
+    const char *thename;
+    char *newName;
+    BOOL_T changed, nChanged, pChanged, oChanged;
+    
+    switch (inx) {
+    case NM: break;
+    case PS: break;
+    case OR: break;
+    case HD: break;
+    case -1:
+        changed = nChanged = pChanged = oChanged = FALSE;
+        thename = wStringGetValue( (wString_p) signalDesc[NM].control0 );
+        if (strcmp(thename,xx->name) != 0) {
+            nChanged = changed = TRUE;
+            newName = MyStrdup(thename);
+        }
+        if (signalProperties.pos.x != xx->orig.x ||
+            signalProperties.pos.y != xx->orig.y) {
+            pChanged = changed = TRUE;
+        }
+        if (signalProperties.orient != xx->angle) {
+            oChanged = changed = TRUE;
+        }
+        if (!changed) break;
+        if (needUndoStart)
+            UndoStart( _("Change Signal"), "Change Signal" );
+        UndoModify( trk );
+        if (nChanged) {
+            MyFree(xx->name);
+            xx->name = newName;
+        }
+        if (pChanged || oChanged) {
+            UndrawNewTrack( trk );
+        }
+        if (pChanged) {
+            xx->orig = signalProperties.pos;
+        }
+        if (oChanged) {
+            xx->angle = signalProperties.orient;
+        }
+        if (pChanged || oChanged) { 
+            ComputeSignalBoundingBox( trk );
+            DrawNewTrack( trk );
+        }
+        break;
+    }
+}
+
+
 static void DescribeSignal (track_p trk, char * str, CSIZE_T len ) 
 {
     signalData_p xx = GetsignalData(trk);
@@ -226,7 +296,14 @@ static void DescribeSignal (track_p trk, char * str, CSIZE_T len )
              GetTrkIndex(trk), 
              xx->name,GetTrkLayer(trk)+1, xx->numHeads,
              xx->orig.x, xx->orig.y,xx->angle );
-    
+    strncpy(signalProperties.name,xx->name,STR_SHORT_SIZE-1);
+    signalProperties.name[STR_SHORT_SIZE-1] = '\0';
+    signalProperties.pos = xx->orig;
+    signalProperties.orient = xx->angle;
+    signalProperties.heads = xx->numHeads;
+    signalDesc[HD].mode = DESC_RO;
+    signalDesc[NM].mode = DESC_NOREDRAW;
+    DoDescribe( _("Signal"), trk, signalDesc, UpdateSignalProperties );
 }
 
 static void DeleteSignal ( track_p trk )
@@ -260,7 +337,7 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
 
 static void ReadSignal ( char * line )
 {
-    TRKINX_T trkindex;
+    /*TRKINX_T trkindex;*/
     wIndex_t index;
     track_p trk;
     char * cp = NULL;
@@ -331,6 +408,14 @@ static void RescaleSignal (track_p trk, FLOAT_T ratio )
 {
 }
 
+static void FlipSignal (track_p trk, coOrd orig, ANGLE_T angle )
+{
+    signalData_p xx = GetsignalData ( trk );
+    FlipPoint(&(xx->orig), orig, angle);
+    xx->angle = NormalizeAngle(2*angle - xx->angle);
+    ComputeSignalBoundingBox(trk);
+}
+
 static trackCmd_t signalCmds = {
     "SIGNAL",
     DrawSignal,
@@ -356,7 +441,7 @@ static trackCmd_t signalCmds = {
     NULL, /* moveEndPt */
     NULL, /* query */
     NULL, /* ungroup */
-    NULL, /* flip */
+    FlipSignal, /* flip */
     NULL, /* drawPositionIndicator */
     NULL, /* advancePositionIndicator */
     NULL, /* checkTraverse */
@@ -718,7 +803,7 @@ static int SignalMgmProc ( int cmd, void * data )
 {
     track_p trk = (track_p) data;
     signalData_p xx = GetsignalData(trk);
-    char msg[STR_SIZE];
+    /*char msg[STR_SIZE];*/
     
     switch ( cmd ) {
     case CONTMGM_CAN_EDIT:

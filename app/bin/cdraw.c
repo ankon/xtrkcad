@@ -236,7 +236,8 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		return;
 	segPtr = &xx->segs[drawSegInx];
     MainRedraw();
-	//UndrawNewTrack( trk );
+    MapRedraw();
+	UndrawNewTrack( trk );
 	switch ( inx ) {
 	case LW:
 		segPtr->width = drawData.lineWidth/mainD.dpi;
@@ -389,6 +390,7 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 	}
 	ComputeDrawBoundingBox( trk );
 	DrawNewTrack( trk );
+	DoCurCommand( C_REDRAW, zero );
 }
 
 static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
@@ -788,6 +790,7 @@ static drawContext_t drawCmdContext = {
 static void DrawRedraw( void )
 {
 	MainRedraw();
+	MapRedraw();
 }
 
 

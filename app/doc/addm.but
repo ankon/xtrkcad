@@ -62,7 +62,13 @@ The \f{Add Menu} has all the actions related to adding track pieces to the layou
 
 \dd \f{Signal} - Create, edit or delete a signal.
 
-\rule
+\u000
+
+\dd \f{Control} - Create a signal.
+
+\u000
+
+\dd \f{Sensor} - Create a sensor.
 
 \S{cmdCircle} Circle Track
 
@@ -101,11 +107,11 @@ You can join to and from circles, after which they become curved tracks.
 
 Creating a curve is a two step operation.  The four methods (with their Shortcut keys) used to create a Curved Track are:
 
-\dd \G{png.d/bcurve1.png} (\c{Control-4}) Drag from one endpoint in the direction of the Curve at that point and release.  Click and Drag to position the second endpoint.
+\dd \G{png.d/bcurve1.png} (\c{Control-4}) Drag from one endpoint in the direction of the Curve at that point and release. If Shift is pressed, the new track's end point and angle can lock on to an unconnected track end-point and the resulting track will be auto-joined to it. Click and Drag to position the second endpoint.
 
 \u000
 
-\dd \G{png.d/bcurve2.png} (\c{Control-5}) Drag from one of the endpoints to the Center of the Curved track and release.  Click and Drag to position the second endpoint.
+\dd \G{png.d/bcurve2.png} (\c{Control-5}) Drag from one of the endpoints to the Center of the Curved track and release.  If Shift is pressed, the tangent can lock on to an unconnected track end-point and the resulting track will be auto-joined to it. Click and Drag to position the second endpoint.
 
 \u000
 
@@ -123,9 +129,9 @@ A drop down menu, which allows selection of the Curved Track creation method, is
 
 In all cases, two Red arrow heads will be drawn after the first step to indicate where you can Drag to complete the second step.
 
-A straight track will be created if the second endpoint is lined up with the first endpoint.
+A straight track will always be created if the second endpoint is lined up with the first endpoint.
 
-If the Snap Grid (\K{cmdGrid}) is enabled then the endpoints will be constrained to the grid.
+If the Snap Grid (\K{cmdGrid}) is enabled then un-snapped endpoints will be constrained to the grid.
 
 Optionally, the curve center point and radius can be displayed for the Curve.  This is enabled by the Move Label (\K{cmdMoveLabel}) command.
 
@@ -210,6 +216,8 @@ It is possible to create tracks that abut (the endpoints are very close and alig
 \G{png.d/bstraigh.png}
 
 Straight track is a created by selecting the first endpoint then dragging the cursor to the point where you want the second endpoint to be.
+
+If the Shift key is pressed when the first endpoint is being selected and the cursor is over an unconnected endpoint, the new track will be aligned and connected to this point.
 
 If the Snap Grid (\K{cmdGrid}) is enabled then the endpoints will be constrained to the grid.
 
@@ -340,3 +348,41 @@ yellow, red, etc.).  The script is just some information for the layout
 control software to actually effect the display of the aspect -- this could be 
 the LCC event id to trigger the aspect or it could be a code snippet that 
 causes the aspect to be displayed.
+
+\rule
+
+\S{cmdControl} Control
+
+\G{png.d/bControl.png}
+
+A control is created by selecting \f{Create Control} from either the Add menu \K{cmdAdd} or 
+from the hotbar. Use the mouse to select a location (left button) and then 
+dragging (left button down) the control to where you want it.  Once the left 
+button is released, a Create/Edit Control dialog box is displayed, and you can 
+fill in the control's properties: name, fine tune the location, and the on and 
+off scripts.
+
+\G{png.d/control.png}
+
+The create/edit control dialog has entry fields for the name of the control, its
+location, and a pair of scripts, one to turn the control on and one to turn
+the control off. The scripts are just some information for the layout control
+software to actually effect the state on the control (on or off).
+
+\rule
+
+\S{cmdSensor} Sensor
+
+\G{png.d/bSensor.png}
+
+A sensor is created by selecting \f{Create Sensor} from either the Add menu \K{cmdAdd} or
+from the hotbar. Use the mouse to select a location (left button) and then
+dragging (left button down) the sensor to where you want it. Once the left
+button is released, a Create/Edit Sensor dialog box is displayed, and you can
+fill in the sensor's properties: name, fine tune the location, and the script.
+
+\G{png.d/sensor.png}
+
+The create/edit sensor dialog has spaces for the name of the sensor, its 
+location, and a script. The script is just some information for the layout 
+control software to actually return the state of the sensor (on or off).
