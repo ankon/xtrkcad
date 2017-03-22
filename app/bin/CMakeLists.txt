@@ -121,6 +121,7 @@ SET(SOURCES
 	param.c
 	shrtpath.c
 	smalldlg.c
+    tbezier.c
 	tcurve.c
 	tease.c
 	track.c
