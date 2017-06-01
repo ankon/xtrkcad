@@ -806,6 +806,15 @@ EXPORT BOOL_T MakeParallelTrack(
 	return FALSE;
 }
 
+EXPORT BOOL_T RebuildTrackSegs(
+		track_p trk)
+{
+	if (trackCmds(trk->type)->rebuildSegs)
+		return trackCmds(trk->type)->rebuildSegs(trk);
+	return FALSE;
+}
+
+
 
 /*****************************************************************************
  *
@@ -1823,6 +1832,7 @@ EXPORT BOOL_T TraverseTrack(
 			return FALSE;
 		trvTrk->length = -1;
 		trvTrk->dist = 0.0;
+
 	}
 	return TRUE;
 }

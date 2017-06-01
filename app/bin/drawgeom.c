@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include "track.h"
 #include "ccurve.h"
+#include "cbezier.h"
 #include "compound.h"
 #include "drawgeom.h"
 #include "i18n.h"
@@ -445,6 +446,7 @@ STATUS_T DrawGeomMouse(
 		return C_TERMINATE;
 
 	case wActionText:
+
 		if ( ((action>>8)&0xFF) == 0x0D ||
 			 ((action>>8)&0xFF) == ' ' ) {
 			EndPoly(context, segCnt);
@@ -453,6 +455,7 @@ STATUS_T DrawGeomMouse(
 		return C_TERMINATE;
 
 	case C_CANCEL:
+
 		oldOptions = context->D->funcs->options;
 		context->D->funcs->options |= wDrawOptTemp;
 		DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
