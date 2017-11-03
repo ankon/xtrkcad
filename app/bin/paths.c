@@ -190,7 +190,7 @@ char *FindFilename(char *path)
 * the drive delimiter ':' or at the beginning of the first directory name.
 *
 * \param str OUT pointer to the complete path
-* \param ... IN one or more parts of the path
+* \param ... IN one or more parts of the path, terminate with NULL
 */
 
 void
@@ -204,7 +204,7 @@ MakeFullpath(char **str, ...)
     DynStringMalloc(&path, 0);
     va_start(valist, str);
 
-    while (part = va_arg(valist, const char *)) {
+    while ((part = va_arg(valist, const char *))) {
         if (part[0] !=separator[0] && lastchar && lastchar != separator[0] &&
                 lastchar != ':') {
             DynStringNCatCStr(&path, 1, separator);

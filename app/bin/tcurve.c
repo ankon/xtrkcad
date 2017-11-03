@@ -341,7 +341,7 @@ static struct {
 		ANGLE_T angle;
 		FLOAT_T grade;
 		descPivot_t pivot;
-		LAYER_T layerNumber;
+		unsigned int layerNumber;
 		} crvData;
 typedef enum { E0, Z0, E1, Z1, CE, RA, TU, SE, LN, AL, A1, A2, GR, PV, LY } crvDesc_e;
 static descData_t crvDesc[] = {
@@ -1170,6 +1170,10 @@ static BOOL_T GetParamsCurve( int inx, track_p trk, coOrd pos, trackParams_t * p
 	params->type = curveTypeCurve;
 	GetTrkCurveCenter( trk, &params->arcP, &params->arcR);
 	GetCurveAngles( &params->arcA0, &params->arcA1, trk );
+	ANGLE_T angle1 = FindAngle(params->arcP,pos);
+
+	params->track_angle = NormalizeAngle(FindAngle(params->arcP,pos)+90);
+
 	if ( easeR > 0.0 && params->arcR < easeR ) {
 		ErrorMessage( MSG_RADIUS_LSS_EASE_MIN,
 						FormatDistance( params->arcR ), FormatDistance( easeR ) );
@@ -1192,10 +1196,14 @@ static BOOL_T GetParamsCurve( int inx, track_p trk, coOrd pos, trackParams_t * p
 	} else {
 		if ( IsCurveCircle( trk ) )
 			params->ep = PickArcEndPt( params->arcP, /*Dj.inp[0].*/pos, pos );
-		else
-			params->ep = PickUnconnectedEndPoint( pos, trk );
+		else if (inx == PARAMS_CORNU ) {
+			params->ep = PickEndPoint(pos, trk);
+		} else {
+			params->ep = PickUnconnectedEndPointSilent( pos, trk );
+		}
 		if (params->ep == -1)
 			return FALSE;
+		params->angle = GetTrkEndAngle(trk,params->ep); ;
 	}
 	return TRUE;
 }
@@ -1235,6 +1243,9 @@ static BOOL_T QueryCurve( track_p trk, int query )
 		return xx->radius < GetLayoutMinTrackRadius();
 	case Q_NOT_PLACE_FROGPOINTS:
 		return IsCurveCircle( trk );
+	case Q_CAN_EXTEND:
+		if (xx->helixTurns > 0) return FALSE;
+		return TRUE;
 	default:
 		return FALSE;
 	}
@@ -1343,16 +1354,20 @@ EXPORT void CurveSegProc(
 
 	case SEGPROC_TRAVERSE1:
 		a1 = FindAngle( segPtr->u.c.center, data->traverse1.pos );
-		a1 += (segPtr->u.c.radius>0?90.0:-90.0);
-		a2 = NormalizeAngle( data->traverse1.angle+a1 );
-		data->traverse1.backwards = (a2 < 270 && a2 > 90 );
+		a1 = NormalizeAngle(a1+90);               // ClockWise angle
+		// work out within this segment which way we are going
+		a2 = NormalizeAngle( a1 - data->traverse1.angle );
+		data->traverse1.backwards = ((a2 < 270) && (a2 > 90 ));
+		//Find angular distance from end opposite to direction of travel
 		a2 = FindAngle( segPtr->u.c.center, data->traverse1.pos );
-		if ( data->traverse1.backwards == (segPtr->u.c.radius<0) ) {
+		//if (segPtr->u.c.radius<0) data->traverse1.backwards = !data->traverse1.backwards;
+		if ( !data->traverse1.backwards ) {
 			a2 = NormalizeAngle( a2-segPtr->u.c.a0 );
 		} else {
 			a2 = NormalizeAngle( segPtr->u.c.a0+segPtr->u.c.a1-a2 );
 		}
-		data->traverse1.dist = a2/360.0*2*M_PI*fabs(segPtr->u.c.radius);
+		data->traverse1.dist = fabs(a2/360.0*2*M_PI*fabs(segPtr->u.c.radius));  		//Distance from end in direction of travel
+		data->traverse1.reverse_seg = ((segPtr->u.c.a0>=90) && (segPtr->u.c.a0<270));
 		break;
 
 	case SEGPROC_TRAVERSE2:
@@ -1362,19 +1377,21 @@ EXPORT void CurveSegProc(
 		d = segPtr->u.c.a1/360.0*circum;
 		if ( d > data->traverse2.dist ) {
 			a2 = (data->traverse2.dist)/circum*360.0;
-			if ( data->traverse2.segDir == (segPtr->u.c.radius<0) ) {
-				a2 = NormalizeAngle( segPtr->u.c.a0+a2 );
-				a1 = a2+90;
-			} else {
-				a2 = NormalizeAngle( segPtr->u.c.a0+segPtr->u.c.a1-a2 );
-				a1 = a2-90;
-			}
-			PointOnCircle( &data->traverse2.pos, segPtr->u.c.center, fabs(segPtr->u.c.radius), a2 );
 			data->traverse2.dist = 0;
-			data->traverse2.angle = a1;
 		} else {
+			a2 = segPtr->u.c.a1;
 			data->traverse2.dist -= d;
 		}
+		if ( !data->traverse2.segDir /*== (segPtr->u.c.radius<0)*/ ) {
+			a2 = NormalizeAngle( segPtr->u.c.a0+a2 );
+			a1 = NormalizeAngle(a2+90);
+		} else {
+			a2 = NormalizeAngle( segPtr->u.c.a0+segPtr->u.c.a1-a2 );
+			a1 = NormalizeAngle(a2-90);
+		}
+		PointOnCircle( &data->traverse2.pos, segPtr->u.c.center, fabs(segPtr->u.c.radius), a2 );
+		data->traverse2.angle = a1;
+
 		break;
 
 	case SEGPROC_DRAWROADBEDSIDE:
@@ -1435,8 +1452,16 @@ EXPORT void CurveSegProc(
 		data->split.newSeg[s1].u.c.a1 -= a2;
 		break;
 
+	/* Please note - GetAngle for a curve returns an angle that is backwards for a reversed curve (90<a0<270)
+	 *   The caller needs to look at getAngle.backwards and adjust when compared to the travel direction to decide which way to process.
+	 */
 	case SEGPROC_GETANGLE:
-		data->getAngle.angle = NormalizeAngle( FindAngle( data->getAngle.pos, segPtr->u.c.center ) + 90 );
+		data->getAngle.angle = NormalizeAngle( FindAngle( segPtr->u.c.center, data->getAngle.pos ) + 90 );
+		data->getAngle.negative_radius = segPtr->u.c.radius<0;
+		data->getAngle.radius = fabs(segPtr->u.c.radius);
+		data->getAngle.center = segPtr->u.c.center;
+		data->getAngle.backwards = segPtr->u.c.a0>=90 && segPtr->u.c.a0<270;
+		if (data->getAngle.backwards) data->getAngle.angle = NormalizeAngle(data->getAngle.angle+180);
 		break;
 	}
 }
@@ -1463,13 +1488,14 @@ EXPORT void PlotCurve(
 	coOrd posx;
 
 	switch ( mode ) {
+	case crvCmdFromCornu:
 	case crvCmdFromEP1:
 		angle = FindAngle( pos0, pos1 );
 		d0 = FindDistance( pos0, pos2 )/2.0;
 		a0 = FindAngle( pos0, pos2 );
 		a1 = NormalizeAngle( a0 - angle );
 LOG( log_curve, 3, ( "P1 = [%0.3f %0.3f] D=%0.3f A0=%0.3f A1=%0.3f\n", pos2.x, pos2.y, d0, a0, a1 ) )
-		if (fabs(d0*sin(D2R(a1))) < (4.0/75.0)*mainD.scale) {
+		if ((fabs(d0*sin(D2R(a1))) < (4.0/75.0)*mainD.scale) & (mode == crvCmdFromEP1)) {
 LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*mainD.scale ) )
 			curveData->pos1.x = pos0.x + d0*2.0*sin(D2R(angle));
 			curveData->pos1.y = pos0.y + d0*2.0*cos(D2R(angle));
@@ -1491,7 +1517,7 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 				else
 					curveData->curveRadius = d0/sin(D2R(-a1));
 			}
-			if (curveData->curveRadius > 1000) {
+			if (curveData->curveRadius > 1000 & mode == crvCmdFromEP1) {
 				LOG( log_curve, 3, ( "Straight %0.3f > 1000\n", curveData->curveRadius ) )
 				curveData->pos1.x = pos0.x + d0*2.0*sin(D2R(angle));
 				curveData->pos1.y = pos0.y + d0*2.0*cos(D2R(angle));
@@ -1504,9 +1530,11 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 				if (a1 > 0.0) {
 					curveData->a0 = NormalizeAngle( a2-180 );
 					curveData->a1 = a1 * 2.0;
+					curveData->negative = FALSE;
 				} else {
 					curveData->a1 = (-a1) * 2.0;
 					curveData->a0 = NormalizeAngle( a2-180-curveData->a1 );
+					curveData->negative = TRUE;
 				}
 				curveData->type = curveTypeCurve;
 			}
@@ -1557,9 +1585,11 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 		if ( r > 0 ) {
 			curveData->a0 = a0;
 			curveData->a1 = NormalizeAngle(a1-a0);
+			curveData->negative = FALSE;
 		} else {
 			curveData->a0 = a1;
 			curveData->a1 = NormalizeAngle(a0-a1);
+			curveData->negative = TRUE;
 		}
 		curveData->type = curveTypeCurve;
 		break;

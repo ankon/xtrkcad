@@ -25,6 +25,8 @@
 
 #include "draw.h"
 #include "track.h"
+#include "wlib.h"
+#include "utility.h"
 
 typedef struct {
 		curveType_e type;
@@ -32,12 +34,14 @@ typedef struct {
 		coOrd pos1;
 		DIST_T curveRadius;
 		ANGLE_T a0, a1;
+		BOOL_T negative;
 		} curveData_t;
 
 #define crvCmdFromEP1			(0)
 #define crvCmdFromTangent		(1)
 #define crvCmdFromCenter		(2)
 #define crvCmdFromChord			(3)
+#define crvCmdFromCornu			(4)
 
 #define circleCmdFixedRadius	(0)
 #define circleCmdFromTangent	(1)

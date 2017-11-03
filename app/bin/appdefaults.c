@@ -21,7 +21,6 @@
 */
 
 #include <locale.h>
-#include <malloc.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,6 +28,7 @@
 
 #ifdef WINDOWS
 #include <Windows.h>
+#include <malloc.h>
 #endif
 
 #include "common.h"
@@ -110,8 +110,13 @@ struct appDefault xtcDefaults[] = {
 
 #define DEFAULTCOUNT (sizeof(xtcDefaults)/sizeof(xtcDefaults[0]))
 
-static char
-regionCode[3];					/**< will be initialized to the locale's region code */
+
+static long bFirstRun;						/**< TRUE if appl is run the first time */
+static char regionCode[3];					/**< will be initialized to the locale's region code */
+
+static wBool_t(*GetIntegerPref)(const char *, const char *, long *, long) = wPrefGetIntegerExt;	/**< pointer to active integer pref getter */
+static wBool_t(*GetFloatPref)(const char *, const char *, double *, double) = wPrefGetFloatExt; /**< pointer to active float pref getter */
+static char *(*GetStringPref)(const char *, const char *) = wPrefGetStringExt;					/**< pointer to active string pref getter */
 
 /**
  * A recursive binary search function. It returns location of x in
@@ -225,10 +230,6 @@ InitializeRegionCode(void)
 static double
 GetLocalRoomSize(struct appDefault *ptrDefault, void *data)
 {
-    if (!regionCode[0]) {
-        InitializeRegionCode();
-    }
-
     if (!strcmp(ptrDefault->defaultKey, "draw.roomsizeY")) {
         return (strcmp(regionCode, "US") ? 125.0/2.54 : 48);
     }
@@ -247,10 +248,6 @@ GetLocalRoomSize(struct appDefault *ptrDefault, void *data)
 static char *
 GetLocalPopularScale(struct appDefault *ptrDefault, void *data)
 {
-    if (!regionCode[0]) {
-        InitializeRegionCode();
-    }
-
     return (strcmp(regionCode, "GB") ? "HO" : "OO");
 }
 
@@ -260,10 +257,6 @@ GetLocalPopularScale(struct appDefault *ptrDefault, void *data)
 static int
 GetLocalMeasureSystem(struct appDefault *ptrDefault, void *data)
 {
-    if (!regionCode[0]) {
-        InitializeRegionCode();
-    }
-
     return (strcmp(regionCode, "US") ? 1 : 0);
 }
 
@@ -273,10 +266,6 @@ GetLocalMeasureSystem(struct appDefault *ptrDefault, void *data)
 static int
 GetLocalDistanceFormat(struct appDefault *ptrDefault, void *data)
 {
-    if (!regionCode[0]) {
-        InitializeRegionCode();
-    }
-
     return (strcmp(regionCode, "US") ? 8 : 5);
 }
 
@@ -288,10 +277,6 @@ GetLocalDistanceFormat(struct appDefault *ptrDefault, void *data)
 static char*
 GetParamPrototype(struct appDefault *ptrDefault, void *additionalData)
 {
-	if (!regionCode[0]) {
-		InitializeRegionCode();
-	}
-
 	return (strcmp(regionCode, "GB") ? "North American Prototypes" : "British stock");
 }
 
@@ -305,6 +290,31 @@ GetParamFullPath(struct appDefault *ptrDefault, void *additionalData)
     MakeFullpath(&str, libDir, PARAM_SUBDIR, (char*)additionalData, (void *)0);
     return str;
 }
+
+
+/**
+ * The following are three jump points for the correct implementation. Changing the funtion pointer
+ * allows to switch from the extended default version to the basic implementation.
+ */
+
+wBool_t 
+wPrefGetInteger(const char *section, const char *name, long *result, long defaultValue)
+{
+	return GetIntegerPref(section, name, result, defaultValue);
+}
+
+wBool_t
+wPrefGetFloat(const char *section, const char *name, double *result, double defaultValue)
+{
+	return GetFloatPref(section, name, result, defaultValue);
+}
+
+char * 
+wPrefGetString(const char *section, const char *name)
+{
+	return GetStringPref(section, name);
+}
+
 /**
  * Get an integer value from the configuration file. The is a wrapper for the real
  * file access and adds a region specific default value.
@@ -397,4 +407,26 @@ wPrefGetStringExt(const char *section, const char *name)
     } else {
         return ((char *)wPrefGetStringBasic(section, name));
     }
+}
+
+/**
+ * Initialize the application default system. The flag firstrun is used to find
+ * out whether the application was run before. This is accomplished by trying
+ * to read it from the configuration file. As it is only written after this 
+ * test, it can never be found on the first run of the application ie. when the
+ * configuration file does not exist yet.
+ */
+
+void 
+InitAppDefaults(void)
+{
+	wPrefGetIntegerBasic( "misc", "firstrun", &bFirstRun, TRUE);
+	if (bFirstRun) {
+		wPrefSetInteger("misc", "firstrun", FALSE);
+		InitializeRegionCode();
+	} else {
+		GetIntegerPref = wPrefGetIntegerBasic;
+		GetFloatPref = wPrefGetFloatBasic;
+		GetStringPref = wPrefGetStringBasic;
+	}
 }

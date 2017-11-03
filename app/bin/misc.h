@@ -381,6 +381,11 @@ BOOL_T CarCustomSave(FILE*);
 typedef int (*contMgmCallBack_p) (int, void *);
 void ContMgmLoad (wIcon_p,contMgmCallBack_p,void *);
 
+/* dlayer.c */
+void LayerSetCounts();
+void DecrementLayerObjects(unsigned int index);
+void IncrementLayerObjects(unsigned int index);
+
 /* doption.c */
 long GetDistanceFormat( void );
 
