@@ -114,6 +114,7 @@ EXPORT wButton_p redoB;
 
 EXPORT wButton_p zoomUpB;
 EXPORT wButton_p zoomDownB;
+wButton_p mapShowB;
 
 EXPORT wIndex_t checkPtMark = 0;
 
@@ -545,17 +546,14 @@ EXPORT void SaveState( void )
 }
 
 /*
- * Clean up befor quitting
+ * Clean up before quitting
  */
-static int quitting;
 static void DoQuitAfter( void )
 {
 	changed = 0;
 	SaveState();
 
 	CleanupFiles();
-
-	quitting = TRUE;
 }
 /**
  * Process shutdown request. This function is called when the user requests
@@ -565,13 +563,11 @@ static void DoQuitAfter( void )
 void DoQuit( void )
 {
 	Confirm(_("Quit"), DoQuitAfter );
-	if ( quitting ) {
 #ifdef CHECK_UNUSED_BALLOONHELP
-		ShowUnusedBalloonHelp();
+	ShowUnusedBalloonHelp();
 #endif
-		LogClose();
-		wExit(0);
-	}
+	LogClose();
+	wExit(0);
 }
 
 static void DoClearAfter( void )
@@ -599,24 +595,29 @@ static void DoClear( void )
  * Toggle visibility state of map window.
  */
 
-void MapWindowToggleShow( void )
+void MapWindowToggleShow(void)
 {
-	MapWindowShow( !mapVisible );
+    MapWindowShow(!mapVisible);
 }
 
 /**
  * Set visibility state of map window.
+ *
+ * \param state IN TRUE if visible, FALSE if hidden
  */
 
-void MapWindowShow( int state )
+void MapWindowShow(int state)
 {
-	mapVisible = state;
-	wPrefSetInteger( "misc", "mapVisible", mapVisible );
-	wMenuToggleSet( mapShowMI, mapVisible );
-	if( mapVisible )
-		DoChangeNotification( CHANGE_MAP );
+    mapVisible = state;
+    wPrefSetInteger("misc", "mapVisible", mapVisible);
+    wMenuToggleSet(mapShowMI, mapVisible);
 
-	wWinShow( mapW, mapVisible );
+    if (mapVisible) {
+        DoChangeNotification(CHANGE_MAP);
+    }
+
+    wWinShow(mapW, mapVisible);
+    wButtonSetBusy(mapShowB, (wBool_t)mapVisible);
 }
 
 static void DoShowWindow(
@@ -724,25 +725,6 @@ EXPORT void SelectFont( void )
 #define COMMAND_MAX (170)
 #define BUTTON_MAX (170)
 #define NUM_CMDMENUS (4)
-
-#ifdef LATER
-static struct {
-		addButtonCallBack_t actionProc;
-		procCommand_t cmdProc;
-		char * helpStr;
-		wControl_p control;
-		char * labelStr;
-		int reqLevel;
-		wBool_t enabled;
-		wPos_t x, y;
-		long options;
-		long stickyMask;
-		int group;
-		long acclKey;
-		wMenuPush_p menu[NUM_CMDMENUS];
-		void * context;
-		} commandList[COMMAND_MAX];
-#endif
 
 static struct {
 		wControl_p control;
@@ -1413,74 +1395,6 @@ EXPORT void ButtonGroupEnd( void )
 }
 
 
-#ifdef LATER
-EXPORT wIndex_t AddCommandControl(
-		procCommand_t command,
-		char * helpKey,
-		char * nameStr,
-		wControl_p control,
-		int reqLevel,
-		long options,
-		long acclKey,
-		void * context )
-{
-	wIndex_t buttInx = -1;
-	wIndex_t cmdInx;
-	BOOL_T newButtonGroup = FALSE;
-	wMenu_p tm, p1m, p2m;
-	static wIcon_p openbuttIcon = NULL;
-	static wMenu_p commandsSubmenu;
-	static wMenu_p popup1Submenu;
-	static wMenu_p popup2Submenu;
-
-	AddToolbarControl( control, options );
-
-	buttonList[buttInx].cmdInx = commandCnt;
-	cmdInx = AddCommand( command, helpKey, nameStr, NULL, reqLevel, options, acclKey, context );
-	commandList[cmdInx].buttInx = buttInx;
-	if (nameStr[0] == '\0')
-		return cmdInx;
-	if (commandList[cmdInx].options&IC_STICKY) {
-		if ( buttonGroupPopupM==NULL || newButtonGroup ) {
-			if ( stickyCnt > 32 )
-				AbortProg( "stickyCnt>32" );
-			stickyCnt++;
-		}
-		if ( buttonGroupPopupM==NULL) {
-			stickyLabels[stickyCnt-1] = nameStr;
-		} else {
-			stickyLabels[stickyCnt-1] = buttonGroupStickyLabel;
-		}
-		stickyLabels[stickyCnt] = NULL;
-		commandList[cmdInx].stickyMask = 1L<<(stickyCnt-1);
-	}
-	if ( buttonGroupPopupM ) {
-		commandList[cmdInx].menu[0] =
-		wMenuPushCreate( buttonGroupPopupM, helpKey, GetBalloonHelpStr(helpKey), 0, DoCommandB, (void*)cmdInx );
-		tm = commandsSubmenu;
-		p1m = popup1Submenu;
-		p2m = popup2Submenu;
-	} else {
-		tm = commandsM;
-		p1m = (options&IC_POPUP2)?popup1aM:popup1M;
-		p2m = (options&IC_POPUP2)?popup2aM:popup2M;
-	}
-	commandList[cmdInx].menu[1] =
-	wMenuPushCreate( tm, helpKey, nameStr, acclKey, DoCommandB, (void*)cmdInx );
-	if ( (options & (IC_POPUP|IC_POPUP2)) ) {
-		if ( !(options & IC_SELECTED) ) {
-			commandList[cmdInx].menu[2] =
-			wMenuPushCreate( p1m, helpKey, nameStr, 0, DoCommandB, (void*)cmdInx );
-		}
-		commandList[cmdInx].menu[3] =
-		wMenuPushCreate( p2m, helpKey, nameStr, 0, DoCommandB, (void*)cmdInx );
-	}
-
-	return cmdInx;
-}
-#endif
-
-
 EXPORT wIndex_t AddMenuButton(
 		wMenu_p menu,
 		procCommand_t command,
@@ -2030,6 +1944,7 @@ static void SetAccelKey(
 #include "bitmaps/document-save.xpm"
 #include "bitmaps/document-open.xpm"
 #include "bitmaps/document-print.xpm"
+#include "bitmaps/map.xpm"
 
 static void CreateMenus( void )
 {
@@ -2064,6 +1979,7 @@ static void CreateMenus( void )
 	wMenuPushCreate( popup2M, "cmdZoomOut", _("Zoom Out"), 0, (wMenuCallBack_p)DoZoomDown, (void*)1 );
 	MiscMenuItemCreate( popup1M, popup2M, "cmdGridEnable", _("SnapGrid Enable"), 0, (void*)(wMenuCallBack_p)SnapGridEnable, 0, (void *)0 );
 	MiscMenuItemCreate( popup1M, popup2M, "cmdGridShow", _("SnapGrid Show"), 0, (void*)(wMenuCallBack_p)SnapGridShow, 0, (void *)0 );
+	MiscMenuItemCreate( popup1M, popup2M, "cmdMapShow", _("Show/Hide Map"), 0, (void*)(wMenuCallBack_p)MapWindowToggleShow, 0, (void *)0);
 	wMenuSeparatorCreate( popup1M );
 	wMenuSeparatorCreate( popup2M );
 	MiscMenuItemCreate( popup2M, NULL, "cmdCopy", _("Copy"), 0, (void*)(wMenuCallBack_p)EditCopy, 0, (void *)0 );
@@ -2188,7 +2104,7 @@ static void CreateMenus( void )
 	// visibility toggle for map window
 	// get the start value
 	wPrefGetInteger( "misc", "mapVisible", (long *)&mapVisible, 1 );
-	mapShowMI = wMenuToggleCreate( viewM, "cmdMapShow", _("Show Map"), ACCL_MAPSHOW,
+	mapShowMI = wMenuToggleCreate( viewM, "cmdMapShow", _("Show/Hide Map"), ACCL_MAPSHOW,
 		mapVisible, (wMenuToggleCallBack_p)MapWindowToggleShow, NULL );
 
 	wMenuSeparatorCreate( viewM );
@@ -2201,6 +2117,10 @@ static void CreateMenus( void )
 
 	cmdGroup = BG_SNAP;
 	InitSnapGridButtons();
+	mapShowB = AddToolbarButton("cmdMapShow", wIconCreatePixMap(map_xpm), IC_MODETRAIN_TOO,
+		(addButtonCallBack_t)MapWindowToggleShow, NULL);
+	wControlLinkedSet((wControl_p)mapShowMI, (wControl_p)mapShowB);
+	wButtonSetBusy(mapShowB, (wBool_t)mapVisible);
 
 	/*
 	 * ADD MENU
@@ -2332,7 +2252,7 @@ static void CreateMenus( void )
 
 	InitNewTurn( wMenuMenuCreate( manageM, "cmdTurnoutNew", _("Tur&nout Designer...") ) );
 
-        MiscMenuItemCreate( manageM, NULL, "smdContmgm", _("Layout &Control Elements"), ACCL_CONTMGM,(void*)ControlMgrInit(),0,(void*) 0);
+        MiscMenuItemCreate( manageM, NULL, "cmdContmgm", _("Layout &Control Elements"), ACCL_CONTMGM,(void*)ControlMgrInit(),0,(void*) 0);
         MiscMenuItemCreate( manageM, NULL, "cmdGroup", _("&Group"), ACCL_GROUP, (void*)(wMenuCallBack_p)DoGroup, IC_SELECTED, (void *)0 );
 	MiscMenuItemCreate( manageM, NULL, "cmdUngroup", _("&Ungroup"), ACCL_UNGROUP, (void*)(wMenuCallBack_p)DoUngroup, IC_SELECTED, (void *)0 );
 
