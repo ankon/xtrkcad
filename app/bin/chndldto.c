@@ -38,17 +38,33 @@
 /*
  * STATE INFO
  */
+enum HandLaidState {SET_FROGSTART, SET_FROGLEN, SET_FROGA, SETSWITCHSTART, SETSWITCHEND, SETSWITCHCRV };
+
 static struct {
-		STATE_T state;
-		coOrd normalP;
-		ANGLE_T normalA;
-		track_p normalT;
-		coOrd reverseP;
-		coOrd reverseP1;
-		ANGLE_T reverseA;
-		DIST_T frogNo;
-		ANGLE_T frogA;
-		curveData_t curveData;
+		enum HandLaidState state;   //Where are we in the process
+
+		coOrd normalEndP;		    //Normal Point at End
+		ANGLE_T normalEndA;			//Normal Angle at End
+		DIST_T normalEndR;	        //Normal Radius at End
+		coOrd normalEndC;			//Normal Curve center at End
+		coOrd frogP;				//Point of Frog
+		coOrd frogP1;				//End of frog straight section
+		track_p normalT;			//Normal Track
+		coOrd reverseEndP;			//Reverse Point at End
+		ANGLE_T reverseEndA;		//Reverse Angle at End
+		DIST_T reverseEndR;			//Reverse Radius at End
+		coOrd reverseEndC;			//Reverse Curve center at End
+		coOrd switchS;				//End of switch Point for Reverse
+		ANGLE_T switchA;			//End of switch Angle
+		DIST_T switchR;				//End of switch Radius
+		coOrd switchC;				//End of switch center
+		coOrd commonS;				//Common end of Switch point
+		BOOL_T cornu_blades;
+		BOOL_T cornu_closure;
+		BOOL_T cornu_reverse;
+		DIST_T frogNo;				//Frog Number
+		ANGLE_T frogA;				//Point/Frog Angle
+		curveData_t curveData;		//Joining Pieces
 		} Dhlt;
 
 
