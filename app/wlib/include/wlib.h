@@ -55,7 +55,7 @@ typedef struct wDrawBitMap_t * wDrawBitMap_p;
 typedef struct wFont_t      * wFont_p;
 typedef struct wBitmap_t	* wBitmap_p;
 typedef int wDrawWidth;
-typedef int wDrawColor;
+typedef long wDrawColor;
 
 typedef struct {
 	const char * name;
