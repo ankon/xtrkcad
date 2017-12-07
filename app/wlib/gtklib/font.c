@@ -69,6 +69,12 @@ int absoluteFontSize = 18;
 static wFont_p standardFonts[F_HELV-F_TIMES+1][2][2];
 static wFont_p curFont = NULL;
 
+static wBool_t fontInitted = FALSE;
+
+struct wFont_t {
+    PangoFontDescription *fontDescription;
+};
+
 /**
  * Callback for font selection dialog
  *
@@ -106,11 +112,6 @@ static void fontChooserDialogCallback(GtkFontChooserDialog
     }
 }
 
-static wBool_t fontInitted = FALSE;
-
-struct wFont_t {
-    PangoFontDescription *fontDescription;
-};
 
 static wBool_t fontInit()
 {
@@ -275,7 +276,7 @@ void wSelectFont(
         fontChooserDialog = gtk_font_chooser_dialog_new(_("Font Select"),NULL);
         gtk_window_set_position(GTK_WINDOW(fontChooserDialog), GTK_WIN_POS_MOUSE);
         gtk_window_set_modal(GTK_WINDOW(fontChooserDialog), TRUE);
-        gtk_font_selection_dialog_set_preview_text(GTK_FONT_SELECTION_DIALOG(
+        gtk_font_chooser_set_preview_text(GTK_FONT_CHOOSER(
                     fontChooserDialog), sampleText);
         g_signal_connect(G_OBJECT(fontChooserDialog), "response",
                          G_CALLBACK(fontChooserDialogCallback), NULL);
@@ -294,7 +295,7 @@ void wSelectFont(
         pango_font_description_set_size(curFont->fontDescription,
                                         FONTSIZE_TO_PANGOSIZE(absoluteFontSize) * PANGO_SCALE);
         fontName = pango_font_description_to_string(curFont->fontDescription);
-        gtk_font_selection_dialog_set_font_name(GTK_FONT_SELECTION_DIALOG(
+        gtk_font_chooser_set_font(GTK_FONT_CHOOSER(
                 fontChooserDialog), fontName);
         g_free(fontName);
     }
