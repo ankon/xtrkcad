@@ -77,7 +77,7 @@ void wlibSetLabel(
     GtkWidget * * imageG)
 {
     wIcon_p bm;
-    GdkBitmap * mask;
+   // GdkBitmap * mask;
 
     if (widget == 0) {
         abort();
@@ -204,7 +204,7 @@ wButton_p wButtonCreate(
     wlibComputePos((wControl_p)b);
 
     b->widget = gtk_toggle_button_new();
-    g_signal_connect(GTK_OBJECT(b->widget), "clicked",
+    g_signal_connect(b->widget, "clicked",
                          G_CALLBACK(pushButt), b);
     if (width > 0) {
         gtk_widget_set_size_request(b->widget, width, -1);
@@ -216,7 +216,7 @@ wButton_p wButtonCreate(
     gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
 
     if (option & BB_DEFAULT) {
-        gtk_widget_set_can_default(b->widget, GTK_CAN_DEFAULT);
+        gtk_widget_set_can_default(b->widget, TRUE);
         gtk_widget_grab_default(b->widget);
         gtk_window_set_default(GTK_WINDOW(parent->gtkwin), b->widget);
     }
@@ -485,9 +485,9 @@ wChoice_p wRadioCreate(
     wlibComputePos((wControl_p)b);
 
     if (option&BC_HORZ) {
-        b->widget = gtk_hbox_new(FALSE, 0);
+        b->widget = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
     } else {
-        b->widget = gtk_vbox_new(FALSE, 0);
+        b->widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     }
 
     if (b->widget == 0) {
@@ -504,7 +504,7 @@ wChoice_p wRadioCreate(
 
         gtk_box_pack_start(GTK_BOX(b->widget), butt, TRUE, TRUE, 0);
         gtk_widget_show(butt);
-        g_signal_connect(GTK_OBJECT(butt), "toggled",
+        g_signal_connect(butt, "toggled",
                          G_CALLBACK(pushChoice), b);
         wlibAddHelpString(butt, helpStr);
     }
@@ -587,9 +587,9 @@ wChoice_p wToggleCreate(
     wlibComputePos((wControl_p)b);
 
     if (option&BC_HORZ) {
-        b->widget = gtk_hbox_new(FALSE, 0);
+        b->widget = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
     } else {
-        b->widget = gtk_vbox_new(FALSE, 0);
+        b->widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     }
 
     if (b->widget == 0) {
@@ -602,7 +602,7 @@ wChoice_p wToggleCreate(
         butt = gtk_check_button_new_with_label(_(*label));
         gtk_box_pack_start(GTK_BOX(b->widget), butt, TRUE, TRUE, 0);
         gtk_widget_show(butt);
-        g_signal_connect(GTK_OBJECT(butt), "toggled",
+        g_signal_connect(butt, "toggled",
                          G_CALLBACK(pushChoice), b);
         wlibAddHelpString(butt, helpStr);
     }

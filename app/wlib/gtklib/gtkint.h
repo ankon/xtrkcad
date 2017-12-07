@@ -80,7 +80,7 @@ struct wWin_t {
 		wBool_t shown;                 /**< visibility state */
 		const char * nameStr;          /**< window name (not title) */
 		GtkWidget * menubar;           /**< menubar handle (if exists) */
-		GdkGC * gc;                    /**< graphics context */
+		//GdkGC * gc;                    /**< graphics context */
 		int gc_linewidth;              /**< ??? */
 		wBool_t busy;
 		int resizeTimer;		       /** resizing **/
@@ -166,7 +166,7 @@ typedef struct {
     int colorChar;
 } colorMap_t;
 
-GdkColor *wlibGetColor(wDrawColor color, wBool_t normal);
+wDrawColor wlibGetColor(wDrawColor color, wBool_t normal);
 
 /* control.c */
 
@@ -251,12 +251,12 @@ struct wDraw_t {
 		wDrawActionCallBack_p action;
 		wDrawRedrawCallBack_p redraw;
 
-		GdkPixmap * pixmap;
-		GdkPixmap * pixmapBackup;
+		GdkPixbuf * pixbuf;
+		GdkPixbuf * pixbufBackup;
 
 		double dpi;
 
-		GdkGC * gc;
+		//GdkGC * gc;
 		wDrawWidth lineWidth;
 		wDrawOpts opts;
 		wPos_t maxW;
