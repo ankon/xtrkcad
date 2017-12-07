@@ -311,11 +311,11 @@ wButton_p wColorSelectButtonCreate(
     wlibComputePos((wControl_p)b);
 
     b->widget = gtk_color_button_new();
-    GtkStyle *style;
-    style = gtk_widget_get_style(b->widget);
-    style->xthickness = 1;
-    style->ythickness = 1;
-    gtk_widget_set_style(b->widget, style);
+    //GtkStyleContext *stylecontext;
+   // stylecontext = gtk_widget_get_style_context(b->widget);
+   // stylecontext->xthickness = 1;
+   // stylecontext->ythickness = 1;
+   // gtk_widget_set_style_context(b->widget, stylecontext);
     gtk_widget_set_size_request(GTK_WIDGET(b->widget), 22, 22);
     g_signal_connect(b->widget, "color-set",
                      G_CALLBACK(colorChange), cd);
@@ -323,7 +323,7 @@ wButton_p wColorSelectButtonCreate(
     gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
 
     if (option & BB_DEFAULT) {
-        gtk_widget_set_can_default(b->widget, GTK_CAN_DEFAULT);
+        gtk_widget_set_can_default(b->widget, TRUE);
         gtk_widget_grab_default(b->widget);
         gtk_window_set_default(GTK_WINDOW(parent->gtkwin), b->widget);
     }

@@ -94,12 +94,12 @@ wPos_t wMessageGetHeight(
 {
 	GtkWidget * temp = gtk_combo_box_text_new();   //to get max size of an object in infoBar
 	if (wMessageSetFont(flags))	{
-		GtkStyle *style;
+		GtkStyle *stylecontext;
 		PangoFontDescription *fontDesc;
 		int fontSize;
 	    /* get the current font descriptor */
-	   style = gtk_widget_get_style(temp);
-	   fontDesc = style->font_desc;
+	   stylecontext = gtk_widget_get_style(temp);
+	   fontDesc = stylecontext->font_desc;
 	   /* get the current font size */
 	   fontSize = PANGO_PIXELS(pango_font_description_get_size(fontDesc));
 
@@ -144,7 +144,7 @@ wPos_t wMessageGetHeight(
 {
     wMessage_p b;
     GtkRequisition requisition;
-    GtkStyle *style;
+    GtkStyle *stylecontext;
     PangoFontDescription *fontDesc;
     int fontSize;
     b = (wMessage_p)wlibAlloc(parent, B_MESSAGE, x, y, NULL, sizeof *b, NULL);
@@ -156,8 +156,8 @@ wPos_t wMessageGetHeight(
     /* do we need to set a special font? */
     if (wMessageSetFont(flags))	{
         /* get the current font descriptor */
-        style = gtk_widget_get_style(GTK_WIDGET(b->labelWidget));
-        fontDesc = style->font_desc;
+        stylecontext = gtk_widget_get_style(GTK_WIDGET(b->labelWidget));
+        fontDesc = stylecontext->font_desc;
         /* get the current font size */
         fontSize = PANGO_PIXELS(pango_font_description_get_size(fontDesc));
 
