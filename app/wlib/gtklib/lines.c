@@ -62,7 +62,7 @@ static void linesRepaint(wControl_p b)
     wLine_p bl = (wLine_p)(b);
     int i;
     wWin_p win = (wWin_p)(bl->parent);
-    GdkDrawable * window;
+    GdkWindow * window;
     cairo_t *cr;
 
     if (!bl->visible) {
@@ -70,7 +70,15 @@ static void linesRepaint(wControl_p b)
     }
 
     window = gtk_widget_get_window(win->widget);
-    cr = gdk_cairo_create(window);
+    cairo_rectangle_int_t r;
+    r.width = win->w;
+    r.height = win->h;
+    r.x = win->realX;
+    r.y = win->realY;
+    cairo_region_t * rect = cairo_region_create_rectangle(&r);
+
+    GdkDrawingContext * context = gdk_window_begin_draw_frame(window, rect);
+    cr = gdk_drawing_context_get_cairo_context(context);
     cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
     cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
@@ -83,6 +91,7 @@ static void linesRepaint(wControl_p b)
     }
 
     cairo_destroy(cr);
+    gdk_window_end_draw_frame(window,context);
 }
 
 /**

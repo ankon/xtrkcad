@@ -94,12 +94,12 @@ wPos_t wMessageGetHeight(
 {
 	GtkWidget * temp = gtk_combo_box_text_new();   //to get max size of an object in infoBar
 	if (wMessageSetFont(flags))	{
-		GtkStyle *stylecontext;
+		GtkStyleContext *stylecontext;
 		PangoFontDescription *fontDesc;
 		int fontSize;
 	    /* get the current font descriptor */
-	   stylecontext = gtk_widget_get_style(temp);
-	   fontDesc = stylecontext->font_desc;
+	   stylecontext = gtk_widget_get_style_context(temp);
+	   gtk_style_context_get(stylecontext,GTK_STATE_FLAG_NORMAL,"font", &fontDesc, NULL);
 	   /* get the current font size */
 	   fontSize = PANGO_PIXELS(pango_font_description_get_size(fontDesc));
 
