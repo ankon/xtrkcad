@@ -471,6 +471,8 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)
 		widthOptions |= DTS_THICK3;
+	if (GetTrkBridge(t))
+		widthOptions |= DTS_BRIDGE;
 	
 
 	if ( ((d->funcs->options&wDrawOptTemp)==0) &&
@@ -520,7 +522,7 @@ static BOOL_T WriteBezier( track_p t, FILE * f )
 	options = GetTrkWidth(t) & 0x0F;
 	rc &= fprintf(f, "%s %d %u %ld %ld %0.6f %s %d %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f 0 %0.6f %0.6f \n",
 		track?"BEZIER":"BZRLIN",GetTrkIndex(t), GetTrkLayer(t), (long)options, wDrawGetRGB(xx->bezierData.segsColor), xx->bezierData.segsWidth,
-                  GetTrkScaleName(t), GetTrkVisible(t),
+                  GetTrkScaleName(t), GetTrkVisible(t)|GetTrkBridge(t),
 				  xx->bezierData.pos[0].x, xx->bezierData.pos[0].y,
 				  xx->bezierData.pos[1].x, xx->bezierData.pos[1].y,
 				  xx->bezierData.pos[2].x, xx->bezierData.pos[2].y,
@@ -539,7 +541,7 @@ static void ReadBezier( char * line )
 	struct extraData *xx;
 	track_p t;
 	wIndex_t index;
-	BOOL_T visible;
+	BOOL_T visiblebridge;
 	coOrd p0, c1, c2, p1, dp;
 	char scale[10];
 	wIndex_t layer;
@@ -549,7 +551,7 @@ static void ReadBezier( char * line )
 	DIST_T width;
 
 	if (!GetArgs( line+6, "dLluwsdpppp0p",
-		&index, &layer, &options, &rgb, &width, scale, &visible, &p0, &c1, &c2, &p1, &dp ) ) {
+		&index, &layer, &options, &rgb, &width, scale, &visiblebridge, &p0, &c1, &c2, &p1, &dp ) ) {
 		return;
 	}
 	if (strncmp(line,"BEZIER",6)==0)
@@ -557,7 +559,8 @@ static void ReadBezier( char * line )
 	else
 		t = NewTrack( index, T_BZRLIN, 0, sizeof *xx );
 	xx = GetTrkExtraData(t);
-	SetTrkVisible(t, visible);
+	SetTrkVisible(t, visiblebridge&TB_VISIBLE);
+	SetTrkBridge(t, visiblebridge&TB_BRIDGE);
 	SetTrkScale(t, LookupScale(scale));
 	SetTrkLayer(t, layer );
 	SetTrkWidth(t, (int)(options&0x0F));
@@ -862,7 +865,7 @@ static DIST_T GetLengthBezier( track_p trk )
 static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * params )
 {
 	int segInx;
-	BOOL_T back;
+	BOOL_T back,negative;
 	DIST_T d;
 
 	params->type = curveTypeBezier;
@@ -871,8 +874,8 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 	params->len = xx->bezierData.length;
 	params->track_angle = GetAngleSegs(		  						//Find correct Segment and nearest point in it
 					xx->bezierData.arcSegs.cnt,xx->bezierData.arcSegs.ptr,
-					&pos, &segInx, &d , &back, NULL, NULL );
-
+					&pos, &segInx, &d , &back, NULL, &negative );
+	if (negative) params->track_angle = NormalizeAngle(params->track_angle+180);  //Bezier is in reverse
 	trkSeg_p segPtr = &DYNARR_N(trkSeg_t,xx->bezierData.arcSegs,segInx);
 	if (segPtr->type == SEG_STRLIN) {
 		params->arcR = 0.0;

@@ -380,6 +380,15 @@ static BOOL_T FlipHidden( track_p trk, BOOL_T junk )
 	return TRUE;
 }
 
+static BOOL_T FlipBridge( track_p trk, BOOL_T junk ) {
+	if (GetTrkBridge(trk)) {
+		ClrTrkBits( trk, TB_BRIDGE );
+	} else {
+		SetTrkBits( trk, TB_BRIDGE );
+	}
+	return TRUE;
+}
+
 
 EXPORT void SelectTunnel( void )
 {
@@ -397,6 +406,25 @@ EXPORT void SelectTunnel( void )
 	}
 	if ( flipHiddenDoSelectRecount )
 		SelectRecount();
+}
+
+EXPORT void SelectBridge( void )
+{
+	if (SelectedTracksAreFrozen())
+		return;
+
+	if (selectedTrackCount>0) {
+		UndoStart( _("Tracks (Bridge)"), "bridge" );
+		wDrawDelayUpdate( mainD.d, TRUE );
+		DoSelectedTracks( FlipBridge );
+		wDrawDelayUpdate( mainD.d, FALSE );
+		UndoEnd();
+		MainRedraw();
+	} else {
+		ErrorMessage( MSG_NO_SELECTED_TRK );
+	}
+
+
 }
 
 
@@ -1995,6 +2023,7 @@ static STATUS_T CmdSelect(
 #include "bitmaps/select.xpm"
 #include "bitmaps/delete.xpm"
 #include "bitmaps/tunnel.xpm"
+#include "bitmaps/bridge.xpm"
 #include "bitmaps/move.xpm"
 #include "bitmaps/rotate.xpm"
 #include "bitmaps/flip.xpm"
@@ -2057,11 +2086,8 @@ EXPORT void InitCmdTunnel( void )
 	wIcon_p icon;
 	icon = wIconCreatePixMap( tunnel_xpm );
 	AddToolbarButton( "cmdTunnel", icon, IC_SELECTED|IC_POPUP, (addButtonCallBack_t)SelectTunnel, NULL );
-#ifdef LATER
-	tunnelCmdInx = AddButton( "cmdTunnel", _("Tunnel"),
-		(addButtonCallBack_t)SelectTunnel, NULL, IC_SELECTED|IC_POPUP, NULL, LEVEL0_50, ACCL_TUNNEL,
-		(wControl_p)wButtonCreate(mainW, 0, 0, "cmdTunnel", (char*)bm_p, BO_ICON, 0, (wButtonCallBack_p)SelectTunnel, 0 ) );
-#endif
+	icon = wIconCreatePixMap( bridge_xpm );
+	AddToolbarButton( "cmdBridge", icon, IC_SELECTED|IC_POPUP, (addButtonCallBack_t)SelectBridge, NULL );
 }
 
 

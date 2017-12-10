@@ -499,6 +499,8 @@ static void DrawCornu( track_p t, drawCmd_p d, wDrawColor color )
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)
 		widthOptions |= DTS_THICK3;
+	if (GetTrkBridge(t))
+		widthOptions |= DTS_BRIDGE;
 	
 
 	if ( ((d->funcs->options&wDrawOptTemp)==0) &&
@@ -556,7 +558,7 @@ static BOOL_T WriteCornu( track_p t, FILE * f )
 	options = GetTrkWidth(t) & 0x0F;
 	rc &= fprintf(f, "%s %d %d %ld 0 0 %s %d %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f \n",
 		"CORNU",GetTrkIndex(t), GetTrkLayer(t), (long)options,
-                  GetTrkScaleName(t), GetTrkVisible(t),
+                  GetTrkScaleName(t), GetTrkVisible(t)|GetTrkBridge(t),
 				  xx->cornuData.pos[0].x, xx->cornuData.pos[0].y,
 				  xx->cornuData.a[0],
 				  xx->cornuData.r[0],
@@ -579,7 +581,7 @@ static void ReadCornu( char * line )
 	struct extraData *xx;
 	track_p t;
 	wIndex_t index;
-	BOOL_T visible;
+	BOOL_T visiblebridge;
 	DIST_T r0,r1;
 	ANGLE_T a0,a1;
 	coOrd p0, p1, c0, c1;
@@ -589,13 +591,14 @@ static void ReadCornu( char * line )
 	char * cp = NULL;
 
 	if (!GetArgs( line+6, "dLl00sdpffppffp",
-		&index, &layer, &options, scale, &visible, &p0, &a0, &r0, &c0, &p1, &a1, &r1, &c1 ) ) {
+		&index, &layer, &options, scale, &visiblebridge, &p0, &a0, &r0, &c0, &p1, &a1, &r1, &c1 ) ) {
 		return;
 	}
 	t = NewTrack( index, T_CORNU, 0, sizeof *xx );
 
 	xx = GetTrkExtraData(t);
-	SetTrkVisible(t, visible);
+	SetTrkVisible(t, visiblebridge&TB_VISIBLE);
+	SetTrkBridge(t, visiblebridge&TB_BRIDGE);
 	SetTrkScale(t, LookupScale(scale));
 	SetTrkLayer(t, layer );
 	SetTrkWidth(t, (int)(options&0x0F));
@@ -1003,6 +1006,7 @@ static BOOL_T GetParamsCornu( int inx, track_p trk, coOrd pos, trackParams_t * p
 	params->track_angle = GetAngleSegs(		  						//Find correct Segment and nearest point in it
 							xx->cornuData.arcSegs.cnt,xx->cornuData.arcSegs.ptr,
 							&pos, &segInx, &d , &back, &segInx2, &negative );
+	if (negative) params->track_angle = NormalizeAngle(params->track_angle+180);  //Cornu is in reverse
 	trkSeg_p segPtr = &DYNARR_N(trkSeg_t,xx->cornuData.arcSegs,segInx);
 	if (segPtr->type == SEG_STRTRK) {
 		params->arcR = 0.0;

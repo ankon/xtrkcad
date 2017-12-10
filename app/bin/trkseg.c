@@ -1747,7 +1747,7 @@ EXPORT void DrawSegsO(
 				DrawStraightTrack( d,
 					p0, p1,
 					FindAngle(p0, p1 ),
-					NULL, trackGauge, color1, options );
+					trk, trackGauge, color1, options );
 				break;
 			case SEG_STRLIN:
 				DrawLine( d, p0, p1, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
@@ -1798,7 +1798,7 @@ EXPORT void DrawSegsO(
 					fabs(segPtr->u.c.radius),
 					a0, segPtr->u.c.a1,
 					p0, p1,
-					NULL, trackGauge, color1, options );
+					trk, trackGauge, color1, options );
 			} else {
 				DrawArc( d, c, fabs(segPtr->u.c.radius), a0, segPtr->u.c.a1,
 						FALSE, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
@@ -1833,7 +1833,7 @@ EXPORT void DrawSegsO(
             		   					fabs(tempPtr->u.c.radius),
             		   					a0, tempPtr->u.c.a1,
             		   					p0, p1,
-            		   					NULL, trackGauge, color1, options );
+            		   					trk, trackGauge, color1, options );
         				} else if (tempPtr->type == SEG_CRVLIN) {
         					DrawArc( d, c, fabs(tempPtr->u.c.radius), a0, tempPtr->u.c.a1,
         							FALSE, (wDrawWidth)floor(tempPtr->width*factor+0.5), color1 );
@@ -1847,7 +1847,7 @@ EXPORT void DrawSegsO(
         				DrawStraightTrack( d,
         									p0, p1,
 											FindAngle(p0, p1 ),
-											NULL, trackGauge, color1, options );
+											trk, trackGauge, color1, options );
             			break;
         			case SEG_STRLIN:
         				REORIGIN(p0,tempPtr->u.l.pos[0], angle, orig);

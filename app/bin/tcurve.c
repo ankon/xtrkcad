@@ -654,6 +654,8 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)
 		widthOptions |= DTS_THICK3;
+	if (GetTrkBridge(t))
+		widthOptions |= DTS_BRIDGE;
 	GetCurveAngles( &a0, &a1, t );
 	if (xx->circle) {
 		tt = NULL;
@@ -693,7 +695,7 @@ static BOOL_T WriteCurve( track_p t, FILE * f )
 		options |= 0x80;
 	rc &= fprintf(f, "CURVE %d %d %ld 0 0 %s %d %0.6f %0.6f 0 %0.6f %ld %0.6f %0.6f\n", 
 		GetTrkIndex(t), GetTrkLayer(t), (long)options,
-		GetTrkScaleName(t), GetTrkVisible(t), xx->pos.x, xx->pos.y, xx->radius,
+		GetTrkScaleName(t), GetTrkVisible(t)|GetTrkBridge(t), xx->pos.x, xx->pos.y, xx->radius,
 		xx->helixTurns, xx->descriptionOff.x, xx->descriptionOff.y )>0;
 	rc &= WriteEndPt( f, t, 0 );
 	rc &= WriteEndPt( f, t, 1 );
@@ -706,7 +708,7 @@ static void ReadCurve( char * line )
 	struct extraData *xx;
 	track_p t;
 	wIndex_t index;
-	BOOL_T visible;
+	BOOL_T visiblebridge;
 	DIST_T r;
 	coOrd p;
 	DIST_T elev;
@@ -716,12 +718,13 @@ static void ReadCurve( char * line )
 	char * cp = NULL;
 
 	if (!GetArgs( line+6, paramVersion<3?"dXZsdpYfc":paramVersion<9?"dLl00sdpYfc":"dLl00sdpffc", 
-		&index, &layer, &options, scale, &visible, &p, &elev, &r, &cp ) ) {
+		&index, &layer, &options, scale, &visiblebridge, &p, &elev, &r, &cp ) ) {
 		return;
 	}
 	t = NewTrack( index, T_CURVE, 0, sizeof *xx );
 	xx = GetTrkExtraData(t);
-	SetTrkVisible(t, visible);
+	SetTrkVisible(t, visiblebridge&TB_VISIBLE);
+	SetTrkBridge(t, visiblebridge&TB_BRIDGE);
 	SetTrkScale(t, LookupScale(scale));
 	SetTrkLayer(t, layer );
 	SetTrkWidth(t, (int)(options&3));

@@ -630,7 +630,7 @@ static void DrawTurnout(
 		DrawSegsO( d, trk, xx->orig, xx->angle, xx->segs, xx->segCnt, GetTrkGauge(trk), color, widthOptions|DTS_TIES );
 	DrawSegsO( d, trk, xx->orig, xx->angle, xx->segs, xx->segCnt, GetTrkGauge(trk), color, widthOptions | DTS_NOCENTER );  // no curve center for turnouts
 	for (i=0; i<GetTrkEndPtCnt(trk); i++) {
-		DrawEndPt( d, trk, i, color );
+		DrawEndPt( d, trk, i, color );             //No Bridge EndPoint
 	}
 	if ( ((d->funcs->options&wDrawOptTemp)==0) &&
 		 (labelWhen == 2 || (labelWhen == 1 && (d->options&DC_PRINT))) &&
@@ -639,6 +639,15 @@ static void DrawTurnout(
 		DrawCompoundDescription( trk, d, color );
 		if (!xx->handlaid)
 			LabelLengths( d, trk, color );
+	}
+	if ((!(d->options&DC_PRINT)) & GetTrkBridge(trk) & d->scale <= twoRailScale) {
+			tieData_p td;
+			DIST_T tempWidth;
+			td = GetScaleTieData(GetTrkScale(trk));
+			tempWidth = roadbedWidth;
+			roadbedWidth = td->length+4;
+			DrawTurnoutRoadbed( d, color, xx->orig, xx->angle, xx->segs, xx->segCnt );
+			roadbedWidth = tempWidth;
 	}
 	if ( roadbedWidth > GetTrkGauge(trk) &&
 		( ((d->options&DC_PRINT) && d->scale <= (twoRailScale*2+1)/2.0) ||

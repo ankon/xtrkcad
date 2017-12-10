@@ -907,7 +907,7 @@ BOOL_T WriteCompound(
 	rc &= fprintf(f, "%s %d %d %ld %ld 0 %s %d %0.6f %0.6f 0 %0.6f \"%s\"\n",
 				GetTrkTypeName(t),
 				GetTrkIndex(t), GetTrkLayer(t), options, position,
-				GetTrkScaleName(t), GetTrkVisible(t),
+				GetTrkScaleName(t), GetTrkVisible(t)|GetTrkBridge(t),
 				xx->orig.x, xx->orig.y, xx->angle,
 				PutTitle(xtitle(xx)) )>0;
 	for (ep=0; ep<epCnt; ep++ )
@@ -992,7 +992,7 @@ void ReadCompound(
 	track_p trk;
 	struct extraData *xx;
 	TRKINX_T index;
-	BOOL_T visible;
+	BOOL_T visiblebridge;
 	coOrd orig;
 	DIST_T elev;
 	ANGLE_T angle;
@@ -1006,15 +1006,15 @@ void ReadCompound(
 
 	if (paramVersion<3) {
 		if ( !GetArgs( line, "dXsdpfq",
-			&index, &layer, scale, &visible, &orig, &angle, &title ) )
+			&index, &layer, scale, &visiblebridge, &orig, &angle, &title ) )
 			return;
 	} else if (paramVersion <= 5 && trkType == T_STRUCTURE) {
 		if ( !GetArgs( line, "dL00sdpfq",
-			&index, &layer, scale, &visible, &orig, &angle, &title ) )
+			&index, &layer, scale, &visiblebridge, &orig, &angle, &title ) )
 			return;
 	} else {
 		if ( !GetArgs( line, paramVersion<9?"dLll0sdpYfq":"dLll0sdpffq",
-			&index, &layer, &options, &position, scale, &visible, &orig, &elev, &angle, &title ) )
+			&index, &layer, &options, &position, scale, &visiblebridge, &orig, &elev, &angle, &title ) )
 			return;
 	}
 	if (paramVersion >=3 && paramVersion <= 5 && trkType == T_STRUCTURE)
@@ -1038,7 +1038,8 @@ void ReadCompound(
 	}
 	trk = NewCompound( trkType, index, orig, angle, title, 0, NULL, pathCnt, (char *)path, tempSegs_da.cnt, &tempSegs(0) );
 	SetEndPts( trk, 0 );
-	SetTrkVisible(trk, visible);
+	SetTrkVisible(trk, visiblebridge&TB_VISIBLE);
+	SetTrkBridge(trk, visiblebridge&TB_BRIDGE);
 	SetTrkScale(trk, LookupScale( scale ));
 	SetTrkLayer(trk, layer);
 	SetTrkWidth(trk, (int)(options&3));
@@ -1054,7 +1055,7 @@ void ReadCompound(
 	trk = NewTrack( index, trkType, 0, sizeof (*xx) + 1 );
 	SetEndPts( trk, 0 );
 	xx = GetTrkExtraData(trk);
-	SetTrkVisible(trk, visible);
+	SetTrkVisible(trk, visiblebridge);
 	SetTrkScale(trk, LookupScale( scale ));
 	SetTrkLayer(trk, layer);
 	SetTrkWidth(trk, (int)(options&3));

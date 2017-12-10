@@ -831,20 +831,6 @@ EXPORT void DrawJointTrack(
 		return;
 	}
 LOG( log_ease, 4, ( "DJT( (X%0.3f Y%0.3f A%0.3f) \n", pos.x, pos.y, angle ) )
-#ifdef LATER
-	scale2rail = (d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale;
-
-	if (options&DTS_THICK2)
-		width = 2;
-	if (options&DTS_THICK3)
-		width = 3;
-#ifdef WINDOWS
-	width *= (wDrawWidth)(d->dpi/mainD.dpi);
-#else
-	if (d->options&DC_PRINT)
-		width *= 300/75;
-#endif
-#endif
 	if (color == wDrawColorBlack)
 		color = normalColor;
 	if (!Scurve) {
@@ -887,6 +873,8 @@ static void DrawJoint(
 		widthOptions = DTS_THICK2;
 	if (GetTrkWidth(trk) == 3)
 		widthOptions = DTS_THICK3;
+	if (GetTrkBridge(trk))
+		widthOptions |= DTS_BRIDGE;
 	DrawJointTrack( d, xx->pos, xx->angle, xx->l0, xx->l1, xx->R, xx->L, xx->negate, xx->flip, xx->Scurve, trk, 0, 1, GetTrkGauge(trk), color, widthOptions );
 }
 
@@ -908,7 +896,7 @@ static BOOL_T WriteJoint(
 	BOOL_T rc = TRUE;
 	rc &= fprintf(f, "JOINT %d %d %ld 0 0 %s %d %0.6f %0.6f %0.6f %0.6f %d %d %d %0.6f %0.6f 0 %0.6f\n",
 		GetTrkIndex(t), GetTrkLayer(t), (long)GetTrkWidth(t),
-		GetTrkScaleName(t), GetTrkVisible(t), xx->l0, xx->l1, xx->R, xx->L,
+		GetTrkScaleName(t), GetTrkVisible(t)|GetTrkBridge(t), xx->l0, xx->l1, xx->R, xx->L,
 		xx->flip, xx->negate, xx->Scurve, xx->pos.x, xx->pos.y, xx->angle )>0;
 	rc &= WriteEndPt( f, t, 0 );
 	rc &= WriteEndPt( f, t, 1 );
@@ -924,7 +912,7 @@ static void ReadJoint(
 {
 	track_p trk;
 	TRKINX_T index;
-	BOOL_T visible;
+	BOOL_T visiblebridge;
 	struct extraData e, *xx;
 	char scale[10];
 	wIndex_t layer;
@@ -932,12 +920,13 @@ static void ReadJoint(
 	DIST_T elev;
 
 	if ( !GetArgs( line+6, paramVersion<3?"dXZsdffffdddpYf":paramVersion<9?"dLl00sdffffdddpYf":"dLl00sdffffdddpff",
-		&index, &layer, &options, scale, &visible, &e.l0, &e.l1, &e.R, &e.L,
+		&index, &layer, &options, scale, &visiblebridge, &e.l0, &e.l1, &e.R, &e.L,
 		&e.flip, &e.negate, &e.Scurve, &e.pos, &elev, &e.angle) )
 		return;
 	trk = NewTrack( index, T_EASEMENT, 0, sizeof e );
 	xx = GetTrkExtraData(trk);
-	SetTrkVisible(trk, visible);
+	SetTrkVisible(trk, visiblebridge&TB_VISIBLE);
+	SetTrkBridge(trk, visiblebridge&TB_BRIDGE);
 	SetTrkScale(trk, LookupScale(scale));
 	SetTrkLayer(trk, layer);
 	SetTrkWidth(trk, (int)(options&3));
