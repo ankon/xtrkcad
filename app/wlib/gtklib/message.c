@@ -88,36 +88,59 @@ void wMessageSetWidth(
  * \param flags IN text properties (large or small size)
  * \return text height
  */
+static int fonts_set = 0;
 
 wPos_t wMessageGetHeight(
     long flags)
+
 {
+
 	GtkWidget * temp = gtk_combo_box_text_new();   //to get max size of an object in infoBar
 	if (wMessageSetFont(flags))	{
-		GtkStyleContext *stylecontext;
-		PangoFontDescription *fontDesc;
-		int fontSize;
-	    /* get the current font descriptor */
-	   stylecontext = gtk_widget_get_style_context(temp);
-	   gtk_style_context_get(stylecontext,GTK_STATE_FLAG_NORMAL,"font", &fontDesc, NULL);
-	   /* get the current font size */
-	   fontSize = PANGO_PIXELS(pango_font_description_get_size(fontDesc));
+		if (!fonts_set) {
+			GtkStyleContext *context;
+			GtkCssProvider *smallProvider = gtk_css_provider_new();
+			GtkCssProvider *largeProvider = gtk_css_provider_new();
+			/* get the current font descriptor */
+		   context = gtk_widget_get_style_context(temp);
 
-	   /* calculate the new font size */
-	   if (flags & BM_LARGE) {
-	       pango_font_description_set_size(fontDesc, fontSize * 1.4 * PANGO_SCALE);
-	   } else {
-	       pango_font_description_set_size(fontDesc, fontSize * 0.7 * PANGO_SCALE);
-	   }
+		   static const char smallStyle[] = "style \"smallLabel\" { font-size = 70% } widget \"*.smallLabel\" style \"smallLabel\"  ";
+
+		   gtk_css_provider_load_from_data (smallProvider,
+											smallStyle, -1, NULL);
+		   gtk_style_context_add_provider(context,
+											GTK_STYLE_PROVIDER(smallProvider),
+											GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+		   static const char largeStyle[] = "style \"largeLabel\" { font-size = 140% } widget \"*.largeLabel\" style \"largeLabel\"  ";
+
+		   gtk_css_provider_load_from_data (largeProvider,
+											   largeStyle, -1, NULL);
+		   gtk_style_context_add_provider(context,
+										   GTK_STYLE_PROVIDER(largeProvider),
+										   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+
+		   fonts_set = 1;
+
+		}
 
 	   /* set the new font size */
-	   gtk_widget_modify_font(temp, fontDesc);
+	   if (flags & BM_LARGE) {
+	       gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(temp), "largeLabel");
+	   } else {
+	       gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(temp), "smallLabel");
+	   }
+
+
+
+
 	}
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(temp),"Test");
-	GtkRequisition temp_requisition;
-	gtk_widget_size_request(temp,&temp_requisition);
+	GtkRequisition min_requisition,natural_requisition;
+	gtk_widget_get_preferred_size (temp,&min_requisition,&natural_requisition);
 	gtk_widget_destroy(temp);
-    return temp_requisition.height;
+    return natural_requisition.height;
 }
 
 /**
@@ -155,38 +178,49 @@ wPos_t wMessageGetHeight(
 
     /* do we need to set a special font? */
     if (wMessageSetFont(flags))	{
-        /* get the current font descriptor */
-        stylecontext = gtk_widget_get_style(GTK_WIDGET(b->labelWidget));
-        fontDesc = stylecontext->font_desc;
-        /* get the current font size */
-        fontSize = PANGO_PIXELS(pango_font_description_get_size(fontDesc));
+		if (!fonts_set) {
+			GtkStyleContext *context;
+			GtkCssProvider *smallProvider = gtk_css_provider_new();
+			GtkCssProvider *largeProvider = gtk_css_provider_new();
+			/* get the current font descriptor */
+		   context = gtk_widget_get_style_context(b->labelWidget);
 
-        /* calculate the new font size */
-        if (flags & BM_LARGE) {
-            pango_font_description_set_size(fontDesc, fontSize * 1.4 * PANGO_SCALE);
-        } else {
-            pango_font_description_set_size(fontDesc, fontSize * 0.7 * PANGO_SCALE);
-        }
+		   static const char smallStyle[] = "style \"smallLabel\" { font-size = 70% } widget \"*.smallLabel\" style \"smallLabel\"  ";
 
-        /* set the new font size */
-        gtk_widget_modify_font((GtkWidget *)b->labelWidget, fontDesc);
+		   gtk_css_provider_load_from_data (smallProvider,
+											smallStyle, -1, NULL);
+		   gtk_style_context_add_provider(context,
+											GTK_STYLE_PROVIDER(smallProvider),
+											GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+		   static const char largeStyle[] = "style \"largeLabel\" { font-size = 140% } widget \"*.largeLabel\" style \"largeLabel\"  ";
+
+		   gtk_css_provider_load_from_data (largeProvider,
+											   largeStyle, -1, NULL);
+		   gtk_style_context_add_provider(context,
+										   GTK_STYLE_PROVIDER(largeProvider),
+										   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+		   fonts_set = 1;
+		}
+	   /* set the new font size */
+	   if (flags & BM_LARGE) {
+		   gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(b->labelWidget), "largeLabel");
+	   } else {
+		   gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(b->labelWidget), "smallLabel");
+	   }
     }
 
     b->widget = gtk_fixed_new();
-    gtk_widget_size_request(GTK_WIDGET(b->labelWidget), &requisition);
+    GtkRequisition min_requisition,natural_requisition;
+    gtk_widget_get_preferred_size (b->labelWidget,&min_requisition,&natural_requisition);
     gtk_container_add(GTK_CONTAINER(b->widget), b->labelWidget);
-    gtk_widget_set_size_request(b->widget, width?width:requisition.width,
-                                requisition.height);
+    gtk_widget_set_size_request(b->widget, width?width:natural_requisition.width,
+                                natural_requisition.height);
     wlibControlGetSize((wControl_p)b);
     gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
     gtk_widget_show(b->widget);
     gtk_widget_show(b->labelWidget);
     wlibAddButton((wControl_p)b);
-
-    /* Reset font size to normal */
-    if (wMessageSetFont(flags))	{
-        pango_font_description_set_size(fontDesc, fontSize * PANGO_SCALE);
-    }
 
     return b;
 }
