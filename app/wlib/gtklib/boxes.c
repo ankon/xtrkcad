@@ -165,6 +165,8 @@ void wlibDrawBox(
     cairo_line_to(cr, x1, y0+1);
     cairo_stroke_preserve(cr);
     cairo_destroy(cr);
+    g_object_unref(context);
+    cairo_region_destroy(region);
     gdk_window_end_draw_frame(window, context);
 }
 

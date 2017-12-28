@@ -251,6 +251,8 @@ struct wDraw_t {
 		wDrawActionCallBack_p action;
 		wDrawRedrawCallBack_p redraw;
 
+		cairo_surface_t * surface;
+
 		GdkPixbuf * pixbuf;
 		GdkPixbuf * pixbufBackup;
 
