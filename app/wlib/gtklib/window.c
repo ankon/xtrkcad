@@ -68,6 +68,15 @@ static GdkRectangle getMonitorDimensions(GtkWidget * widget) {
 
 	GdkRectangle monitor_dimensions;
 
+	if (!widget) {
+		GdkDisplay * display = gdk_display_get_default();
+		GdkMonitor * monitor = gdk_display_get_primary_monitor(display);
+		gdk_monitor_get_geometry(monitor,&monitor_dimensions);
+		g_object_unref(monitor);
+		g_object_unref(display);
+		return monitor_dimensions;
+	}
+
 	GdkScreen *screen = NULL;
 
 	GdkMonitor *monitor;
@@ -620,7 +629,7 @@ static int draw_event(
     wWin_p bd)
 {
 	   bd->cr = cr;
-       int rc = window_redraw(bd->gtkwin, TRUE);
+       int rc = window_redraw(bd, TRUE);
        bd->cr = NULL;
        return rc;
 
