@@ -105,15 +105,20 @@ void wlibDrawBox(
         { /* RidgeW */ {W,B}, {W,B}, {B,W}, {B,W} },
         { /* TroughW*/ {B,W}, {B,W}, {W,B}, {W,B} }
     };
-    window = gtk_widget_get_window(win->widget);
-    rectangle.x = x;
-    rectangle.y = y;
-    rectangle.width = w;
-    rectangle.height = h;
-    region = cairo_region_create_rectangle(&rectangle);
-    context = gdk_window_begin_draw_frame(window, region);
-    cr = gdk_drawing_context_get_cairo_context(context);
-    //cr = gdk_cairo_create(window);
+
+    if (win->cr) {
+    	cr = win->cr;
+    } else {
+    	window = gtk_widget_get_window(win->widget);
+    	rectangle.x = x;
+    	rectangle.y = y;
+    	rectangle.width = w;
+    	rectangle.height = h;
+    	region = cairo_region_create_rectangle(&rectangle);
+    	context = gdk_window_begin_draw_frame(window, region);
+    	cr = gdk_drawing_context_get_cairo_context(context);
+    }
+
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
     cairo_set_line_join(cr, CAIRO_LINE_JOIN_MITER);
     cairo_set_line_width(cr, 1.0);
@@ -164,10 +169,13 @@ void wlibDrawBox(
     cairo_move_to(cr, x1, y1-1);
     cairo_line_to(cr, x1, y0+1);
     cairo_stroke_preserve(cr);
-    cairo_destroy(cr);
-    g_object_unref(context);
-    cairo_region_destroy(region);
-    gdk_window_end_draw_frame(window, context);
+    if (!win->cr) {
+    	cairo_destroy(cr);
+    	g_object_unref(context);
+    	cairo_region_destroy(region);
+    	gdk_window_end_draw_frame(window, context);
+    	g_object_unref(window);
+    }
 }
 
 /**

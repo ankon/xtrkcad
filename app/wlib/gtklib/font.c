@@ -221,7 +221,7 @@ PangoLayout *wlibFontCreatePangoLayout(GtkWidget *widget,
                                         pango_context_get_language(context));
     *ascent_p  = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
     *descent_p = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
-    pango_context_unref(context);
+    g_object_unref(context);
     pango_font_metrics_unref(metrics);
 #if WLIB_FONT_DEBUG >= 3
     fprintf(stderr, "font layout created:\n");

@@ -80,7 +80,7 @@ struct wWin_t {
 		wBool_t shown;                 /**< visibility state */
 		const char * nameStr;          /**< window name (not title) */
 		GtkWidget * menubar;           /**< menubar handle (if exists) */
-		//GdkGC * gc;                    /**< graphics context */
+		cairo_t * cr;					/* context for draw */
 		int gc_linewidth;              /**< ??? */
 		wBool_t busy;
 		int resizeTimer;		       /** resizing **/
@@ -90,6 +90,7 @@ struct wWin_t {
 
 struct wControl_t {
 		WOBJ_COMMON
+		cairo_t * cr;
 		};
 		
 typedef struct wListItem_t * wListItem_p;
@@ -252,6 +253,9 @@ struct wDraw_t {
 		wDrawRedrawCallBack_p redraw;
 
 		cairo_surface_t * surface;
+
+		wBool_t clip_set;
+		GdkRectangle rect;
 
 		GdkPixbuf * pixbuf;
 		GdkPixbuf * pixbufBackup;

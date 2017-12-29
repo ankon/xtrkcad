@@ -30,7 +30,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 find_package(PkgConfig)
-pkg_check_modules(GTK_UNIX_PRINT gtk+-unix-print-2.0)
+pkg_check_modules(GTK_UNIX_PRINT gtk+-unix-print-3.0)
 set(VERSION_OK TRUE)
 
 if (GTK_UNIX_PRINT_VERSION)

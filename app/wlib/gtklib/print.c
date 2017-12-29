@@ -312,11 +312,14 @@ static void psSetColor(
     wDrawColor color)
 {
     cairo_t *cr = psPrint_d.printContext;
-    GdkColor* const gcolor = wlibGetColor(color, TRUE);
+    GdkRGBA gcolor;
 
-    cairo_set_source_rgb(cr, gcolor->red / 65535.0,
-                         gcolor->green / 65535.0,
-                         gcolor->blue / 65535.0);
+    long tcolor = wlibGetColor(color, TRUE);
+    gcolor.red = (tcolor&0x00FF0000)>>16;
+    gcolor.green = (tcolor&0x0000FF00)>>8;
+    gcolor.blue = (tcolor&0x000000FF);
+    cairo_set_source_rgba(cr, gcolor.red , gcolor.green , gcolor.blue, 1.0 );
+
 }
 
 /**
@@ -916,7 +919,7 @@ void wPrintDocEnd(void)
     cairo_surface_finish(psPrint_d.curPrintSurface);
 
     gtk_print_job_send(curPrintJob,
-                       doPrintJobFinished,
+    		(GtkPrintJobCompleteFunc)doPrintJobFinished,
                        NULL,
                        NULL);
 
