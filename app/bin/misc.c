@@ -2522,6 +2522,7 @@ LOG1( log_init, ( "create main window\n" ) )
 	drawColorBlue   = wDrawFindColor( wRGB(  0,  0,255) );
 	drawColorGreen  = wDrawFindColor( wRGB(  0,255,  0) );
 	drawColorAqua   = wDrawFindColor( wRGB(  0,255,255) );
+	drawColorPowderedBlue = wDrawFindColor( wRGB(129, 212, 250));
 	drawColorPurple = wDrawFindColor( wRGB(255,  0,255) );
 	drawColorGold   = wDrawFindColor( wRGB(255,215,  0) );
 	snapGridColor = drawColorGreen;

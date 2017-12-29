@@ -213,7 +213,7 @@ static wMenuItem_p createMenuItem(
 		if (m)
 			gtk_menu_shell_append( (GtkMenuShell *)(m->menu), MMENUITEM( mi ) );
 
-		g_signal_connect( GTK_OBJECT(MMENUITEM( mi )), "activate",
+		g_signal_connect( MMENUITEM( mi ), "activate",
 				G_CALLBACK(pushMenuItem), mi );
  		gtk_widget_show(MMENUITEM( mi ));
 	}
@@ -612,7 +612,7 @@ void wMenuListAdd(
 		
 		// add the item to the menu
 		gtk_menu_shell_insert((GtkMenuShell *)(MPARENT( ml )->menu), MMENUITEM( mi ), i + 1 );
-		g_signal_connect( GTK_OBJECT(MMENUITEM( mi )), "activate", G_CALLBACK(pushMenuList), mi );
+		g_signal_connect( MMENUITEM( mi ), "activate", G_CALLBACK(pushMenuList), mi );
 	
 		gtk_widget_show(MMENUITEM( mi ));
 	}
@@ -880,7 +880,7 @@ static gint pushMenu(
 	GtkWidget * widget,
 	wMenu_p m )
 {
-	gtk_menu_popup( GTK_MENU(m->menu), NULL, NULL, NULL, NULL, 0, 0 );
+	gtk_menu_popup_at_pointer( GTK_MENU(m->menu), NULL);
 	/* Tell calling code that we have handled this event; the buck
 	 * stops here. */
 	return TRUE;
@@ -915,7 +915,7 @@ wMenu_p wMenuCreate(
 	wlibComputePos( (wControl_p)m );
 
 	m->widget = gtk_button_new();
-	g_signal_connect (GTK_OBJECT(m->widget), "clicked",
+	g_signal_connect (m->widget, "clicked",
 			G_CALLBACK(pushMenu), m );
 
 	m->menu = gtk_menu_new();
@@ -994,9 +994,9 @@ wMenu_p wMenuPopupCreate(
 	b->menu = gtk_menu_new();
 	b->w = 0;
 	b->h = 0;
-	g_signal_connect( GTK_OBJECT (b->menu), "key_press_event",
+	g_signal_connect( b->menu, "key_press_event",
 			G_CALLBACK(catch_shift_ctrl_alt_keys), b);
-	g_signal_connect( GTK_OBJECT (b->menu), "key_release_event",
+	g_signal_connect( b->menu, "key_release_event",
 			G_CALLBACK (catch_shift_ctrl_alt_keys), b);
 	gtk_widget_set_events ( GTK_WIDGET(b->menu), GDK_EXPOSURE_MASK|GDK_KEY_PRESS_MASK|GDK_KEY_RELEASE_MASK );
 	return b;
@@ -1010,7 +1010,7 @@ wMenu_p wMenuPopupCreate(
 
 void wMenuPopupShow( wMenu_p mp )
 {
-	gtk_menu_popup( GTK_MENU(mp->menu), NULL, NULL, NULL, NULL, 0, 0 );
+	gtk_menu_popup_at_pointer( GTK_MENU(mp->menu), NULL );
 }
 
 

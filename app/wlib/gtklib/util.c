@@ -148,23 +148,23 @@ GdkPixbuf* wlibPixbufFromXBM(
 
 int wlibAddLabel(wControl_p b, const char * labelStr)
 {
-    GtkRequisition requisition, reqwidget;
+    GtkRequisition min_req, nat_req, min_reqwidget, nat_reqwidget;
 
     if (labelStr == NULL) {
         return 0;
     }
 
     b->label = gtk_label_new(wlibConvertInput(labelStr));
-    gtk_widget_size_request(b->label, &requisition);
+    gtk_widget_get_preferred_size(b->label, &min_req, &nat_req);
     if (b->widget)
-       	gtk_widget_size_request(b->widget, &reqwidget);
+       	gtk_widget_get_preferred_size(b->widget, &min_reqwidget, &nat_reqwidget);
     else
-       	reqwidget.height = requisition.height;
+       	nat_reqwidget.height = nat_req.height;
     gtk_container_add(GTK_CONTAINER(b->parent->widget), b->label);
     gtk_fixed_move(GTK_FIXED(b->parent->widget), b->label,
-                   b->realX - requisition.width - 8, b->realY + (reqwidget.height/2 - requisition.height/2));
+                   b->realX - nat_req.width - 8, b->realY + (nat_reqwidget.height/2 - nat_req.height/2));
     gtk_widget_show(b->label);
-    return requisition.width + 8;
+    return nat_req.width + 8;
 }
 
 /**
@@ -238,7 +238,7 @@ void wlibComputePos(
     }
 
     if (b->origY >= 0) {
-        b->realY = b->origY + BORDERSIZE + ((w->option & F_MENUBAR) ? w->menu_height : 0);
+        b->realY = b->origY + BORDERSIZE + ((w->option & F_MENUBAR) ? MENUH : 0);
     }
     else {
         b->realY = w->lastY + (-b->origY) - 1;
@@ -254,10 +254,10 @@ void wlibComputePos(
 void wlibControlGetSize(
                         wControl_p b)
 {
-    GtkRequisition requisition;
-    gtk_widget_size_request(b->widget, &requisition);
-    b->w = requisition.width;
-    b->h = requisition.height;
+    GtkRequisition min_req, nat_req;
+    gtk_widget_get_preferred_size(b->widget, &min_req, &nat_req);
+    b->w = nat_req.width;
+    b->h = nat_req.height;
 }
 
 /**
@@ -413,10 +413,18 @@ const char * wMemStats(void)
 
 void wGetDisplaySize(wPos_t * w, wPos_t * h)
 {
+	GdkRectangle rect;
 
-    *w = gdk_screen_width();
-    *h = gdk_screen_height();
+	GdkDisplay * display = gdk_display_get_default();
+	GdkMonitor * monitor = gdk_display_get_primary_monitor(display);
+	gdk_monitor_get_geometry(monitor,&rect);
+	g_object_unref(monitor);
+	g_object_unref(display);
+
+    *w = rect.width;
+    *h = rect.height;
 }
+
 
 static dynArr_t conversionBuffer_da;
 

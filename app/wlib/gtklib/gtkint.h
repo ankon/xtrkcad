@@ -59,6 +59,7 @@ typedef void (*setTriggerCallback_p)( wControl_p b );
 		wWin_p parent; \
 		wPos_t origX, origY; \
 		wPos_t realX, realY; \
+		wPos_t default_size_x, default_size_y; \
 		wPos_t labelW; \
 		wPos_t w, h; \
 		int maximize_initially; \
@@ -79,9 +80,11 @@ struct wWin_t {
 		wBool_t shown;                 /**< visibility state */
 		const char * nameStr;          /**< window name (not title) */
 		GtkWidget * menubar;           /**< menubar handle (if exists) */
+
+		cairo_t * cr;					/* context for draw */
 		int menu_height;
-		GdkGC * gc;                    /**< graphics context */
-		int gc_linewidth;              /**< ??? */
+		
+        int gc_linewidth;              /**< ??? */
 		wBool_t busy;
 		int resizeTimer;		       /** resizing **/
 		int resizeW,resizeH;
@@ -90,6 +93,7 @@ struct wWin_t {
 
 struct wControl_t {
 		WOBJ_COMMON
+		cairo_t * cr;
 		};
 		
 typedef struct wListItem_t * wListItem_p;
@@ -166,7 +170,7 @@ typedef struct {
     int colorChar;
 } colorMap_t;
 
-GdkColor *wlibGetColor(wDrawColor color, wBool_t normal);
+wDrawColor wlibGetColor(wDrawColor color, wBool_t normal);
 
 /* control.c */
 
@@ -251,12 +255,17 @@ struct wDraw_t {
 		wDrawActionCallBack_p action;
 		wDrawRedrawCallBack_p redraw;
 
-		GdkPixmap * pixmap;
-		GdkPixmap * pixmapBackup;
+		cairo_surface_t * surface;
+
+		wBool_t clip_set;
+		GdkRectangle rect;
+
+		GdkPixbuf * pixbuf;
+		GdkPixbuf * pixbufBackup;
 
 		double dpi;
 
-		GdkGC * gc;
+		//GdkGC * gc;
 		wDrawWidth lineWidth;
 		wDrawOpts opts;
 		wPos_t maxW;

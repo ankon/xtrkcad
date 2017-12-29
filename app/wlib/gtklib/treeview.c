@@ -360,7 +360,6 @@ wlibTreeViewAddRow(wList_p b, char *label, wIcon_p bm, wListItem_p id_p)
         gtk_adjustment_set_upper(adj,
                                  gtk_adjustment_get_upper(adj) +
                                  gtk_adjustment_get_step_increment(adj));
-        gtk_adjustment_changed(adj);
     }
 
     b->last = gtk_tree_model_iter_n_children(gtk_tree_view_get_model(GTK_TREE_VIEW(
@@ -508,7 +507,7 @@ wList_p wListCreate(
     bl->widget = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(bl->widget),
                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(bl->widget),
+    gtk_container_add(GTK_CONTAINER(bl->widget),
                                           bl->treeView);
 
     gtk_widget_set_size_request(bl->widget, width, (number+1)*ROW_HEIGHT);

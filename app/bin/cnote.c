@@ -172,8 +172,10 @@ static void UpdateNote(track_p trk, int inx, descData_p descUpd,
 
     switch (inx) {
     case OR:
+        //UndrawNewTrack(trk);
         xx->pos = noteData.pos;
         SetBoundingBox(trk, xx->pos, xx->pos);
+        //DrawNewTrack(trk);
         MainRedraw();
         break;
 
@@ -418,15 +420,18 @@ static STATUS_T CmdNote(wAction_t action, coOrd pos)
 
     case C_DOWN:
     	state_on = TRUE;
+        //DrawBitMap(&tempD, pos, note_bm, normalColor);
         oldPos = pos;
-        MainRedraw();
+        DrawBitMap(&tempD, oldPos, note_bm, normalColor);
         return C_CONTINUE;
 
     case C_MOVE:
+        //DrawBitMap(&tempD, oldPos, note_bm, normalColor);
+        //DrawBitMap(&tempD, pos, note_bm, normalColor);
         oldPos = pos;
         MainRedraw();
+        DrawBitMap(&tempD, oldPos, note_bm, normalColor);
         return C_CONTINUE;
-        break;
 
     case C_UP:
         UndoStart(_("New Note"), "New Note");
@@ -444,11 +449,13 @@ static STATUS_T CmdNote(wAction_t action, coOrd pos)
         return C_CONTINUE;
 
     case C_REDRAW:
-        if (state_on) DrawBitMap(&tempD, oldPos, note_bm, normalColor);
+    	if (state_on) DrawBitMap(&tempD, oldPos, note_bm, normalColor);
         return C_CONTINUE;
 
     case C_CANCEL:
         DescribeCancel();
+        state_on = FALSE;
+        MainRedraw();
         return C_CONTINUE;
     }
 

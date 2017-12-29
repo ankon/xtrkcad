@@ -124,7 +124,7 @@ wPos_t
 wStatusGetWidth(const char *testString)
 {
     GtkWidget *entry;
-    GtkRequisition requisition;
+    GtkRequisition min_req, nat_req;
 
     entry = gtk_entry_new();
     g_object_ref_sink(entry);
@@ -133,12 +133,12 @@ wStatusGetWidth(const char *testString)
     gtk_entry_set_width_chars(GTK_ENTRY(entry), strlen(testString));
     gtk_entry_set_max_length(GTK_ENTRY(entry), strlen(testString));
 
-    gtk_widget_size_request(entry, &requisition);
+    gtk_widget_get_preferred_size(entry, &min_req, &nat_req);
 
     gtk_widget_destroy(entry);
     g_object_unref(entry);
 
-    return (requisition.width+8);
+    return (nat_req.width+8);
 }
 
 /**
@@ -162,36 +162,23 @@ wPos_t wStatusGetHeight(
     g_object_ref_sink(temp);
 
     if (wMessageSetFont(flags))	{
-        GtkStyle *style;
-        PangoFontDescription *fontDesc;
-        int fontSize;
-        /* get the current font descriptor */
-        style = gtk_widget_get_style(temp);
-        fontDesc = style->font_desc;
-        /* get the current font size */
-        fontSize = PANGO_PIXELS(pango_font_description_get_size(fontDesc));
-
-        /* calculate the new font size */
-        if (flags & BM_LARGE) {
-            pango_font_description_set_size(fontDesc, fontSize * 1.4 * PANGO_SCALE);
-        } else {
-            pango_font_description_set_size(fontDesc, fontSize * 0.7 * PANGO_SCALE);
-        }
-
-        /* set the new font size */
-        gtk_widget_modify_font(temp, fontDesc);
+    	if (flags & BM_LARGE) {
+    		gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(temp), "largeLabel");
+    	} else {
+    		gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(temp), "smallLabel");
+    	}
     }
 
     if (flags&1L) {
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(temp),"Test");
     }
 
-    GtkRequisition temp_requisition;
-    gtk_widget_size_request(temp,&temp_requisition);
+    GtkRequisition temp_min_req, temp_nat_req;
+    gtk_widget_get_preferred_size(temp,&temp_min_req, &temp_nat_req);
     //g_object_ref_sink(temp);
     //g_object_unref(temp);
     gtk_widget_destroy(temp);
-    return temp_requisition.height;
+    return temp_nat_req.height;
 }
 
 /**

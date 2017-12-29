@@ -425,10 +425,20 @@ wList_p wDropListCreate(
                                         LISTCOL_TEXT);
 
     // combo's style
-    gtk_rc_parse_string("style \"my-style\" { GtkComboBox::appears-as-list = 1 } widget \"*.mycombo\" style \"my-style\"  ");
+    GtkCssProvider * provider = gtk_css_provider_get_default();
+    GtkStyleContext * context;
+    context = gtk_widget_get_style_context (GTK_WIDGET (b->widget));
+    static const char style[] = "style \"dropcombo\" { GtkComboBox::appears-as-list = 1 } widget \"*.mycombo\" style \"dropcombo\"  ";
+    gtk_css_provider_load_from_data(provider,style,-1,NULL);
+    gtk_style_context_add_provider(context,
+                                    GTK_STYLE_PROVIDER(provider),
+									GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    gtk_style_context_save (context);
+
+    gtk_widget_class_set_css_name (GTK_WIDGET_CLASS(b->widget), "dropcombo");
     gtk_widget_set_name(b->widget,"mycombo");
 
-    g_signal_connect(GTK_OBJECT(b->widget), "changed",
+    g_signal_connect(b->widget, "changed",
                      G_CALLBACK(DropListSelectChild), b);
 
     if (option & BL_EDITABLE) {
