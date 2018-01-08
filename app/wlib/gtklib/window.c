@@ -72,8 +72,6 @@ static GdkRectangle getMonitorDimensions(GtkWidget * widget) {
 		GdkDisplay * display = gdk_display_get_default();
 		GdkMonitor * monitor = gdk_display_get_primary_monitor(display);
 		gdk_monitor_get_geometry(monitor,&monitor_dimensions);
-		g_object_unref(monitor);
-		g_object_unref(display);
 		return monitor_dimensions;
 	}
 
@@ -101,8 +99,6 @@ static GdkRectangle getMonitorDimensions(GtkWidget * widget) {
 
 	gdk_monitor_get_geometry(monitor,&monitor_dimensions);
 
-	g_object_unref(monitor);
-	g_object_unref(display);
 
 	return monitor_dimensions;
 }
@@ -465,7 +461,6 @@ void wWinSetBusy(
     if (busy) {
     	GdkDisplay * display = gdk_display_get_default();
         cursor = gdk_cursor_new_for_display(display,GDK_WATCH);
-        g_object_unref(display);
     } else {
         cursor = NULL;
     }
@@ -910,12 +905,13 @@ static wWin_p wWinCommonCreate(
         gtk_window_set_position(GTK_WINDOW(w->gtkwin), GTK_WIN_POS_CENTER_ON_PARENT);
     }
 
-
     w->widget = gtk_fixed_new();
 
     if (w->widget == 0) {
         abort();
     }
+
+    gtk_container_add(GTK_CONTAINER(w->gtkwin), w->widget);
 
     if (w->option&F_MENUBAR) {
         w->menubar = gtk_menu_bar_new();
@@ -926,10 +922,6 @@ static wWin_p wWinCommonCreate(
         w->menu_height = allocation.height;
         gtk_widget_set_size_request(w->menubar, -1, w->menu_height);
     }
-
-    gtk_container_add(GTK_CONTAINER(w->gtkwin), w->widget);
-
-
 
 
     if (w->option&F_AUTOSIZE) {
@@ -963,8 +955,8 @@ static wWin_p wWinCommonCreate(
                      G_CALLBACK(window_delete_event), w);
     g_signal_connect(w->widget, "draw",
                      G_CALLBACK(draw_event), w);
-    g_signal_connect(w->gtkwin, "configure_event",
-                     G_CALLBACK(window_configure_event), w);
+    //g_signal_connect(w->gtkwin, "configure_event",
+    //               G_CALLBACK(window_configure_event), w);
     g_signal_connect(w->gtkwin, "window-state-event",
                      G_CALLBACK(window_state_event), w);
     g_signal_connect(w->gtkwin, "key_press_event",

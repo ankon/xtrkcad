@@ -141,10 +141,16 @@ ADD_EXECUTABLE(xtrkcad WIN32
 	misc.c
 	xtrkcad.rc
 	)
+
+# Link the target to the GTK+ libraries
+TARGET_LINK_LIBRARIES(xtrkcad ${GTK_LIBRARIES})
+
 TARGET_LINK_LIBRARIES(xtrkcad xtrkcad-lib)
 TARGET_LINK_LIBRARIES(xtrkcad xtrkcad-wlib)
 TARGET_LINK_LIBRARIES(xtrkcad xtrkcad-cornu)
 TARGET_LINK_LIBRARIES(xtrkcad dynstring)
+
+
 
 ADD_EXECUTABLE(mkturnout
 	${LIN_SOURCES}

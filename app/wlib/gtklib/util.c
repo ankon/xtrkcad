@@ -418,8 +418,6 @@ void wGetDisplaySize(wPos_t * w, wPos_t * h)
 	GdkDisplay * display = gdk_display_get_default();
 	GdkMonitor * monitor = gdk_display_get_primary_monitor(display);
 	gdk_monitor_get_geometry(monitor,&rect);
-	g_object_unref(monitor);
-	g_object_unref(display);
 
     *w = rect.width;
     *h = rect.height;

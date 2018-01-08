@@ -202,9 +202,6 @@ void wControlSetBalloon( wControl_p b, wPos_t dx, wPos_t dy, const char * msg )
     GdkRectangle rect;
     gdk_monitor_get_geometry(monitor, &rect);
 
-    g_object_unref(monitor);
-    g_object_unref(display);
-
     xx = rect.width;
     yy = rect.height;
     if ( x < 0 ) {
