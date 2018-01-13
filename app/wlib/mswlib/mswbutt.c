@@ -276,6 +276,7 @@ static LRESULT buttPush( wControl_p b, HWND hWnd, UINT message, WPARAM wParam, L
 static void buttDone(
 		wControl_p b )
 {
+	DestroyWindow(b->hWnd);
 	free(b);
 }
 

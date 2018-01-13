@@ -862,10 +862,22 @@ void DescribeCompound(
 	}
 }
 
+/**
+ * Delete a group of basic track element eg. a structure
+ */
 
-void DeleteCompound(
-		track_p t )
+void DeleteCompound( track_p t )
 {
+	struct extraData *extras;
+
+	extras = GetTrkExtraData(t);
+	MyFree(extras->title);
+
+	if (extras->pathLen > 0) {
+		MyFree(extras->paths);
+	}
+
+	MyFree(extras->segs);
 }
 
 
@@ -967,14 +979,19 @@ EXPORT track_p NewCompound(
 	xx->title = MyStrdup( title );
 	xx->customInfo = NULL;
 	xx->special = TOnormal;
-	if ( pathLen > 0 )
-		xx->paths = memdup( paths, pathLen );
-	else
-		xx->paths = (PATHPTR_T)"";
+	if (pathLen > 0) {
+		xx->paths = MyMalloc(pathLen);
+		memcpy( xx->paths, paths, pathLen);
+	}
+	else {
+		xx->paths = MyStrdup("");  // (PATHPTR_T)"";
+	}
 	xx->pathLen = pathLen;
 	xx->pathCurr = xx->paths;
 	xx->segCnt = segCnt;
-	xx->segs = memdup( segs, segCnt * sizeof *segs );
+	xx->segs = MyMalloc(segCnt * sizeof(*segs));
+	memcpy(xx->segs, segs, segCnt * sizeof(*segs));
+//	xx->segs = memdup( segs, segCnt * sizeof *segs );
 	trkSeg_p p = xx->segs;
 	FixUpBezierSegs(xx->segs,xx->segCnt);
 	ComputeCompoundBoundingBox( trk );

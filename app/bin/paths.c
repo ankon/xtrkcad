@@ -132,7 +132,7 @@ void SetCurrentPath(
  * Search is finished when one of the options returns a valid path
  *
  * \param IN pathType the type
- * \return pointer to path of NULL if not existing
+ * \return pointer to path or NULL if not existing. Do not modify or free!
  */
 
 char *GetCurrentPath(
