@@ -949,8 +949,11 @@ static BOOL_T TrimCurve( track_p trk, EPINX_T ep, DIST_T dist )
 		UndrawNewTrack( trk );
 		AdjustCurveEndPt( trk, ep, a+(ep==0?-90.0:90.0) );
 		DrawNewTrack( trk );
-	} else
+	} else {
 		DeleteTrack( trk, TRUE );
+		MainRedraw();
+		MapRedraw();
+	}
 	return TRUE;
 }
 
@@ -1007,6 +1010,8 @@ static BOOL_T MergeCurve(
 	}
 	DrawNewTrack( trk0 );
 	ComputeCurveBoundingBox( trk0, GetTrkExtraData(trk0) );
+	MainRedraw();
+	MapRedraw();
 	return TRUE;
 }
 
