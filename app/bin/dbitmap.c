@@ -112,7 +112,7 @@ static int SaveBitmapFile(
 		 (wPos_t)(-bitmap_d.orig.y/bitmap_d.scale*bitmap_d.dpi),
 		 (wPos_t)(mapD.size.x/bitmap_d.scale*bitmap_d.dpi),
 		 (wPos_t)(mapD.size.y/bitmap_d.scale*bitmap_d.dpi) );
-	wSetCursor( mainD.d, wCursorWait );
+	wSetCursor( wCursorWait );
 	InfoMessage( _("Drawing tracks to BitMap") );
 	DrawSnapGrid( &bitmap_d, mapD.size, TRUE );
 	if ( (outputBitMapTogglesV&4) )
@@ -126,7 +126,7 @@ static int SaveBitmapFile(
 		return FALSE;
 	}
 	InfoMessage( "" );
-	wSetCursor( mainD.d, defaultCursor );
+	wSetCursor( wCursorNormal );
 	wBitMapDelete( bitmap_d.d );
 	return TRUE;
 }

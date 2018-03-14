@@ -448,7 +448,7 @@ EXPORT BOOL_T ConvertToArcs (coOrd pos[4], dynArr_t * segs, BOOL_T track, wDrawC
 	        curveSeg.width = track?0:width;
 	        if ( prev_arc.curveData.type == curveTypeCurve ) {
 	        		if (track)
-	        			curveSeg.color = (fabs(prev_arc.curveData.curveRadius)<=GetLayoutMinTrackRadius())?wDrawColorRed:wDrawColorBlack;
+	        			curveSeg.color = (fabs(prev_arc.curveData.curveRadius)<(GetLayoutMinTrackRadius()-EPSILON))?wDrawColorRed:wDrawColorBlack;
 	        		else
 	        			curveSeg.color = color;
 	        		curveSeg.type = track?SEG_CRVTRK:SEG_CRVLIN;
@@ -511,7 +511,7 @@ EXPORT void DrawBezCurve(trkSeg_p control_arm1,
  * If Track, make it red if the radius is below minimum
  */
 void DrawTempBezier(BOOL_T track) {
-  if (track) DrawBezCurve(Da.cp1Segs_da,Da.cp1Segs_da_cnt,Da.cp2Segs_da,Da.cp2Segs_da_cnt, (trkSeg_t *)Da.crvSegs_da.ptr,Da.crvSegs_da_cnt,Da.minRadius<GetLayoutMinTrackRadius()?drawColorRed:drawColorBlack);
+  if (track) DrawBezCurve(Da.cp1Segs_da,Da.cp1Segs_da_cnt,Da.cp2Segs_da,Da.cp2Segs_da_cnt, (trkSeg_t *)Da.crvSegs_da.ptr,Da.crvSegs_da_cnt,Da.minRadius<(GetLayoutMinTrackRadius()-EPSILON)?drawColorRed:drawColorBlack);
   else
 	DrawBezCurve(Da.cp1Segs_da,Da.cp1Segs_da_cnt,Da.cp2Segs_da,Da.cp2Segs_da_cnt, (trkSeg_t *)Da.crvSegs_da.ptr,Da.crvSegs_da_cnt,drawColorBlack); //Add Second Arm
 }
@@ -708,15 +708,15 @@ EXPORT STATUS_T AdjustBezCurve(
 			b = AnalyseCurve(Da.pos,&fx,&fy,&cusp);
 			if (b==ENDS) {
 				wBeep();
-				InfoMessage(_("Bezier Curve Invalid has identical end points Change End Point"),b==CUSP?"Cusp":"Loop");
+				InfoMessage(_("Bezier curve invalid has identical end points Change End Point"),b==CUSP?"Cusp":"Loop");
 			} else if ( b == CUSP || b == LOOP) {
 				wBeep();
-				InfoMessage(_("Bezier Curve Invalid has %s Change End Point"),b==CUSP?"Cusp":"Loop");
+				InfoMessage(_("Bezier curve invalid has %s Change End Point"),b==CUSP?"Cusp":"Loop");
 			} else if ( b == COINCIDENT ) {
 				wBeep();
-				InfoMessage(_("Bezier Curve Invalid has three co-incident points"),b==CUSP?"Cusp":"Loop");
+				InfoMessage(_("Bezier curve invalid has three co-incident points"),b==CUSP?"Cusp":"Loop");
 			} else if ( b == LINE) {
-				InfoMessage(_("Bezier Curve is Straight Line"));
+				InfoMessage(_("Bezier curve is straight line"));
 			}
 				InfoMessage(_("Pick any circle to adjust it - Enter to confirm, ESC to abort"));
 		} else
@@ -1086,7 +1086,7 @@ STATUS_T CmdBezCurve( wAction_t action, coOrd pos )
 				return C_CONTINUE;
 			}
 			Da.state = POS_2;
-			InfoMessage( _("Select other end of Bezier, +Shift -> snaps to %s end"), Da.track?"Unconnected Track":"Line" );
+			InfoMessage( _("Select other end of Bezier, +Shift -> snap to %s end"), Da.track?"Unconnected Track":"Line" );
 			Da.cp1Segs_da_cnt = createControlArm(Da.cp1Segs_da, Da.pos[0], Da.pos[1], Da.track, FALSE, Da.trk[0]!=NULL, -1, wDrawColorBlack);
 			DrawBezCurve(Da.cp1Segs_da,Da.cp1Segs_da_cnt,NULL,0,NULL,0,drawColorBlack);
 			return C_CONTINUE;

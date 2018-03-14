@@ -192,7 +192,7 @@ static int DoExportDXFTracks(
     }
 
     oldLocale = SaveLocale("C");
-    wSetCursor(mainD.d, wCursorWait);
+    wSetCursor(wCursorWait);
     time(&clock);
  
 	DxfPrologue(&command, 10, 0.0, 0.0, mapD.size.x, mapD.size.y);
@@ -208,7 +208,7 @@ static int DoExportDXFTracks(
     fclose(dxfF);
     RestoreLocale(oldLocale);
     Reset();
-    wSetCursor(mainD.d, defaultCursor);
+    wSetCursor(wCursorNormal);
     return TRUE;
 }
 

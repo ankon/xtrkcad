@@ -268,26 +268,28 @@ STATUS_T CurveDescriptionMove(
 		coOrd pos )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	static coOrd p0;
+	static coOrd p0,p1;
+	static BOOL_T editMode;
 	wDrawColor color;
 	ANGLE_T a, a0, a1;
 	DIST_T d;
+
+	p0 = xx->pos;
 
 	switch (action) {
 	case C_DOWN:
 	case C_MOVE:
 	case C_UP:
+		editMode = TRUE;
 		color = GetTrkColor( trk, &mainD );
-		DrawCurveDescription( trk, &tempD, color );
 		if ( xx->helixTurns > 0 ) {
-			if (action != C_DOWN)
-				DrawLine( &tempD, xx->pos, p0, 0, wDrawColorBlack );
 			xx->descriptionOff.x = (pos.x-xx->pos.x);
 			xx->descriptionOff.y = (pos.y-xx->pos.y);
-			p0 = pos;
+			p1 = pos;
 			if (action != C_UP)
-				DrawLine( &tempD, xx->pos, p0, 0, wDrawColorBlack );
+				DrawLine( &tempD, p0, p1, 0, wDrawColorBlack );
 		} else {
+			p1 = pos;
 			GetCurveAngles( &a0, &a1, trk );
 			if ( a1 < 1 ) a1 = 1.0;
 			a = FindAngle( xx->pos, pos );
@@ -308,15 +310,18 @@ STATUS_T CurveDescriptionMove(
 			if ( d < 0.1 )
 				d = 0.1;
 			xx->descriptionOff.y = d * 2.0 - 1.0;
+			GetCurveAngles( &a0, &a1, trk );
+			a = a0 + (0.5 * a1);
+			PointOnCircle( &p0, xx->pos, xx->radius/2, a );
 		}
-		DrawCurveDescription( trk, &tempD, color );
-        MainRedraw();
-        MapRedraw();
+		if (action == C_UP) editMode = FALSE;
+		MainRedraw();
+		MapRedraw();
 		return action==C_UP?C_TERMINATE:C_CONTINUE;
 
 	case C_REDRAW:
-		if ( xx->helixTurns > 0 ) {
-			DrawLine( &tempD, xx->pos, p0, 0, wDrawColorBlack );
+		if (editMode) {
+			DrawLine( &tempD, p1, p0, 0, wDrawColorBlack );
 		}
 		break;
 		
@@ -386,6 +391,10 @@ static void UpdateCurve( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	case RA:
 		if ( crvData.radius <= 0 ) {
 			ErrorMessage( MSG_RADIUS_GTR_0 );
+			crvData.radius = xx0.radius;
+			crvDesc[RA].mode |= DESC_CHANGE;
+		} else if (crvData.radius > 10000) {
+			ErrorMessage( MSG_RADIUS_GTR_10000 );
 			crvData.radius = xx0.radius;
 			crvDesc[RA].mode |= DESC_CHANGE;
 		} else {
@@ -1249,7 +1258,7 @@ static BOOL_T QueryCurve( track_p trk, int query )
 		return TRUE;
 		break;
 	case Q_EXCEPTION:
-		return xx->radius < GetLayoutMinTrackRadius();
+		return xx->radius < GetLayoutMinTrackRadius() - EPSILON;
 		break;
 	case Q_NOT_PLACE_FROGPOINTS:
 		return IsCurveCircle( trk );
@@ -1383,16 +1392,16 @@ EXPORT void CurveSegProc(
 		int res = AngleInRange(a2,segPtr->u.c.a0,segPtr->u.c.a1);
 		if (res == 1 ) {
 LOG( log_curveSegs, 1, ("CrvSegsAngle miss A%0.3f S%0.3f E%0.3f R%d B%d \n",a2,segPtr->u.c.a0,segPtr->u.c.a1,res,data->traverse1.backwards))
-			a2 = 0;
-		} else if (res == -1){
-			a2 = segPtr->u.c.a1;
-		} else {
+			a2 = segPtr->u.c.a0;
+		} else if (res == -1) {
+LOG( log_curveSegs, 1, ("CrvSegsAngle miss A%0.3f S%0.3f E%0.3f R%d B%d \n",a2,segPtr->u.c.a0,segPtr->u.c.a1,res,data->traverse1.backwards))
+			a2 = segPtr->u.c.a1+segPtr->u.c.a0;
+		}
 		//Fix issue of angles passing through zero -
-			if ( !data->traverse1.backwards ) {
-				a2 = NormalizeAngle(DifferenceBetweenAngles(segPtr->u.c.a0,a2));
-			} else {
-				a2 = NormalizeAngle(DifferenceBetweenAngles(a2,segPtr->u.c.a0+segPtr->u.c.a1));
-			}
+		if ( !data->traverse1.backwards ) {
+			a2 = NormalizeAngle(DifferenceBetweenAngles(segPtr->u.c.a0,a2));
+		} else {
+			a2 = NormalizeAngle(DifferenceBetweenAngles(a2,segPtr->u.c.a0+segPtr->u.c.a1));
 		}
 
 		//Make sure backwards means going towards EP0

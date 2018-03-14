@@ -21,6 +21,7 @@
  */
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #ifndef WINDOWS
 #include <unistd.h>
@@ -585,10 +586,18 @@ EXPORT void ParamLoadControl(
 			p->oldD.f = tmpR;
 			break;
 		case PD_STRING:
-			wStringSetValue( (wString_p)p->control, (char*)p->valueP );
 			if (p->oldD.s)
 				MyFree( p->oldD.s );
-			p->oldD.s = MyStrdup( (char*)p->valueP );
+			if (p->context) {
+				p->oldD.s = MyMalloc((uint32_t)p->context);
+				strncpy(p->oldD.s, (char*)p->valueP, (uint32_t)p->context);
+				*(p->oldD.s + (uint32_t)p->context - 1) = '\0';
+				wStringSetValue((wString_p)p->control, (char*)p->oldD.s);
+			}
+			else {
+				p->oldD.s = MyStrdup((char *)p->valueP);
+				wStringSetValue((wString_p)p->control, (char*)p->valueP);
+			}
 			break;
 		case PD_MESSAGE:
 			wMessageSetValue( (wMessage_p)p->control, _((char*)p->valueP) );
@@ -721,8 +730,20 @@ EXPORT long ParamUpdate(
 				if (p->oldD.s)
 					MyFree( p->oldD.s );
 				p->oldD.s = MyStrdup( stringV );
-				if ( /*(p->option&PDO_NOUPDUPD)==0 &&*/ p->valueP)
-					strcpy( (char*)p->valueP, stringV );
+				if ( p->valueP ) {
+					if (p->option & PDO_STRINGLIMITLENGTH ) {
+						strncpy((char*)p->valueP, stringV, (uint32_t)p->context);
+						((char *)p->valueP)[(uint32_t)p->context - 1] = '\0';
+						if (strlen(stringV) > (uint32_t)p->context) {
+							NoticeMessage2(0, MSG_ENTERED_STRING_TRUNCATED, _("Ok"), NULL, (uint32_t)p->context);
+						}
+
+					}
+					else {
+						strcpy((char*)p->valueP, stringV);
+					}
+				}
+
 				if ( (p->option&PDO_NOUPDACT)==0 && pg->changeProc)
 					 pg->changeProc( pg, inx, CAST_AWAY_CONST stringV );
 				change |= (1L<<inx);
@@ -746,100 +767,63 @@ EXPORT long ParamUpdate(
 }
 
 
-void ParamLoadData(
-    paramGroup_p pg)
+EXPORT void ParamLoadData(
+		paramGroup_p pg )
 {
-    FLOAT_T floatV;
-    const char * stringV;
-    paramData_p p;
-    BOOL_T valid;
-    BOOL_T inRange;
+	FLOAT_T floatV;
+	const char * stringV;
+	paramData_p p;
+	BOOL_T valid;
 
-    for (p=pg->paramPtr; p<&pg->paramPtr[pg->paramCnt]; p++) {
-        if ((p->option&PDO_DLGIGNORE) != 0) {
-            continue;
-        }
-
-        if (p->control == NULL || p->valueP == NULL) {
-            continue;
-        }
-
-        switch (p->type) {
-            long longV;
-
-        case PD_LONG:
-            longV = atol(wStringGetValue((wString_p)p->control));
-
-            if (p->winData) {
-                inRange = (longV <= ((paramIntegerRange_t *)p->winData)->high) &&
-                          (longV >= ((paramIntegerRange_t *)p->winData)->low);
-            } else {
-                inRange = TRUE;
-            }
-
-            if (inRange) {
-                *(long*)p->valueP = longV;
-            }
-
-            break;
-
-        case PD_RADIO:
-            *(long*)p->valueP = wRadioGetValue((wChoice_p)p->control);
-            break;
-
-        case PD_TOGGLE:
-            *(long*)p->valueP = wToggleGetValue((wChoice_p)p->control);
-            break;
-
-        case PD_LIST:
-        case PD_DROPLIST:
-        case PD_COMBOLIST:
-            *(wIndex_t*)p->valueP = wListGetIndex((wList_p)p->control);
-            break;
-
-        case PD_COLORLIST:
-            *(wDrawColor*)p->valueP = wColorSelectButtonGetColor((wButton_p)p->control);
-            break;
-
-        case PD_FLOAT:
-            if (p->option & PDO_DIM) {
-                floatV = DecodeDistance((wString_p)p->control, &valid);
-            } else {
-                floatV = DecodeFloat((wString_p)p->control, &valid);
-
-                if (valid && (p->option & PDO_ANGLE)) {
-                    floatV = NormalizeAngle((angleSystem==ANGLE_POLAR)?floatV:-floatV);
-                }
-            }
-
-            if (p->winData) {
-                inRange = (floatV <= ((paramFloatRange_t *)p->winData)->high) &&
-                          (floatV >= ((paramFloatRange_t *)p->winData)->low);
-            } else {
-                inRange = TRUE;
-            }
-
-            if (valid && inRange) {
-                *(FLOAT_T*)p->valueP = floatV;
-            }
-
-            break;
-
-        case PD_STRING:
-            stringV = wStringGetValue((wString_p)p->control);
-            strcpy((char*)p->valueP, stringV);
-            break;
-
-        case PD_MESSAGE:
-        case PD_BUTTON:
-        case PD_DRAW:
-        case PD_TEXT:
-        case PD_MENU:
-        case PD_MENUITEM:
-        case PD_BITMAP:
-            break;
-        }
-    }
+	for ( p=pg->paramPtr; p<&pg->paramPtr[pg->paramCnt]; p++ ) {
+		if ( (p->option&PDO_DLGIGNORE) != 0 )
+			continue;
+		if ( p->control == NULL || p->valueP == NULL)
+			continue;
+		switch ( p->type ) {
+		case PD_LONG:
+			stringV = wStringGetValue( (wString_p)p->control );
+			*(long*)p->valueP = atol( stringV );
+			break;
+		case PD_RADIO:
+			*(long*)p->valueP = wRadioGetValue( (wChoice_p)p->control );
+			break;
+		case PD_TOGGLE:
+			*(long*)p->valueP = wToggleGetValue( (wChoice_p)p->control );
+			break;
+		case PD_LIST:
+		case PD_DROPLIST:
+		case PD_COMBOLIST:
+			*(wIndex_t*)p->valueP = wListGetIndex( (wList_p)p->control );
+			break;
+		case PD_COLORLIST:
+			*(wDrawColor*)p->valueP = wColorSelectButtonGetColor( (wButton_p)p->control );
+			break;
+		case PD_FLOAT:
+			if (p->option & PDO_DIM) {
+				floatV = DecodeDistance( (wString_p)p->control, &valid );
+			} else {
+				floatV = DecodeFloat( (wString_p)p->control, &valid );
+				if (valid && (p->option & PDO_ANGLE) )
+					floatV = NormalizeAngle( (angleSystem==ANGLE_POLAR)?floatV:-floatV );
+			}
+			if ( valid )
+				*(FLOAT_T*)p->valueP = floatV;
+			break;
+		case PD_STRING:
+			stringV = wStringGetValue( (wString_p)p->control );
+			strcpy( (char*)p->valueP, stringV );
+			break;
+		case PD_MESSAGE:
+		case PD_BUTTON:
+		case PD_DRAW:
+		case PD_TEXT:
+		case PD_MENU:
+		case PD_MENUITEM:
+		case PD_BITMAP:
+			break;
+		}
+	}
 }
 
 

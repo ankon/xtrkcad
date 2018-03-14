@@ -25,6 +25,7 @@
 
 #include "ccurve.h"
 #include "tcornu.h"
+#include "tbezier.h"
 #define PRIVATE_EXTRADATA
 #include "compound.h"
 #include "cselect.h"
@@ -914,7 +915,7 @@ static void AccumulateTracks( void )
 
 static void GetMovedTracks( BOOL_T undraw )
 {
-	wSetCursor( mainD.d, wCursorWait );
+	wSetCursor( wCursorWait );
 	DYNARR_RESET( track_p, tlist_da );
 	DoSelectedTracks( AddSelectedTrack );
 	tlist2 = (track_p*)MyRealloc( tlist2, (tlist_da.cnt+1) * sizeof *(track_p*)0 );
@@ -929,7 +930,7 @@ static void GetMovedTracks( BOOL_T undraw )
 	moveOrig = mainD.orig;
 	movedCnt = 0;
 	InfoCount(0);
-	wSetCursor( mainD.d, defaultCursor );
+	wSetCursor( wCursorNormal );
 	moveD_hi = moveD_lo = mainD.orig;
 	moveD_hi.x += mainD.size.x;
 	moveD_hi.y += mainD.size.y;
@@ -1050,7 +1051,7 @@ static void MoveTracks(
 	DIST_T endRadius;
 	coOrd endCenter;
 
-	wSetCursor( mainD.d, wCursorWait );
+	wSetCursor( wCursorWait );
 	/*UndoStart( "Move/Rotate Tracks", "move/rotate" );*/
 	if (tlist_da.cnt <= incrementalDrawLimit) {
 		DrawMapBoundingBox( FALSE );
@@ -1131,7 +1132,7 @@ static void MoveTracks(
 		DrawSelectedTracksD( &mapD, wDrawColorBlack );
 		DrawMapBoundingBox( TRUE );
 	}
-	wSetCursor( mainD.d, defaultCursor );
+	wSetCursor( wCursorNormal );
 	UndoEnd();
 	tempSegDrawFuncs.options = 0;
 	InfoCount( trackCount );
@@ -1330,7 +1331,7 @@ static STATUS_T CmdRotate(
 			if (SelectedTracksAreFrozen()) {
 				return C_TERMINATE;
 			}
-			InfoMessage( _("Drag to rotate selected tracks, SHIFT+RightClick for QuickRotate Menu") );
+			InfoMessage( _("Drag to rotate selected tracks, Shift+RightClick for QuickRotate Menu") );
 			wMenuPushEnable( rotateAlignMI, TRUE );
 			rotateAlignState = 0;
 			break;
@@ -1622,11 +1623,26 @@ STATUS_T CmdMoveDescription(
 				ep = -1;
 				mode = 2;
 			}
+			d = CornuDescriptionDistance( pos, trk1 );
+			if ( d < dd ) {
+				dd = d;
+				trk = trk1;
+				ep = -1;
+				mode = 3;
+			}
+			d = BezierDescriptionDistance( pos, trk1 );
+			if ( d < dd ) {
+				dd = d;
+				trk = trk1;
+				ep = -1;
+				mode = 4;
+			}
 		}
 		if (trk != NULL) {
 			UndoStart( _("Move Label"), "Modedesc( T%d )", GetTrkIndex(trk) );
 			UndoModify( trk );
 		}
+		/* no break */
 	case C_MOVE:
 	case C_UP:
 	case C_REDRAW:
@@ -1640,9 +1656,13 @@ STATUS_T CmdMoveDescription(
 				return CompoundDescriptionMove( trk, action, pos );
 			case 2:
 				return CurveDescriptionMove( trk, action, pos );
+			case 3:
+				return CornuDescriptionMove( trk, action, pos );
+			case 4:
+				return BezierDescriptionMove( trk, action, pos );
 			}
 		}
-
+		break;
 	case C_CMDMENU:
 		moveDescTrk = OnTrack( &pos, TRUE, FALSE );
 		if ( moveDescTrk == NULL ) break;
@@ -1670,7 +1690,7 @@ static void FlipTracks(
 	track_p trk, trk1;
 	EPINX_T ep, ep1;
 
-	wSetCursor( mainD.d, wCursorWait );
+	wSetCursor( wCursorWait );
 	/*UndoStart( "Move/Rotate Tracks", "move/rotate" );*/
 	if (selectedTrackCount <= incrementalDrawLimit) {
 		DrawMapBoundingBox( FALSE );
@@ -1706,7 +1726,7 @@ static void FlipTracks(
 		wDrawDelayUpdate( mapD.d, FALSE );
 		DrawMapBoundingBox( TRUE );
 	}
-	wSetCursor( mainD.d, defaultCursor );
+	wSetCursor( wCursorNormal );
 	UndoEnd();
 	InfoCount( trackCount );
     MainRedraw();
@@ -1926,7 +1946,6 @@ static STATUS_T CmdSelect(
 		importMove = FALSE;
 		SelectArea( action, pos );
 		wMenuPushEnable( rotateAlignMI, FALSE );
-		wSetCursor(mainD.d,defaultCursor);
 		break;
 
 	case C_DOWN:

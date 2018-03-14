@@ -467,8 +467,7 @@ EXPORT void DrawMultiString(
 		wDrawColor color,
 		ANGLE_T a,
 		coOrd * lo,
-		coOrd * hi,
-		BOOL_T boxed)
+		coOrd * hi)
 {
 	char * cp;
 	char * cp1;
@@ -516,25 +515,7 @@ EXPORT void DrawMultiString(
 	}
 	if (hi) {
 		hi->x = posl.x+size.x;
-		hi->y = orig.y+ascent;
-	}
-	if (boxed && (d != &mapD)) {
-		int bw=5, bh=4, br=2, bb=2;
-		size.x += bw*d->scale/d->dpi;
-		size.y = fabs(orig.y-posl.y)+bh*d->scale/d->dpi;
-		size.y += descent+ascent;
-		coOrd p[4];
-		p[0] = orig; p[0].x -= (bw-br)*d->scale/d->dpi; p[0].y += (bh-bb)*d->scale/d->dpi+ascent;
-		p[1] = p[0]; p[1].x += size.x;
-		p[2] = p[1]; p[2].y -= size.y;
-		p[3] = p[2]; p[3].x = p[0].x;
-		for (int i=0;i<4;i++) {
-			Rotate( &p[i], orig, a);
-		}
-		DrawLine( d, p[0], p[1], 0, color );
-		DrawLine( d, p[1], p[2], 0, color );
-		DrawLine( d, p[2], p[3], 0, color );
-		DrawLine( d, p[3], p[0], 0, color );
+		hi->y = posl.y+ascent;
 	}
 
 	free(line);
@@ -1186,11 +1167,11 @@ lprintf("MapRedraw\n");
 
 	if (delayUpdate)
 	wDrawDelayUpdate( mapD.d, TRUE );
-	wSetCursor( mapD.d, wCursorWait );
+	wSetCursor( wCursorWait );
 	wDrawClear( mapD.d );
 	DrawTracks( &mapD, mapD.scale, mapD.orig, mapD.size );
 	DrawMapBoundingBox( TRUE );
-	wSetCursor( mapD.d, defaultCursor );
+	wSetCursor( wCursorNormal );
 	wDrawDelayUpdate( mapD.d, FALSE );
 }
 
@@ -1257,7 +1238,7 @@ EXPORT void MainRedraw( void )
 lprintf("mainRedraw\n");
 #endif
 
-	wSetCursor( mainD.d, wCursorWait );
+	wSetCursor( wCursorWait );
 	if (delayUpdate)
 	wDrawDelayUpdate( mainD.d, TRUE );
 #ifdef LATER
@@ -1304,7 +1285,7 @@ lprintf("mainRedraw\n");
 	RulerRedraw( FALSE );
 	DoCurCommand( C_REDRAW, zero );
 	DrawMarkers();
-	wSetCursor( mainD.d, defaultCursor );
+	wSetCursor( wCursorNormal );
 	InfoScale();
 	wDrawDelayUpdate( mainD.d, FALSE );
 }
@@ -2549,8 +2530,6 @@ static STATUS_T CmdPan(
 
 	static coOrd base, size;
 
-	coOrd new_pos;
-
 	DIST_T scale_x,scale_y;
 
 	static coOrd start_pos;
@@ -2563,8 +2542,7 @@ static STATUS_T CmdPan(
 	switch (action&0xFF) {
 	case C_START:
 		start_pos = zero;
-		panmode = NONE;		InfoMessage(_("Left Click to Pan, Right Click to Zoom, 0 for Origin, e for Extents"));
-		wSetCursor(mainD.d,wCursorSizeAll);
+		panmode = NONE;		InfoMessage(_("Left Drag to Pan, Right Drag to Zoom, 0 to set Origin to 0,0, 1-9 to Zoom#, e to set to Extent"));
 		 break;
 	case C_DOWN:
 		panmode = PAN;
@@ -2576,7 +2554,7 @@ static STATUS_T CmdPan(
 		start_pos = pos;
 		base = pos;
 		size = zero;
-		InfoMessage(_("Zoom Mode - Hilight Area to Zoom"));
+		InfoMessage(_("Zoom Mode - drag Area to Zoom"));
 		break;
 	case C_MOVE:
 		if (panmode == PAN) {
@@ -2595,7 +2573,6 @@ static STATUS_T CmdPan(
 					}
 				}
 				if ((fabs(pos.x-start_pos.x) > min_inc) || (fabs(pos.y-start_pos.y) > min_inc)) {
-					coOrd oldOrig = mainD.orig;
 					DrawMapBoundingBox( TRUE );
 					mainD.orig.x -= (pos.x - start_pos.x);
 					mainD.orig.y -= (pos.y - start_pos.y);
@@ -2604,10 +2581,6 @@ static STATUS_T CmdPan(
 					mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 					mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 					DrawMapBoundingBox( TRUE );
-					if ((oldOrig.x == mainD.orig.x) && (oldOrig.y == mainD.orig.y))
-						InfoMessage(_("Can't move any further in that direction"));
-					else
-					    InfoMessage(_("Left Click to Pan, Right Click to Zoom, 'o' for Origin, 'e' for Extents"));
 				}
 			}
 			MainRedraw();
@@ -2633,8 +2606,6 @@ static STATUS_T CmdPan(
 		scale_x = size.x/mainD.size.x*mainD.scale;
 		scale_y = size.y/mainD.size.y*mainD.scale;
 
-		DIST_T oldScale = mainD.scale;
-
 		if (scale_x<scale_y)
 				scale_x = scale_y;
 		if (scale_x>1) scale_x = ceil( scale_x );
@@ -2650,11 +2621,7 @@ static STATUS_T CmdPan(
 
 		panmode = NONE;
 		DoNewScale(scale_x);
-		if (mainD.scale == oldScale)
-			InfoMessage(_("Scale already at limit"));
-		else
-			InfoMessage(_("Left Click to Pan, Right Click to Zoom, 'o' for Origin, 'e' for Extents"));
-
+		MapRedraw();
 		break;
 	case C_UP:
 		panmode = NONE;
@@ -2667,12 +2634,10 @@ static STATUS_T CmdPan(
 		break;
 	case C_CANCEL:
 		base = zero;
-		wSetCursor(mainD.d,defaultCursor);
 		return C_TERMINATE;
 	case C_TEXT:
 		panmode = NONE;
 		if ((action>>8) == 0x65) {     //"e"
-			double fw, fh;
 			scale_x = mapD.size.x/(mainD.size.x/mainD.scale);
 			scale_y = mapD.size.y/(mainD.size.y/mainD.scale);
 			if (scale_x<scale_y)
@@ -2690,7 +2655,7 @@ static STATUS_T CmdPan(
 			MapRedraw();
 			MainRedraw();
 		}
-		if (((action>>8) == 0x30) || ((action>>8) == 0x6F)) {     //"0" or "o"
+		if ((action>>8) == 0x30) {     //"0"
 			mainD.orig = zero;
 			ConstraintOrig( &mainD.orig, mainD.size );
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
@@ -2698,12 +2663,16 @@ static STATUS_T CmdPan(
 			MapRedraw();
 			MainRedraw();
 		}
+		if ((action>>8) >= 0x31 && (action>>8) <= 0x39) {         //"1" to "9"
+			scale_x = (action>>8)&0x0F;
+			DoNewScale(scale_x);
+			MapRedraw();
+			MainRedraw();
+		}
 		if ((action>>8) == 0x0D) {
-			wSetCursor(mainD.d,defaultCursor);
 			return C_TERMINATE;
 		}
 		else if ((action>>8) == 0x1B) {
-			wSetCursor(mainD.d,defaultCursor);
 			return C_TERMINATE;
 		}
 		break;
