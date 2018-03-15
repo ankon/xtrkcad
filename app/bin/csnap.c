@@ -209,7 +209,7 @@ EXPORT void DrawGrid(
 		cross0_bm = wDrawBitMapCreate( mainD.d, cross0_width, cross0_height, 2, 2, cross0_bits );
 #endif
 
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	dpi = D->dpi/D->scale;
 	Gdx = cos(D2R(Gangle));
 	Gdy = sin(D2R(Gangle));
@@ -329,7 +329,7 @@ EXPORT void DrawGrid(
     
 
 done:
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 }
 
 

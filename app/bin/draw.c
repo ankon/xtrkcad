@@ -324,10 +324,18 @@ static void DDrawArc(
 		da = (maxArcSegStraightLen * 180) / (M_PI * rr);
 		cnt = (int)(angle1/da) + 1;
 		da = angle1 / cnt;
+		coOrd min,max;
+		min = d->orig;
+		max.x = min.x + d->size.x;
+		max.y = min.y + d->size.y;
 		PointOnCircle( &p0, p, r, angle0 );
 		for ( i=1; i<=cnt; i++ ) {
 			angle0 += da;
 			PointOnCircle( &p1, p, r, angle0 );
+			if ((p0.x >= min.x && p0.x <= max.x &&
+				 p0.y >= min.y && p0.y <= max.y) ||
+				(p1.x >= min.x && p1.x <= max.x &&
+				 p1.y >=min.y && p1.y <=max.y))
 			DrawLine( d, p0, p1, width, color );
 			p0 = p1;
 		}
@@ -467,7 +475,8 @@ EXPORT void DrawMultiString(
 		wDrawColor color,
 		ANGLE_T a,
 		coOrd * lo,
-		coOrd * hi)
+		coOrd * hi,
+		BOOL_T boxed)
 {
 	char * cp;
 	char * cp1;
@@ -515,7 +524,25 @@ EXPORT void DrawMultiString(
 	}
 	if (hi) {
 		hi->x = posl.x+size.x;
-		hi->y = posl.y+ascent;
+		hi->y = orig.y+ascent;
+	}
+	if (boxed && (d != &mapD)) {
+		int bw=5, bh=4, br=2, bb=2;
+		size.x += bw*d->scale/d->dpi;
+		size.y = fabs(orig.y-posl.y)+bh*d->scale/d->dpi;
+		size.y += descent+ascent;
+		coOrd p[4];
+		p[0] = orig; p[0].x -= (bw-br)*d->scale/d->dpi; p[0].y += (bh-bb)*d->scale/d->dpi+ascent;
+		p[1] = p[0]; p[1].x += size.x;
+		p[2] = p[1]; p[2].y -= size.y;
+		p[3] = p[2]; p[3].x = p[0].x;
+		for (int i=0;i<4;i++) {
+			Rotate( &p[i], orig, a);
+		}
+		DrawLine( d, p[0], p[1], 0, color );
+		DrawLine( d, p[1], p[2], 0, color );
+		DrawLine( d, p[2], p[3], 0, color );
+		DrawLine( d, p[3], p[0], 0, color );
 	}
 
 	free(line);
@@ -1167,11 +1194,11 @@ lprintf("MapRedraw\n");
 
 	if (delayUpdate)
 	wDrawDelayUpdate( mapD.d, TRUE );
-	wSetCursor( wCursorWait );
+	wSetCursor( mapD.d, wCursorWait );
 	wDrawClear( mapD.d );
 	DrawTracks( &mapD, mapD.scale, mapD.orig, mapD.size );
 	DrawMapBoundingBox( TRUE );
-	wSetCursor( wCursorNormal );
+	wSetCursor( mapD.d, defaultCursor );
 	wDrawDelayUpdate( mapD.d, FALSE );
 }
 
@@ -1238,7 +1265,7 @@ EXPORT void MainRedraw( void )
 lprintf("mainRedraw\n");
 #endif
 
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	if (delayUpdate)
 	wDrawDelayUpdate( mainD.d, TRUE );
 #ifdef LATER
@@ -1285,7 +1312,7 @@ lprintf("mainRedraw\n");
 	RulerRedraw( FALSE );
 	DoCurCommand( C_REDRAW, zero );
 	DrawMarkers();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	InfoScale();
 	wDrawDelayUpdate( mainD.d, FALSE );
 }
@@ -2542,7 +2569,8 @@ static STATUS_T CmdPan(
 	switch (action&0xFF) {
 	case C_START:
 		start_pos = zero;
-		panmode = NONE;		InfoMessage(_("Left Drag to Pan, Right Drag to Zoom, 0 to set Origin to 0,0, 1-9 to Zoom#, e to set to Extent"));
+        panmode = NONE;		InfoMessage(_("Left Drag to Pan, Right Drag to Zoom, 0 to set Origin to 0,0, 1-9 to Zoom#, e to set to Extent"));
+        wSetCursor(mainD.d,wCursorSizeAll);
 		 break;
 	case C_DOWN:
 		panmode = PAN;
@@ -2573,6 +2601,7 @@ static STATUS_T CmdPan(
 					}
 				}
 				if ((fabs(pos.x-start_pos.x) > min_inc) || (fabs(pos.y-start_pos.y) > min_inc)) {
+					coOrd oldOrig = mainD.orig;
 					DrawMapBoundingBox( TRUE );
 					mainD.orig.x -= (pos.x - start_pos.x);
 					mainD.orig.y -= (pos.y - start_pos.y);
@@ -2581,6 +2610,10 @@ static STATUS_T CmdPan(
 					mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 					mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 					DrawMapBoundingBox( TRUE );
+					if ((oldOrig.x == mainD.orig.x) && (oldOrig.y == mainD.orig.y))
+						InfoMessage(_("Can't move any further in that direction"));
+					else
+					    InfoMessage(_("Left Click to Pan, Right Click to Zoom, 'o' for Origin, 'e' for Extents"));
 				}
 			}
 			MainRedraw();
@@ -2605,6 +2638,8 @@ static STATUS_T CmdPan(
 
 		scale_x = size.x/mainD.size.x*mainD.scale;
 		scale_y = size.y/mainD.size.y*mainD.scale;
+
+		DIST_T oldScale = mainD.scale;
 
 		if (scale_x<scale_y)
 				scale_x = scale_y;
@@ -2634,6 +2669,7 @@ static STATUS_T CmdPan(
 		break;
 	case C_CANCEL:
 		base = zero;
+		wSetCursor(mainD.d,defaultCursor);
 		return C_TERMINATE;
 	case C_TEXT:
 		panmode = NONE;
@@ -2655,7 +2691,7 @@ static STATUS_T CmdPan(
 			MapRedraw();
 			MainRedraw();
 		}
-		if ((action>>8) == 0x30) {     //"0"
+		if (((action>>8) == 0x30) || ((action>>8) == 0x6F)) {     //"0" or "o"
 			mainD.orig = zero;
 			ConstraintOrig( &mainD.orig, mainD.size );
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
@@ -2670,9 +2706,11 @@ static STATUS_T CmdPan(
 			MainRedraw();
 		}
 		if ((action>>8) == 0x0D) {
+			wSetCursor(mainD.d,defaultCursor);
 			return C_TERMINATE;
 		}
 		else if ((action>>8) == 0x1B) {
+			wSetCursor(mainD.d,defaultCursor);
 			return C_TERMINATE;
 		}
 		break;
