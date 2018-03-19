@@ -42,6 +42,7 @@ typedef struct drawCmd_t * drawCmd_p;
 typedef struct {
 		long options;
 		void (*drawLine)( drawCmd_p, coOrd, coOrd, wDrawWidth, wDrawColor );
+		void (*drawBezierLine) ( drawCmd_p, coOrd, coOrd, coOrd, coOrd, wDrawWidth, wDrawColor);
 		void (*drawArc)( drawCmd_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, BOOL_T, wDrawWidth, wDrawColor );
 		void (*drawString)( drawCmd_p, coOrd, ANGLE_T, char *, wFont_p, FONTSIZE_T, wDrawColor );
 		void (*drawBitMap)( drawCmd_p, coOrd, wDrawBitMap_p, wDrawColor );
@@ -136,6 +137,7 @@ drawFuncs_t tempSegDrawFuncs;
 drawFuncs_t printDrawFuncs;
 
 #define DrawLine( D, P0, P1, W, C ) (D)->funcs->drawLine( D, P0, P1, W, C )
+#define DrawBezierLine( D, P0, P1, P2, P3, W, C ) (D)->funcs->drawBezierLine( D, P0, P1, P2, P3, W, C )
 #define DrawArc( D, P, R, A0, A1, F, W, C ) (D)->funcs->drawArc( D, P, R, A0, A1, F, W, C )
 #define DrawString( D, P, A, S, FP, FS, C ) (D)->funcs->drawString( D, P, A, S, FP, FS, C )
 #define DrawBitMap( D, P, B, C ) (D)->funcs->drawBitMap( D, P, B, C )

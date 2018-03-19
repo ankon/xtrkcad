@@ -156,6 +156,7 @@ static void DxfFillCircle(drawCmd_p d, coOrd center, DIST_T radius,
 static drawFuncs_t dxfDrawFuncs = {
     0,
     DxfLine,
+	NULL,
     DxfArc,
     DxfString,
     DxfBitMap,

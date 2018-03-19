@@ -50,6 +50,7 @@
 #include "param.h"
 #include "track.h"
 #include "utility.h"
+#include "tbezier.h"
 
 static void DrawRoomWalls( wBool_t );
 EXPORT void DrawMarkers( void );
@@ -300,6 +301,31 @@ static void DDrawLine(
 	}
 }
 
+static void DDrawBezierLine(
+		drawCmd_p d,
+		coOrd p0,
+		coOrd p1,
+		coOrd p2,
+		coOrd p3,
+		wDrawWidth width,
+		wDrawColor color )
+{
+	wPos_t x0, y0, x1, y1, x2, y2, x3, y3;
+	BOOL_T in0 = FALSE, in3 = FALSE;
+	coOrd orig, size;
+	if (d == &mapD && !mapVisible)
+		return;
+	d->CoOrd2Pix(d,p0,&x0,&y0);
+	d->CoOrd2Pix(d,p1,&x1,&y1);
+	d->CoOrd2Pix(d,p2,&x2,&y2);
+	d->CoOrd2Pix(d,p3,&x3,&y3);
+	drawCount++;
+	if (drawEnable) {
+		wDrawBezierLine( d->d, x0, y0, x1, y1, x2, y2, x3, y3,
+				width, ((d->options&DC_DASH)==0)?wDrawLineSolid:wDrawLineDash,
+				color, (wDrawOpts)d->funcs->options );
+	}
+}
 
 static void DDrawArc(
 		drawCmd_p d,
@@ -750,6 +776,29 @@ static void TempSegLine(
 	tempSegs(tempSegs_da.cnt-1).u.l.pos[1] = p1;
 }
 
+static void TempSegBezier(
+		drawCmd_p d,
+		coOrd p0,
+		coOrd p1,
+		coOrd p2,
+		coOrd p3,
+		wDrawWidth width,
+		wDrawColor color )
+{
+	DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
+	tempSegs(tempSegs_da.cnt-1).type = SEG_BEZLIN;
+	tempSegs(tempSegs_da.cnt-1).color = color;
+	if (d->options&DC_SIMPLE)
+		tempSegs(tempSegs_da.cnt-1).width = 0;
+	else
+		tempSegs(tempSegs_da.cnt-1).width = width*d->scale/d->dpi;
+	tempSegs(tempSegs_da.cnt-1).u.b.pos[0] = p0;
+	tempSegs(tempSegs_da.cnt-1).u.b.pos[1] = p1;
+	tempSegs(tempSegs_da.cnt-1).u.b.pos[2] = p2;
+	tempSegs(tempSegs_da.cnt-1).u.b.pos[3] = p3;
+	FixUpBezierSeg(&tempSegs(tempSegs_da.cnt-1).u.b.pos[0],&tempSegs(tempSegs_da.cnt-1),FALSE);
+}
+
 
 static void TempSegArc(
 		drawCmd_p d,
@@ -841,6 +890,7 @@ static void NoDrawBitMap( drawCmd_p d, coOrd p, wDrawBitMap_p bm, wDrawColor col
 EXPORT drawFuncs_t screenDrawFuncs = {
 		0,
 		DDrawLine,
+		DDrawBezierLine,
 		DDrawArc,
 		DDrawString,
 		DDrawBitMap,
@@ -850,6 +900,7 @@ EXPORT drawFuncs_t screenDrawFuncs = {
 EXPORT drawFuncs_t tempDrawFuncs = {
 		wDrawOptTemp,
 		DDrawLine,
+		DDrawBezierLine,
 		DDrawArc,
 		DDrawString,
 		DDrawBitMap,
@@ -859,6 +910,7 @@ EXPORT drawFuncs_t tempDrawFuncs = {
 EXPORT drawFuncs_t printDrawFuncs = {
 		0,
 		DDrawLine,
+		DDrawBezierLine,
 		DDrawArc,
 		DDrawString,
 		NoDrawBitMap,
@@ -868,6 +920,7 @@ EXPORT drawFuncs_t printDrawFuncs = {
 EXPORT drawFuncs_t tempSegDrawFuncs = {
 		0,
 		TempSegLine,
+		TempSegBezier,
 		TempSegArc,
 		TempSegString,
 		NoDrawBitMap,

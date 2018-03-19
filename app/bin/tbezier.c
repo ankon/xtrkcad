@@ -465,6 +465,10 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 
 
 	if (GetTrkType(t) == T_BZRLIN) {
+		if (d->funcs->drawBezierLine) {
+			DrawBezierLine( d, xx->bezierData.pos[0], xx->bezierData.pos[1], xx->bezierData.pos[2], xx->bezierData.pos[3], 0.0, color );
+			return;
+		}
 		DrawSegsO(d,t,zero,0.0,xx->bezierData.arcSegs.ptr,xx->bezierData.arcSegs.cnt, 0.0, color, 0);
 		return;
 	}

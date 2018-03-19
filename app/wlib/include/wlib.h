@@ -510,6 +510,10 @@ void wDrawFilledPolygon(	wDraw_p, wPos_t [][2], wIndex_t, wDrawColor,
 				wDrawOpts );
 void wDrawFilledCircle(		wDraw_p, wPos_t, wPos_t, wPos_t, wDrawColor, wDrawOpts );
 
+void wDrawBezierLine( wDraw_p, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t,
+				wDrawWidth, wDrawLineType_e, wDrawColor,
+				wDrawOpts );
+
 void wDrawGetTextSize(		wPos_t *, wPos_t *, wPos_t *, wDraw_p, const char *, wFont_p,
 				wFontSize_t );
 void wDrawClear(		wDraw_p );

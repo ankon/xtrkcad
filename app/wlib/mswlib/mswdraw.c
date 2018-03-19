@@ -301,6 +301,56 @@ void wDrawLine(
 	}
 }
 
+void wDrawBezierLine(
+		wDraw_p d,
+		wPos_t p0x,
+		wPos_t p0y,
+		wPos_t p1x,
+		wPos_t p1y,
+		wPos_t p2x,
+		wPos_t p2y,
+		wPos_t p3x,
+		wPos_t p3y,
+		wDrawWidth dw,
+		wDrawLineType_e lt,
+		wDrawColor dc,
+		wDrawOpts dopt )
+{
+	POINT p[4];
+	RECT rect;
+	setDrawMode( d->hDc, d, dw, lt, dc, dopt );
+	p[0].x = XINCH2PIX(d,p0x);
+	p[0].y = YINCH2PIX(d,p0y);
+	p[1].x = XINCH2PIX(d,p1x);
+	p[1].y = YINCH2PIX(d,p1y);
+	p[2].x = XINCH2PIX(d,p2x);
+	p[2].y = YINCH2PIX(d,p2y);
+	p[3].x = XINCH2PIX(d,p3x);
+	p[3].y = YINCH2PIX(d,p3y);
+	if ( noNegDrawArgs>0 && !clip0( &p[0], &p[3], d ) )
+		return;
+	PolyBezier( d->hDc, &p , 4);
+	if (d->hWnd) {
+		if (dw==0)
+			dw = 1;
+		dw++;
+		int min_x, min_y, max_x, max_y;
+		min_x = p[0].x; max_x = p[0].x;
+		min_y = p[0].y; max_y = p[0].y;
+		for (int i=1;i<4;i++) {
+			if (p[i].x < min_x) min_x = p[i].x;
+			if (p[i].y < min_y) min_y = p[i].y;
+			if (p[i].x > max_x) max_x = p[i].x;
+			if (p[i].y > max_y) max_y = p[i].y;
+		}
+		rect.top = min_y-dw;
+		rect.bottom = max_y+dw;
+		rect.left = min_x-dw;
+		rect.right = max_x+dw;
+		myInvalidateRect( d, &rect );
+	}
+}
+
 static double mswsin( double angle )
 {
 	while (angle < 0.0) angle += 360.0;

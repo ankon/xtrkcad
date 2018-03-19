@@ -67,6 +67,8 @@ static int log_block = 0;
 
 static void NoDrawLine(drawCmd_p d, coOrd p0, coOrd p1, wDrawWidth width,
 		       wDrawColor color ) {}
+static void NoDrawBezierLine(drawCmd_p d, coOrd p0, coOrd p1, coOrd p2, coOrd p3, wDrawWidth width,
+		       wDrawColor color ) {}
 static void NoDrawArc(drawCmd_p d, coOrd p, DIST_T r, ANGLE_T angle0,
 		      ANGLE_T angle1, BOOL_T drawCenter, wDrawWidth width,
 		      wDrawColor color ) {}
@@ -82,6 +84,7 @@ static void NoDrawFillCircle( drawCmd_p d, coOrd p, DIST_T r,
 static drawFuncs_t noDrawFuncs = {
 	0,
 	NoDrawLine,
+	NoDrawBezierLine,
 	NoDrawArc,
 	NoDrawString,
 	NoDrawBitMap,

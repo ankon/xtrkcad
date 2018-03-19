@@ -1886,6 +1886,13 @@ EXPORT void DrawSegsO(
             REORIGIN(p2, segPtr->u.b.pos[2], angle, orig);
             REORIGIN(p3, segPtr->u.b.pos[3], angle, orig);
 
+            if (segPtr->type == SEG_BEZLIN && (d->funcs->drawBezierLine)) {		// NOT DXF
+            	if ( color1 == wDrawColorBlack )	color1 = normalColor;
+            	if ( segPtr->color == wDrawColorWhite )  break;
+            	DrawBezierLine( d, p0, p1, p2, p3, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
+            	break;
+            }
+
             for(int j=0;j<segPtr->bezSegs.cnt;j++) {     //Loop through sub Segs
             	tempPtr = &DYNARR_N(trkSeg_t,segPtr->bezSegs,j);
             	switch (tempPtr->type) {

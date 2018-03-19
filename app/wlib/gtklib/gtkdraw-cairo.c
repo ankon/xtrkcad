@@ -267,6 +267,68 @@ static cairo_t* gtkDrawDestroyCairoContext(cairo_t *cairo) {
 	gtk_widget_draw( bd->widget, &update_rect );
 }
 
+ void wDrawBezierLine(
+ 		wDraw_p bd,
+ 		wPos_t x0, wPos_t y0,
+ 		wPos_t x1, wPos_t y1,
+		wPos_t x2, wPos_t y2,
+		wPos_t x3, wPos_t y3,
+ 		wDrawWidth width,
+ 		wDrawLineType_e lineType,
+ 		wDrawColor color,
+ 		wDrawOpts opts )
+ {
+ 	GdkGC * gc;
+ 	GdkRectangle update_rect;
+
+ 	if ( bd == &psPrint_d ) {
+ 		psPrintLine( x0, y0, x1, y1, width, lineType, color, opts );
+ 		return;
+ 	}
+ 	gc = selectGC( bd, width, lineType, color, opts );
+ 	x0 = INMAPX(bd,x0);
+ 	y0 = INMAPY(bd,y0);
+ 	x1 = INMAPX(bd,x1);
+ 	y1 = INMAPY(bd,y1);
+ 	x2 = INMAPX(bd,x2);
+ 	y2 = INMAPY(bd,y2);
+ 	x3 = INMAPX(bd,x3);
+ 	y3 = INMAPY(bd,y3);
+ 	//gdk_draw_line( bd->pixmap, gc, x0, y0, x1, y1 );
+
+ 	cairo_t* cairo = gtkDrawCreateCairoContext(bd, width, lineType, color, opts);
+ 	cairo_move_to(cairo, x0 + 0.5, y0 + 0.5);
+ 	cairo_curve_to(cairo, x1 + 0.5, y1 + 0.5, x2 + 0.5, y2 + 0.5, x3 +0.5, y3 + 0.5);
+ 	cairo_stroke(cairo);
+ 	gtkDrawDestroyCairoContext(cairo);
+
+ 	if ( bd->delayUpdate || bd->widget == NULL ) return;
+ 	width /= 2;
+ 	wPos_t min_x, min_y, max_x, max_y;
+
+ 	min_x = x0; max_x =x0;
+ 	if (min_x > x1) min_x = x1;
+ 	if (max_x < x1) max_x = x1;
+ 	if (min_x > x2) min_x = x2;
+ 	if (max_x < x2) max_x = x2;
+ 	if (min_x > x3) min_x = x3;
+ 	if (max_x < x3) max_x = x3;
+ 	min_y = y0; max_y = y0;
+ 	if (min_y > y1) min_y = y1;
+ 	if (max_y < y1) max_y = y1;
+	if (min_y > y2) min_y = y2;
+	if (max_y < y2) max_y = y2;
+	if (min_y > y3) min_y = y3;
+	if (max_y < y3) max_y = y3;
+ 	update_rect.x = min_x-1-width;
+ 	update_rect.width = max_x-min_x+2+width+width;
+ 	update_rect.y = min_y-1-width;
+ 	update_rect.height = max_y-min_y+2+width+width;
+
+ 	gtk_widget_draw( bd->widget, &update_rect );
+ }
+
+
 /**
  * Draw an arc around a specified center
  *
