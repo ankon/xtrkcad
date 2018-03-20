@@ -363,6 +363,47 @@ void psPrintLine(
 }
 
 /**
+ * Print a Bezier line
+ *
+ * \param x0, y0 IN  starting point in pixels
+ * \param x1, y1 IN  control point in pixels
+ * \param x2, y2 IN  control point in pixels
+ * \param x3, y3 IN  end point in pixels
+ * \param width line width
+ * \param lineType
+ * \param color color
+ * \param opts ?
+ */
+
+void psPrintBezierLine(
+    wPos_t x0, wPos_t y0,
+    wPos_t x1, wPos_t y1,
+	wPos_t x2, wPos_t y2,
+	wPos_t x3, wPos_t y3,
+    wDrawWidth width,
+    wDrawLineType_e lineType,
+    wDrawColor color,
+    wDrawOpts opts)
+{
+    if (color == wDrawColorWhite) {
+        return;
+    }
+
+    if (opts&wDrawOptTemp) {
+        return;
+    }
+
+    psSetColor(color);
+    setLineType(width, lineType, opts);
+
+    cairo_move_to(psPrint_d.printContext,
+                  x0, y0);
+    cairo_curve_to(psPrint_d.printContext,
+                  x1, y1, x2, y2, x3, y3);
+    cairo_stroke(psPrint_d.printContext);
+}
+
+/**
  * Print an arc around a specified center
  *
  * \param x0, y0 IN  center of arc
