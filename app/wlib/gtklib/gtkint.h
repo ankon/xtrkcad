@@ -69,6 +69,7 @@ typedef void (*setTriggerCallback_p)( wControl_p b );
 		GtkWidget * widget; \
 		GtkWidget * label; \
 		doneProcCallback_p doneProc; \
+		cairo_t * cr; \
 		void * data;
 
 struct wWin_t {
@@ -80,10 +81,7 @@ struct wWin_t {
 		wBool_t shown;                 /**< visibility state */
 		const char * nameStr;          /**< window name (not title) */
 		GtkWidget * menubar;           /**< menubar handle (if exists) */
-
-		cairo_t * cr;					/* context for draw */
 		int menu_height;
-		
         int gc_linewidth;              /**< ??? */
 		wBool_t busy;
 		int resizeTimer;		       /** resizing **/
@@ -93,7 +91,6 @@ struct wWin_t {
 
 struct wControl_t {
 		WOBJ_COMMON
-		cairo_t * cr;
 		};
 		
 typedef struct wListItem_t * wListItem_p;

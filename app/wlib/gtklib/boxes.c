@@ -217,7 +217,7 @@ wBox_p wBoxCreate(
     wPos_t	bh)
 {
     wBox_p b;
-    b = (wBox_p)wlibAlloc(parent, B_BOX, bx, by, labelStr, sizeof *b, NULL);
+    b = wlibAlloc(parent, B_BOX, bx, by, labelStr, sizeof *b, NULL);
     wlibComputePos((wControl_p)b);
     b->boxTyp = boxTyp;
     b->w = bw;

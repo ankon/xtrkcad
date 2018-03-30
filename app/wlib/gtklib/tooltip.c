@@ -177,9 +177,10 @@ void wControlSetBalloon( wControl_p b, wPos_t dx, wPos_t dy, const char * msg )
         gtk_widget_set_hexpand(balloonPI,TRUE);
         gtk_widget_set_vexpand(balloonPI,TRUE);
         gtk_container_add( GTK_CONTAINER(balloonF), balloonPI );
-        gtk_widget_show_all( balloonPI );
     }
     gtk_label_set_text( GTK_LABEL(balloonPI), msgConverted );
+    gtk_widget_show_all( balloonPI );
+    gtk_widget_show_all( balloonF );
 
     balloonDx = dx;
     balloonDy = dy;

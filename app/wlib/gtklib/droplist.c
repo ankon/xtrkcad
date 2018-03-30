@@ -428,14 +428,14 @@ wList_p wDropListCreate(
     GtkCssProvider * provider = gtk_css_provider_get_default();
     GtkStyleContext * context;
     context = gtk_widget_get_style_context (GTK_WIDGET (b->widget));
-    static const char style[] = "style \"dropcombo\" { GtkComboBox::appears-as-list = 1 } widget \"*.mycombo\" style \"dropcombo\"  ";
+    static const char style[] = """#mycombo GtkComboBox { -GtkComboBox-appears-as-list: 1; } """;
     gtk_css_provider_load_from_data(provider,style,-1,NULL);
     gtk_style_context_add_provider(context,
                                     GTK_STYLE_PROVIDER(provider),
 									GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     gtk_style_context_save (context);
 
-    gtk_widget_class_set_css_name (GTK_WIDGET_CLASS(b->widget), "dropcombo");
+    //gtk_widget_class_set_css_name (GTK_WIDGET_CLASS(b->widget), "dropcombo");
     gtk_widget_set_name(b->widget,"mycombo");
 
     g_signal_connect(b->widget, "changed",

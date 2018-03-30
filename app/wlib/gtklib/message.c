@@ -104,7 +104,7 @@ wPos_t wMessageGetHeight(
 			GtkCssProvider *largeProvider = gtk_css_provider_new();
 			/* get the current font descriptor */
 		   context = gtk_widget_get_style_context(temp);
-		   static const char smallStyle[] = "style \"smallLabel\" { font-size = 70% } widget \"*.smallLabel\" style \"smallLabel\"  ";
+		   static const char smallStyle[] = " .smallLabel { font-size: 70% } ";
 
 		   gtk_css_provider_load_from_data (smallProvider,
 											smallStyle, -1, NULL);
@@ -112,7 +112,7 @@ wPos_t wMessageGetHeight(
 											GTK_STYLE_PROVIDER(smallProvider),
 											GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-		   static const char largeStyle[] = "style \"largeLabel\" { font-size = 140% } widget \"*.largeLabel\" style \"largeLabel\"  ";
+		   static const char largeStyle[] = " .largeLabel{ font-size: 140% }  ";
 
 		   gtk_css_provider_load_from_data (largeProvider,
 											   largeStyle, -1, NULL);
@@ -126,10 +126,11 @@ wPos_t wMessageGetHeight(
 		}
 
 	   /* set the new font size */
+	  GtkStyleContext * context = gtk_widget_get_style_context(GTK_WIDGET(temp));
 	   if (flags & BM_LARGE) {
-	       gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(temp), "largeLabel");
+	       gtk_style_context_add_class(context, "largeLabel");
 	   } else {
-	       gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(temp), "smallLabel");
+	       gtk_style_context_add_class(context, "smallLabel");
 	   }
         
    	}
@@ -183,7 +184,7 @@ wMessage_p wMessageCreateEx(
 			/* get the current font descriptor */
 		   context = gtk_widget_get_style_context(b->labelWidget);
 
-		   static const char smallStyle[] = "style \"smallLabel\" { font-size = 70% } widget \"*.smallLabel\" style \"smallLabel\"  ";
+		   static const char smallStyle[] = " .smallLabel { font-size: 70% } ";
 
 		   gtk_css_provider_load_from_data (smallProvider,
 											smallStyle, -1, NULL);
@@ -191,7 +192,7 @@ wMessage_p wMessageCreateEx(
 											GTK_STYLE_PROVIDER(smallProvider),
 											GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-		   static const char largeStyle[] = "style \"largeLabel\" { font-size = 140% } widget \"*.largeLabel\" style \"largeLabel\"  ";
+		   static const char largeStyle[] = " .largeLabel { font-size: 140% } ";
 
 		   gtk_css_provider_load_from_data (largeProvider,
 											   largeStyle, -1, NULL);
@@ -201,10 +202,11 @@ wMessage_p wMessageCreateEx(
 		   fonts_set = 1;
 		}
 	   /* set the new font size */
+	   GtkStyleContext * context = gtk_widget_get_style_context(GTK_WIDGET(b->labelWidget));
 	   if (flags & BM_LARGE) {
-		   gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(b->labelWidget), "largeLabel");
+		   gtk_style_context_add_class(context, "largeLabel");
 	   } else {
-		   gtk_widget_class_set_css_name(GTK_WIDGET_CLASS(b->labelWidget), "smallLabel");
+		   gtk_style_context_add_class(context, "smallLabel");
 	   }
     }
     

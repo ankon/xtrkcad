@@ -426,8 +426,10 @@ static void choiceRepaint(
 {
     wChoice_p bc = (wChoice_p)b;
 
+    wBoxType_e boxType = wBoxBelow;
+
     if (gtk_widget_get_visible(b->widget)) {
-        wlibDrawBox(bc->parent, wBoxBelow, bc->realX-1, bc->realY-1, bc->w+1, bc->h+1);
+        wlibDrawBox(bc->parent, boxType, bc->realX-1, bc->realY-1, bc->w+1, bc->h+1);
     }
 }
 

@@ -97,9 +97,9 @@ wCreateSplash(char *appName, char *appVer)
     free(temp);
 
     label_temp = gtk_label_new("Application is starting...");
-    gtk_widget_show(label);
-    gtk_grid_attach_next_to(GTK_GRID(grid), label, label_temp, GTK_POS_BOTTOM, 1, 1);
-    gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
+    gtk_widget_show(label_temp);
+    gtk_grid_attach_next_to(GTK_GRID(grid), label_temp, label, GTK_POS_BOTTOM, 1, 1);
+    gtk_label_set_line_wrap(GTK_LABEL(label_temp), FALSE);
 
     message = label_temp;
 
