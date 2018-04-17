@@ -529,6 +529,64 @@ static cairo_t* gtkDrawDestroyCairoContext(cairo_t *cairo) {
 	gtk_widget_draw( bd->widget, &update_rect );
 }
 
+ void wDrawPolyLine( wDraw_p bd,
+		 	 	 	 wPos_t p[][6],
+					 int cnt,
+					 wDrawColor colorline,
+					 wDrawColor colorfill,
+					 wDrawOpts opt) {
+	 if ( bd == &psPrint_d ) {
+	 		psPrintPolyLine( p, cnt, colorline, colorfill, opt );
+	 		return;
+	 }
+	 GdkRectangle update_rect;
+	 update_rect.x = bd->w;
+	 update_rect.y = bd->h;
+	 update_rect.width = 0;
+	 update_rect.height = 0;
+	 for (int i=0; i<cnt; i++) {
+		if ((i==cnt-1)&&((opt&wDrawComplete)==0)) continue;
+		for (int j=0; j<6; j=j+2) {
+			if (update_rect.x > p[i][j])
+				update_rect.x = p[i][j];
+			if (update_rect.width < p[i][j])
+				update_rect.width = p[i][j];
+			if (update_rect.y > p[i][j+1])
+				update_rect.y = p[i][j+1];
+			if (update_rect.height < p[i][j+1])
+				update_rect.height = p[i][j+1];
+		 }
+	 }
+	 update_rect.x -= 1;
+	 update_rect.y -= 1;
+	 update_rect.width -= update_rect.x-2;
+	 update_rect.height -= update_rect.y-2;
+
+	 cairo_t* cairo = gtkDrawCreateCairoContext(bd, 0, wDrawLineSolid, colorline, opt);
+
+	 cairo_move_to(cairo, p[ 0 ][ 0 ], p[ 0 ][ 1 ]);
+
+	 for (int inx=0; inx<cnt-1; inx++) {
+	 	  cairo_curve_to(cairo, p[inx][2], p[inx][3], p[inx][4], p[inx][5], p[inx+1][0], p[inx+1][1] );
+	 }
+	 if (opt&wDrawComplete) {
+	 	cairo_curve_to(cairo, p[cnt][2], p[cnt][3], p[cnt][4], p[cnt][5], p[0][0], p[0][1] );
+		if (opt&wDrawFill) {
+			if ((opt&wDrawOptTemp)==0) {
+				long rgbcolor = wDrawGetRGB(colorfill);
+				int r0, g0, b0;
+				r0 = (int)(rgbcolor>>16)&0xFF;
+				g0 = (int)(rgbcolor>>8)&0xFF;
+				b0 = (int)(rgbcolor)&0xFF;
+				cairo_set_source_rgb(cairo, r0/255.0, g0/255.0, b0/255.0);
+				cairo_fill(cairo);
+			}
+		 }
+	 }
+
+
+ }
+
  void wDrawFilledPolygon(
 		wDraw_p bd,
 		wPos_t p[][2],

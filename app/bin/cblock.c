@@ -76,6 +76,8 @@ static void NoDrawBitMap( drawCmd_p d, coOrd p, wDrawBitMap_p bm,
 			  wDrawColor color) {}
 static void NoDrawFillPoly( drawCmd_p d, int cnt, coOrd * pts,
 			    wDrawColor color ) {}
+static void NoDrawPolyLine( drawCmd_p d, int cnt, coOrd * pts,
+				wDrawColor colorline, wDrawColor colorfill ) {}
 static void NoDrawFillCircle( drawCmd_p d, coOrd p, DIST_T r,
 			      wDrawColor color ) {}
 
@@ -86,6 +88,7 @@ static drawFuncs_t noDrawFuncs = {
 	NoDrawString,
 	NoDrawBitMap,
 	NoDrawFillPoly,
+	NoDrawPolyLine,
 	NoDrawFillCircle };
 
 static drawCmd_t blockD = {

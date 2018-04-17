@@ -192,8 +192,18 @@ typedef struct {
 dynArr_t tempEndPts_da;
 #define tempEndPts(N) DYNARR_N( trkEndPt_t, tempEndPts_da, N )
 
-typedef enum { FREEFORM, RECTANGLE
+typedef enum { FREEFORM, RECTANGLE, POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
 } PolyType_e;
+typedef enum {  POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
+} PolyLineType_e;
+typedef enum { NONE, PRE, POST, BOTH, LOCKED }  PolyPointType_e;
+
+typedef struct {
+		coOrd pt;
+		coOrd before_cp;
+		coOrd after_cp;
+		PolyPointType_e pointType;
+		} PolyPoint_t;
 
 typedef struct {
 		char type;
@@ -243,6 +253,14 @@ typedef struct {
 				ANGLE_T angle;
 				PolyType_e polyType;
 			} p;
+			struct {
+				int cnt;
+				PolyPoint_t * ppts;
+				coOrd orig;
+				ANGLE_T angle;
+				PolyLineType_e polyLineType;
+				wDrawColor fillcolor;
+			} pl;
 		} u;
 		} trkSeg_t, * trkSeg_p;
 
@@ -254,6 +272,7 @@ typedef struct {
 #define SEG_BEZLIN      ('H')
 #define SEG_JNTTRK		('J')
 #define SEG_FILCRCL		('G')
+#define SEG_POLYLIN     ('V')
 #define SEG_POLY		('Y')
 #define SEG_FILPOLY		('F')
 #define SEG_TEXT		('Z')
@@ -266,6 +285,7 @@ typedef struct {
 #define SEG_BENCH		('B')
 #define SEG_DIMLIN		('M')
 #define SEG_TBLEDGE		('Q')
+
 
 #define IsSegTrack( S ) ( (S)->type == SEG_STRTRK || (S)->type == SEG_CRVTRK || (S)->type == SEG_JNTTRK || (S)->type == SEG_BEZTRK)
 

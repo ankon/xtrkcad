@@ -1,0 +1,22 @@
+/* XPM */
+static char * dcpolyfill_xpm[] = {
+"16 16 3 1",
+"X	c None",
+"o	c #FFFF00000000",
+".	c #000000000000",
+".XXXXXXXXXXXXXX.",
+"X....XXXXXX....X",
+"XX.oo..XX..oo.XX",
+"XX.ooo....ooo.XX",
+"XXX.oooooooo.XXX",
+"XXX.oooooooo.XXX",
+"XXX.oooooooo.XXX",
+"XXX.oooooooo.XXX",
+"XXX.oooooooo.XXX",
+"XX.oooooooooo.XX",
+"XX.oooooooooo.XX",
+"X..ooooooooooo.X",
+".oooooooooooooo.",
+"X...oooooooo...X",
+"XXXX...oo...XXXX",
+"XXXXXXX..XXXXXXX"};

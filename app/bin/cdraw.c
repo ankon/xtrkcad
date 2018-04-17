@@ -518,6 +518,15 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 			case RECTANGLE:
 				polyType = _("Rectangle");
 				break;
+			case POLYLINE:
+				polyType = _("Open PolyLine");
+				break;
+			case CLOSEDPOLYLINE:
+				polyType = _("Closed PolyLine");
+				break;
+			case FILLEDPOLYLINE:
+				polyType = _("Filled PolyLine");
+				break;
 			default:
 				polyType = _("Freeform");
 		}
@@ -532,6 +541,15 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 		switch (segPtr->u.p.polyType) {
 			case RECTANGLE:
 				polyType =_("Rectangle");
+				break;
+			case POLYLINE:
+				polyType = _("Open PolyLine");
+				break;
+			case CLOSEDPOLYLINE:
+				polyType = _("Closed PolyLine");
+				break;
+			case FILLEDPOLYLINE:
+				polyType = _("Filled PolyLine");
 				break;
 			default:
 				polyType = _("Freeform");
@@ -1127,6 +1145,8 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 #include "bitmaps/dpoly.xpm"
 #include "bitmaps/dfilpoly.xpm"
 #include "bitmaps/dbezier.xpm"
+#include "bitmaps/dcpolyfill.xpm"
+#include "bitmaps/dcpoly.xpm"
 
 typedef struct {
 		char **xpm;
@@ -1158,8 +1178,10 @@ static drawData_t dcircleCmds[] = {
 static drawData_t dshapeCmds[] = {
 		{ dbox_xpm, OP_BOX, N_("Box"), N_("Draw Box"), "cmdDrawBox", ACCL_DRAWBOX },
 		{ dfilbox_xpm, OP_FILLBOX, N_("Filled Box"), N_("Draw Filled Box"), "cmdDrawFilledBox", ACCL_DRAWFILLBOX },
-		{ dpoly_xpm, OP_POLY, N_("Poly Line"), N_("Draw Polyline"), "cmdDrawPolyline", ACCL_DRAWPOLYLINE },
-		{ dfilpoly_xpm, OP_FILLPOLY, N_("Polygon"), N_("Draw Polygon"), "cmdDrawPolygon", ACCL_DRAWPOLYGON } };
+		{ dpoly_xpm, OP_POLY, N_("PolyLine"), N_("Draw PolyLine"), "cmdDrawPolyline", ACCL_DRAWPOLYLINE },
+		{ dfilpoly_xpm, OP_FILLPOLY, N_("Polygon"), N_("Draw Polygon"), "cmdDrawPolygon", ACCL_DRAWPOLYGON },
+		{ dcpoly_xpm, OP_CPOLY, N_("CurvedPolyLine"), N_("Draw CurvedPolyLine"), "cmdDrawCurvedPolyLine", ACCL_DRAWCURVEDPOLYLINE },
+		{ dcpolyfill_xpm, OP_CPOLYFILL, N_("CurvedPolygon"), N_("Draw CurvedPolygon"), "cmdDrawCurvedPolygon", ACCL_DRAWCURVEDPOLYGON } };
 
 typedef struct {
 		char * helpKey;

@@ -46,6 +46,7 @@ typedef struct {
 		void (*drawString)( drawCmd_p, coOrd, ANGLE_T, char *, wFont_p, FONTSIZE_T, wDrawColor );
 		void (*drawBitMap)( drawCmd_p, coOrd, wDrawBitMap_p, wDrawColor );
 		void (*drawFillPoly) (drawCmd_p, int, coOrd *, wDrawColor );
+		void (*drawPolyLine) (drawCmd_p, int, coOrd *, wDrawColor, wDrawColor);
 		void (*drawFillCircle) (drawCmd_p, coOrd, DIST_T,  wDrawColor );
 		} drawFuncs_t;
 

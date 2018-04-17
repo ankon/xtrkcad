@@ -279,6 +279,7 @@ void psPrintLine(wPos_t x0, wPos_t y0, wPos_t x1, wPos_t y1, wDrawWidth width, w
 void psPrintArc(wPos_t x0, wPos_t y0, wPos_t r, double angle0, double angle1, wBool_t drawCenter, wDrawWidth width, wDrawLineType_e lineType, wDrawColor color, wDrawOpts opts);
 void psPrintFillRectangle(wPos_t x0, wPos_t y0, wPos_t x1, wPos_t y1, wDrawColor color, wDrawOpts opts);
 void psPrintFillPolygon(wPos_t p[][2], int cnt, wDrawColor color, wDrawOpts opts);
+void psPrintPolyLine(wPos_t p[][6], int cnt, wDrawColor colorline, wDrawColor colorfill, wDrawOpts opts);
 void psPrintFillCircle(wPos_t x0, wPos_t y0, wPos_t r, wDrawColor color, wDrawOpts opts);
 void psPrintString(wPos_t x, wPos_t y, double a, char *s, wFont_p fp, double fs, wDrawColor color, wDrawOpts opts);
 static void WlibGetPaperSize(void);

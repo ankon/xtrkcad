@@ -47,7 +47,9 @@
 #define OP_FILLBOX		(16)
 #define OP_FILLPOLY		(17)
 #define OP_BEZLIN       (18)
-#define OP_LAST			(OP_BEZLIN)
+#define OP_CPOLY     	(19)
+#define OP_CPOLYFILL 	(20)
+#define OP_LAST			(OP_CPOLYFILL)
 
 typedef struct {
 				void (*message)( char *, ... );

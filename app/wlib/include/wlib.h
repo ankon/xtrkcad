@@ -440,6 +440,8 @@ void wTextSetPosition(		wText_p bt, int pos );
 typedef int wDrawOpts;
 #define wDrawOptTemp	(1<<0)
 #define wDrawOptNoClip	(1<<1)
+#define wDrawComplete 	(1<<2)
+#define wDrawFill		(1<<3)
 
 typedef enum {
 	wDrawLineSolid,
@@ -494,6 +496,7 @@ void wDrawPoint(		wDraw_p, wPos_t, wPos_t, wDrawColor, wDrawOpts );
 typedef double wFontSize_t;
 void wDrawString(		wDraw_p, wPos_t, wPos_t, wAngle_t, const char *, wFont_p,
 		  		wFontSize_t, wDrawColor, wDrawOpts );
+void wDrawPolyLine( wDraw_p, wPos_t[][6], wIndex_t, wDrawColor, wDrawColor, wDrawOpts);
 void wDrawFilledRectangle(	wDraw_p, wPos_t, wPos_t, wPos_t, wPos_t,
 				wDrawColor, wDrawOpts );
 void wDrawFilledPolygon(	wDraw_p, wPos_t [][2], wIndex_t, wDrawColor,

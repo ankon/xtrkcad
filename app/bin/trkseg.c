@@ -638,6 +638,7 @@ EXPORT void CloneFilledDraw(
 		BOOL_T reorigin )
 {
 	coOrd * newPts;
+	PolyPoint_t * newPolyPts;
 	trkSeg_p sp;
 	wIndex_t inx;
 
@@ -657,6 +658,19 @@ EXPORT void CloneFilledDraw(
 			//if (sp->u.p.pts)    Can't do this a pts could be pointing at static
 			//	free(sp->u.p.pts);
 			sp->u.p.pts = newPts;
+			break;
+		case SEG_POLYLIN:
+			newPolyPts = (PolyPoint_t *)MyMalloc( sp->u.pl.ppts * sizeof *(PolyPoint_t*)0 );
+			if (reorigin) {
+				for (inx = 0; inx<sp->u.pl.cnt; inx++) {
+					REORIGIN (newPolyPts[inx].after_cp,sp->u.pl.ppts[inx].after_cp,sp->u.pl.angle,sp->u.pl.orig);
+					REORIGIN (newPolyPts[inx].before_cp,sp->u.pl.ppts[inx].after_cp,sp->u.pl.angle,sp->u.pl.orig);
+					REORIGIN (newPolyPts[inx].pt,sp->u.pl.ppts[inx].pt, sp->u.pl.angle,sp->u.pl.orig);
+				}
+			} else {
+				memcopy (newPolyPts, sp->u.pl.ppts, sp->u.pl.cnt * sizeof *(PolyPoint_t*)0);
+			}
+			sp->u.pl.ppts = newPolyPts;
 			break;
 		case SEG_TEXT:
 			sp->u.t.string = strdup( sp->u.t.string);
@@ -690,6 +704,11 @@ EXPORT void FreeFilledDraw(
 				MyFree( sp->u.p.pts );
 			sp->u.p.pts = NULL;
 			break;
+		case SEG_POLYLIN:
+			if (sp->u.pl.ppts )
+				MyFree ( sp->u.pl.ppts );
+			sp->u.pl.ppts = NULL;
+			break;
 		case SEG_TEXT:
 			if (sp->u.t.string)
 				MyFree(sp->u.t.string);
@@ -718,7 +737,8 @@ EXPORT DIST_T DistanceSegs(
 		wIndex_t * inx_ret )
 {
 	DIST_T d, dd = 100000.0, ddd;
-	coOrd p0, p1, p2, pt, lo, hi;
+	coOrd p0, p1, p2, pt, lo, hi;;
+	coOrd pb[4];
 	BOOL_T found = FALSE;
 	wIndex_t inx, lin;
 	segProcData_t segProcData2;
@@ -756,6 +776,32 @@ EXPORT DIST_T DistanceSegs(
 				else
 					ddd = LineDistance( &pt, segPtr->u.p.pts[lin], segPtr->u.p.pts[0] );
 				if ( ddd < dd ) {
+					dd = ddd;
+					p1 = pt;
+				}
+			}
+			break;
+		case SEG_POLYLIN:
+			ddd = 100000.00;
+			for (int i = 0; i<segPtr->u.pl.cnt-2; i++) {
+				pt = p0;
+				pb[0] = segPtr->u.pl.ppts[i].pt;
+				pb[1] = segPtr->u.pl.ppts[i].after_cp;
+				pb[2] = segPtr->u.pl.ppts[i+1].before_cp;
+				pb[3] = segPtr->u.pl.ppts[i+1].pt;
+				ddd = BezierMathDistance( &pt, &pb, 20, NULL);
+				if (ddd <dd ) {
+					dd = ddd;
+					p1 = pt;
+				}
+			}
+			if (segPtr->u.pl.polyLineType != POLYLINE ) {
+				pb[0] = segPtr->u.pl.ppts[segPtr->u.pl.cnt-1].pt;
+				pb[1] = segPtr->u.pl.ppts[segPtr->u.pl.cnt-1].after_cp;
+				pb[2] = segPtr->u.pl.ppts[0].before_cp;
+				pb[3] = segPtr->u.pl.ppts[0].pt;
+				ddd = BezierMathDistance( &pt, &pb, 20, NULL);
+				if (ddd <dd ) {
 					dd = ddd;
 					p1 = pt;
 				}
@@ -846,6 +892,7 @@ EXPORT ANGLE_T GetAngleSegs(
 	wIndex_t inx;
 	ANGLE_T angle = 0.0;
 	coOrd p0;
+	coOrd pb[4];
 	DIST_T d, dd;
 	segProcData_t segProcData;
 	coOrd pos2 = * pos1;
@@ -897,6 +944,31 @@ EXPORT ANGLE_T GetAngleSegs(
 			if ( d < dd ) {
 				dd = d;
 				angle = FindAngle( segPtr->u.p.pts[inx], segPtr->u.p.pts[inx+1] );
+			}
+		}
+		break;
+	case SEG_POLYLINE:
+		for (inx=0;inx<segPtr->u.pl.cnt-2; inx++) {
+			p0 = pos2;
+			pb[0] = segPtr->u.pl.ppts[inx].pt;
+			pb[1] = segPtr->u.pl.ppts[inx].after_cp;
+			pb[2] = segPtr->u.pl.ppts[inx+1].before_cp;
+			pb[3] = segPtr->u.pl.ppts[inx+1].pt;
+			d = BezierMathDistance(&p0, &pb, 20, NULL);
+			if ( d < dd ) {
+				dd = d;
+				angle = NormalizeAngle(FindAngle(p0,pos2)+90);
+			}
+		}
+		if (segPtr->u.pl.polyLineType != POLYLINE ) {
+			pb[0] = segPtr->u.pl.ppts[segPtr->u.pl.cnt-1].pt;
+			pb[1] = segPtr->u.pl.ppts[segPtr->u.pl.cnt-1].after_cp;
+			pb[2] = segPtr->u.pl.ppts[0].before_cp;
+			pb[3] = segPtr->u.pl.ppts[0].pt;
+			d = BezierMathDistance( &p0, &pb, 20, NULL);
+			if (d <dd ) {
+				dd = d;
+				angle = NormalizeAngle(FindAngle(p0,pos2)+90);
 			}
 		}
 		break;
@@ -1127,7 +1199,7 @@ EXPORT BOOL_T ReadSegs( void )
 	BOOL_T rc=FALSE;
 	trkSeg_p s;
 	trkEndPt_p e;
-	long rgb;
+	long rgb, rgb2;
 	int i;
 	DIST_T elev0, elev1;
 	BOOL_T hasElev;
@@ -1363,6 +1435,30 @@ EXPORT BOOL_T ReadSegs( void )
 			s->u.p.angle = 0.0;
 			s->u.p.orig = zero;
 			break;
+		case SEG_POLYLIN:
+			DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
+			s = &tempSegs(tempSegs_da.cnt-1);
+			s->type = type;
+			if ( !GetArgs( cp, "lwddl",
+				 &rgb, &s->width,
+				 &s->u.pl.cnt, &s->u.pl.polyLineType, &rgb2) ) {
+				rc = FALSE;
+				/*??*/break;
+			}
+			s->color = wDrawFindColor( rgb );
+			s->u.pl.fillcolor = wDrawFindColor( rgb2 );
+			s->u.pl.angle = 0.0;
+			s->u.pl.orig = zero;
+			s->u.pl.ppts = (PolyPoint_t)MyMalloc( s->u.pl.cnt * sizeof *(PolyPoint_t*)NULL);
+			for (i=0; i<s->u.pl.cnt; i++) {
+				cp = GetNextLine();
+				if (cp == NULL || !GetArgs( cp, "pppd", &s->u.pl.ppts[i].pt,
+						s->u.pl.ppts[i].before_cp, s->u.pl.ppts[i].after_cp , s->u.pl.ppts[i].pointType ) ) {
+					rc = FALSE;
+					/*??*/break;
+				}
+			}
+			break;
 		case SEG_TEXT:
 			DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
 			s = &tempSegs(tempSegs_da.cnt-1);
@@ -1580,6 +1676,17 @@ EXPORT BOOL_T WriteSegsEnd(
 			for ( j=0; j<segs[i].u.p.cnt; j++ )
 				rc &= fprintf( f, "\t\t%0.6f %0.6f 0\n",
 						segs[i].u.p.pts[j].x, segs[i].u.p.pts[j].y ) > 0;
+			break;
+		case SEG_POLYLIN:
+			rc &= fprintf( f, "\t%c5 %ld %0.6f %d %d \n",
+				segs[i].type, wDrawGetRGB(segs[i].color), segs[1].width,
+				segs[i].u.pl.cnt, segs[i].u.pl.polyLineType ) >0;
+			for ( j=0; j<segs[i].u.pl.cnt; j++)
+				rc &= fprintf( f, "\t\t%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %d",
+						segs[i].u.pl.ppts[j].pt.x, segs[i].u.pl.ppts[j].pt.y,
+						segs[i].u.pl.ppts[j].after_cp.x, segs[i].u.pl.ppts[j].after_cp.y,
+						segs[i].u.pl.ppts[j].before_cp.x, segs[i].u.pl.ppts[j].before_cp.y,
+						segs[i].u.pl.ppts[j].pointType ) >0;
 			break;
 		case SEG_TEXT: /* 0pf0fq */
 			escaped_text = ConvertToEscapedText(segs[i].u.t.string);
@@ -1932,6 +2039,9 @@ EXPORT void DrawSegsO(
 		case SEG_TEXT:
 			REORIGIN( p0, segPtr->u.t.pos, angle, orig )
 			DrawMultiString( d, p0, segPtr->u.t.string, segPtr->u.t.fontP, segPtr->u.t.fontSize, color1, NormalizeAngle(angle + segPtr->u.t.angle), NULL, NULL );
+			break;
+		case SEG_POLYLIN:
+			if
 			break;
 		case SEG_FILPOLY:
 			if ( (d->options&DC_GROUP) == 0 &&

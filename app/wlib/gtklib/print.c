@@ -473,6 +473,53 @@ void psPrintFillRectangle(
 }
 
 /**
+ * Print a polyline (in-complete, complete or filled)
+ *
+ * \param p IN a list of x and y coordinates
+ * \param cnt IN the number of points (note x2 for number of coordiantes)
+ * \param color IN line color
+ * \param color IN fill color
+ * \param opts IN options wDrawComplete, wDrawFilled
+ *
+ */
+
+void psPrintPolyLine(
+		wPos_t p[][6],
+		int cnt,
+		wDrawColor linecolor,
+		wDrawColor fillcolor,
+		wDrawOpts opts)
+{
+	cairo_t *cr = psPrint_d.printContext;
+
+	if (linecolor == wDrawColorWhite && fillcolor == wDrawColorWhite) {
+	        return;
+	}
+
+	if (opts&wDrawOptTemp) {
+		return;
+	}
+
+	 psSetColor(linecolor);
+
+	 cairo_move_to(cr, p[ 0 ][ 0 ], p[ 0 ][ 1 ]);
+
+	 for (int inx=0; inx<cnt-1; inx++) {
+	     cairo_curve_to(cr, p[inx][2], p[inx][3], p[inx][4], p[inx][5], p[inx+1][0], p[inx+1][1] );
+	 }
+	 if (opts&wDrawComplete) {
+		 cairo_curve_to(cr, p[cnt][2], p[cnt][3], p[cnt][4], p[cnt][5], p[0][0], p[0][1] );
+
+		 if (opts&wDrawFill) {
+			 psSetColor(fillcolor);
+			 cairo_fill(cr);
+		 }
+	 }
+
+
+}
+
+/**
  * Print a filled polygon
  *
  * \param p IN a list of x and y coordinates

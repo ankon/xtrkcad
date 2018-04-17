@@ -873,3 +873,100 @@ STATUS_T DrawGeomModify(
 	}
 	return C_ERROR;
 }
+
+/**
+ * Create and draw a polyline. The complete handling of mouse
+ * movements and clicks during the editing process is done here.
+ *
+ * \param action IN mouse action
+ * \param pos IN position of mouse pointer
+ * \param context IN/OUT parameters for drawing op
+ * \return next command state
+ */
+
+STATUS_T DrawPolyMouse(
+		wAction_t action,
+		coOrd pos,
+		drawContext_t *context )
+{
+
+	typedef enum {NORMAL, ADD, COPY, MOVE, JOIN } Poly_mode;
+
+	static Poly_mode mode = NORMAL;
+	static int pnt;
+	static int segCnt;
+
+
+
+	switch (action&0xFF) {
+
+		case C_START:
+			mode = NORMAL;
+			pnt = -1;
+			segCnt = 0;
+			DYNARR_RESET( trkSeg_t, tempSegs_da );
+			return C_CONTINUE;
+			/*Initialize*/
+			break;
+		case C_MOVE:
+			return C_CONTINUE;
+			/* Change pointer if over an existing point (move/mod) otherwise add */
+		case wActionLDown:
+			mode = ADD;
+			/* Add mode enable */
+			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_SHIFT ) {
+				mode = COPY;
+				/* Copy mode of a feature if a new polyline and selected and shift */
+			}
+			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_ALT ) {
+				/* If selected is another polyline */
+				mode = JOIN;
+				/* copy all the points from other and put straight lines between end of this and start - reversed with SHIFT */
+			}
+
+			/* Add a point mode - straight if straight - with handles if curve */
+			/* If close/over first point and >3 points - close polyline */
+			break;
+		case wActionLDrag:
+			if (mode == ADD) {
+				/* If Add mode - Draw out CP handles to start curved section */
+			} else if (mode == COPY) {
+				/* If Copy mode - move copy */
+			}
+			break;
+		case wActionLUp:
+			/* Go back to base state */
+		case wActionRDown:
+			/* If over an existing point */
+			mode = MOVE;
+			/* Move Mode enable */
+			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_SHIFT ) {
+			    /* Delete existing point/CP if Shift */
+			}
+			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_ALT ) {
+			    /* Toggle Link/UnLink */
+				/* If SHIFT as well - 45 degree increments */
+			}
+			break;
+		case wActionRDrag:
+			if (mode == MOVE) {
+				/* Move point */
+				if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_ALT ) {
+					/* Move point with Alt unlink/link ends*/
+				}
+			}
+			break;
+		case wActionRUp:
+			mode = NORMAL;
+			/* Go back to base state */
+			break;
+		case wActionText:
+			/* Finish the polyline  - close it if "c" */
+		case C_CANCEL:
+			mode = NORMAL;
+			break;
+		case C_UP:
+		default:
+	}
+	return C_ERROR;
+}

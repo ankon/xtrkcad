@@ -362,6 +362,27 @@ static void DDrawString(
 	wDrawString( d->d, x, y, d->angle-a, s, fp, fontSize, color, (wDrawOpts)d->funcs->options );
 }
 
+static void DDrawPolyLine(
+		drawCmd_p d,
+		int cnt,
+		coOrd * pts,
+		wDrawColor colorline,
+		wDrawColor colorfill)
+{
+	typedef wPos_t wPosP[6];
+	static dynArr_t wptsP_da;
+	wPos_t x, y;
+	DYNARR_SET( wPosP, wptsP_da, cnt * 2 * 3 );
+	#define wptsP(N) DYNARR_N( wPosP, wptsP_da, N )
+		for ( int inx=0; inx<cnt; inx++) {
+			for (int j=0; j<6; j=j+2) {
+				d->CoOrd2Pix( d, pts[inx], &x, &y );
+				wptsP(inx)[j] = x;
+				wptsP(inx)[j+1] = y;
+			}
+		}
+		wDrawPolyLine( d->d, &wptsP(0), cnt, colorline, colorfill, (wDrawOpts)d->funcs->options );
+}
 
 static void DDrawFillPoly(
 		drawCmd_p d,
@@ -375,7 +396,7 @@ static void DDrawFillPoly(
 	wPos_t x, y;
 	DYNARR_SET( wPos2, wpts_da, cnt * 2 );
 #define wpts(N) DYNARR_N( wPos2, wpts_da, N )
-	for ( inx=0; inx<cnt; inx++ ) {
+	for ( inx=0; inx<cnt*3; inx++ ) {
 		d->CoOrd2Pix( d, pts[inx], &x, &y );
 		wpts(inx)[0] = x;
 		wpts(inx)[1] = y;
@@ -768,6 +789,17 @@ static void TempSegString(
 	tempSegs(tempSegs_da.cnt-1).u.t.string = MyStrdup(s);
 }
 
+static void TempSegPolyLine(
+	drawCmd_p d,
+	int cnt,
+	coOrd * pts,
+	wDrawColor colorline,
+	wDrawColor colorfill)
+{
+
+return;
+
+}
 
 static void TempSegFillPoly(
 		drawCmd_p d,
@@ -818,6 +850,7 @@ EXPORT drawFuncs_t screenDrawFuncs = {
 		DDrawString,
 		DDrawBitMap,
 		DDrawFillPoly,
+		DDrawPolyLine,
 		DDrawFillCircle };
 
 EXPORT drawFuncs_t tempDrawFuncs = {
@@ -827,6 +860,7 @@ EXPORT drawFuncs_t tempDrawFuncs = {
 		DDrawString,
 		DDrawBitMap,
 		DDrawFillPoly,
+		DDrawPolyLine,
 		DDrawFillCircle };
 
 EXPORT drawFuncs_t printDrawFuncs = {
@@ -836,6 +870,7 @@ EXPORT drawFuncs_t printDrawFuncs = {
 		DDrawString,
 		NoDrawBitMap,
 		DDrawFillPoly,
+		DDrawPolyLine,
 		DDrawFillCircle };
 
 EXPORT drawFuncs_t tempSegDrawFuncs = {
@@ -845,6 +880,7 @@ EXPORT drawFuncs_t tempSegDrawFuncs = {
 		TempSegString,
 		NoDrawBitMap,
 		TempSegFillPoly,
+		TempSegPolyLine,
 		TempSegFillCircle };
 
 EXPORT drawCmd_t mainD = {

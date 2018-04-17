@@ -146,6 +146,26 @@ static void DxfFillPoly(
     DxfLine(d, pts[cnt-1], pts[0], 0, color);
 }
 
+/**
+ * Note this doesn't produce a rounded object - just joins up the control points
+ *
+ */
+static void DxfPolyLine(
+    drawCmd_p d,
+    int cnt,
+    coOrd * pts,
+    wDrawColor colorline,
+	wDrawColor colorfill)
+{
+    int inx;
+
+    for (inx=1; inx<cnt; inx++) {
+        DxfLine(d, pts[inx-1], pts[inx], 0, colorline);
+    }
+
+    DxfLine(d, pts[cnt-1], pts[0], 0, colorline);
+}
+
 static void DxfFillCircle(drawCmd_p d, coOrd center, DIST_T radius,
                           wDrawColor color)
 {
@@ -160,6 +180,7 @@ static drawFuncs_t dxfDrawFuncs = {
     DxfString,
     DxfBitMap,
     DxfFillPoly,
+	DxfPolyLine,
     DxfFillCircle
 };
 
