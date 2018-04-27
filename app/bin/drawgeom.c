@@ -37,10 +37,10 @@ static long drawGeomCurveMode;
 
 #define contextSegs(N) DYNARR_N( trkSeg_t, context->Segs_da, N )
 
-
-
 static dynArr_t points_da;
 #define points(N) DYNARR_N( coOrd, points_da, N )
+
+
 
 static void EndPoly( drawContext_t * context, int cnt )
 {
@@ -890,21 +890,34 @@ STATUS_T DrawPolyMouse(
 		drawContext_t *context )
 {
 
-	typedef enum {NORMAL, ADD, COPY, MOVE, JOIN } Poly_mode;
+	typedef struct {
+		coOrd p[3];
+		wBool_t locked;
+	} PolyPoint_t;
 
-	static Poly_mode mode = NORMAL;
-	static int pnt;
-	static int segCnt;
+	typedef enum { START, ADD, SELECTED, COPY, JOIN } PolyLineState_e;
 
+	static struct {
+		dynArr_t points;
+		wBool_t closed;
+		PolyLineState_e state;
+		wDrawColor line_color;
+		wDrawColor fill_color;
+		int point_selected;
+		int cp_selected;
+	} PolyLine_Da;
 
+	#define PolyPoints(N) DYNARR_N( PolyPoint_t, PolyLine_Da.points, N)
 
 	switch (action&0xFF) {
 
 		case C_START:
-			mode = NORMAL;
-			pnt = -1;
-			segCnt = 0;
+			PolyLine_Da.state = START;
+			DYNARR_RESET( PolyPoint_t, PolyLine_Da.points);
 			DYNARR_RESET( trkSeg_t, tempSegs_da );
+			PolyLine_Da.closed = FALSE;
+			PolyLine_Da.line_color = wDrawColorBlack;
+			PolyLine_Da.fill_color = wDrawColorWhite;
 			return C_CONTINUE;
 			/*Initialize*/
 			break;
@@ -912,18 +925,21 @@ STATUS_T DrawPolyMouse(
 			return C_CONTINUE;
 			/* Change pointer if over an existing point (move/mod) otherwise add */
 		case wActionLDown:
-			mode = ADD;
-			/* Add mode enable */
-			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_SHIFT ) {
-				mode = COPY;
-				/* Copy mode of a feature if a new polyline and selected and shift */
+			if ((PolyLine_Da.points.cnt != 0)) {
+				for (int i = 0; (i < PolyLine_Da.points.cnt) && (PolyLine_Da.state == NORMAL); i++) {
+					for (int j =0; (j < 3) && (PolyLine_Da.state == NORMAL); j++) {
+						if (FindDistance(pos,DYNARR_N(PolyPoint_t.PolyLine_Da.points.i).p[j]) < minDistance) {
+							PolyLine_Da.point_selected = i;
+							PolyLine_Da.cp_selected = j;
+							PolyLine_Da.state = SELECTED;
+						}
+					}
+				}
 			}
-			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_ALT ) {
-				/* If selected is another polyline */
-				mode = JOIN;
-				/* copy all the points from other and put straight lines between end of this and start - reversed with SHIFT */
+			if (PolyLine_Da.state == NORMAL) {
+				PolyLine_Da.state = ADD;
+				/* Add mode enable */
 			}
-
 			/* Add a point mode - straight if straight - with handles if curve */
 			/* If close/over first point and >3 points - close polyline */
 			break;
@@ -969,4 +985,138 @@ STATUS_T DrawPolyMouse(
 		default:
 	}
 	return C_ERROR;
+}
+
+/**
+ * Join Polylines or other lines to make a PolyLine. The complete handling of mouse
+ * movements and clicks during the editing process is done here.
+ *
+ * \param action IN mouse action
+ * \param pos IN position of mouse pointer
+ * \param context IN/OUT parameters for drawing op
+ * \return next command state
+ */
+
+STATUS_T JoinPolyLine(
+		wAction_t action,
+		coOrd pos,
+		drawContext_t *context )
+{
+	typedef enum {NORMAL, FIRST_SELECTED, BOTH_SELECTED } PolyJoinState_e;
+
+	static PolyJoinState_e joinState;
+	static track_p join_line[2];
+	static int ep[2];
+	switch (action&0xFF) {
+		case C_START:
+			joinState = NORMAL;
+			break;
+		case C_DOWN:
+			if (joinState == NORMAL) {
+				/* If on open end point of line, curvedline, polyline */
+				/* else complain "no open end point here" */
+				joinState = FIRST_SELECTED;
+			} else if (joinState == FIRST_SELECTED) {
+				/* If on open end point of line, curvedline, polyline */
+				/* else complain "no open end point here" */
+				joinState = BOTH_SELECTED;
+			}
+			return C_CONTINUE;
+			break;
+		case C_UP:
+			if (joinState == BOTH_SELECTED) {
+				/* Create new PolyLine from both lines */
+				NewPolyLine(join_line[0], end[0],
+							join_line[1], end[1]);
+				/* Delete old lines */
+				DeleteTrack(join_line[0]);
+				DeleteTrack(join_line[1]);
+				joinState = NORMAL;
+				return C_TERMINATE;
+			}
+			break;
+		case C_CANCEL:
+			joinState = NORMAL;
+			return C_ERROR;
+		case C_REDRAW:
+			if (joinState == FIRST_SELECTED) {
+				/* Draw selection point */
+			} else if (joinState == BOTH_SELECTED) {
+				/* Draw both selection points */
+			}
+			return C_CONTINUE;
+		default:
+			return C_CONTINUE;
+	}
+	return C_ERROR;
+
+}
+
+/**
+ * Join Polylines or other lines to make a PolyLine. The complete handling of mouse
+ * movements and clicks during the editing process is done here.
+ *
+ * \param action IN mouse action
+ * \param pos IN position of mouse pointer
+ * \param context IN/OUT parameters for drawing op
+ * \return next command state
+ */
+
+STATUS_T EditPolyLine(
+		wAction_t action,
+		coOrd pos,
+		drawContext_t *context )
+{
+	typedef enum {NORMAL, LINE_SELECTED, POINT_SELECTED } PolyEditState_e;
+
+	static PolyJoinState_e edirState;
+	static track_p join_line[2];
+	static int ep[2];
+	switch (action&0xFF) {
+		case C_START:
+			joinState = NORMAL;
+			break;
+		case C_DOWN:
+			if (State == NORMAL) {
+				/* If on a polyline */
+				/* else complain "no polyline here" */
+				joinState = FIRST_SELECTED;
+			} else if (joinState == FIRST_SELECTED) {
+				/* If on open end point of line, curvedline, polyline */
+				/* else complain "no open end point here" */
+				joinState = BOTH_SELECTED;
+			}
+			return C_CONTINUE;
+			break;
+		case C_UP:
+			if (joinState == BOTH_SELECTED) {
+				/* Create new PolyLine from both lines */
+				NewPolyLine(join_line[0], end[0],
+							join_line[1], end[1]);
+				/* Delete old lines */
+				DeleteTrack(join_line[0]);
+				DeleteTrack(join_line[1]);
+				joinState = NORMAL;
+				return C_TERMINATE;
+			}
+			break;
+		case C_TEXT:
+			/* If "delete" or "D" */
+			/* If "smooth" or "S" */
+			/* If "corner" or "C" */
+		case C_CANCEL:
+			joinState = NORMAL;
+			return C_ERROR;
+		case C_REDRAW:
+			if (joinState == FIRST_SELECTED) {
+				/* Draw selection point */
+			} else if (joinState == BOTH_SELECTED) {
+				/* Draw both selection points */
+			}
+			return C_CONTINUE;
+		default:
+			return C_CONTINUE;
+	}
+	return C_ERROR;
+
 }
