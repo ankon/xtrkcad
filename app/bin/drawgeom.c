@@ -874,6 +874,21 @@ STATUS_T DrawGeomModify(
 	return C_ERROR;
 }
 
+typedef enum { START, ADD, SELECTED, COPY, JOIN } PolyLineState_e;
+
+	static struct {
+		dynArr_t temp_points;
+		wBool_t closed;
+		PolyLineState_e state;
+		wDrawColor line_color;
+		wDrawColor fill_color;
+		int point_selected;
+		int cp_selected;
+	} PolyLine_Da;
+
+
+#define PolyPoints(N) DYNARR_N( PolyPoint_t, PolyLine_Da.points, N)
+
 /**
  * Create and draw a polyline. The complete handling of mouse
  * movements and clicks during the editing process is done here.
@@ -890,30 +905,11 @@ STATUS_T DrawPolyMouse(
 		drawContext_t *context )
 {
 
-	typedef struct {
-		coOrd p[3];
-		wBool_t locked;
-	} PolyPoint_t;
-
-	typedef enum { START, ADD, SELECTED, COPY, JOIN } PolyLineState_e;
-
-	static struct {
-		dynArr_t points;
-		wBool_t closed;
-		PolyLineState_e state;
-		wDrawColor line_color;
-		wDrawColor fill_color;
-		int point_selected;
-		int cp_selected;
-	} PolyLine_Da;
-
-	#define PolyPoints(N) DYNARR_N( PolyPoint_t, PolyLine_Da.points, N)
-
 	switch (action&0xFF) {
 
 		case C_START:
 			PolyLine_Da.state = START;
-			DYNARR_RESET( PolyPoint_t, PolyLine_Da.points);
+			DYNARR_RESET( PolyPoint_t, PolyLine_Da.temp_points);
 			DYNARR_RESET( trkSeg_t, tempSegs_da );
 			PolyLine_Da.closed = FALSE;
 			PolyLine_Da.line_color = wDrawColorBlack;
@@ -925,8 +921,8 @@ STATUS_T DrawPolyMouse(
 			return C_CONTINUE;
 			/* Change pointer if over an existing point (move/mod) otherwise add */
 		case wActionLDown:
-			if ((PolyLine_Da.points.cnt != 0)) {
-				for (int i = 0; (i < PolyLine_Da.points.cnt) && (PolyLine_Da.state == NORMAL); i++) {
+			if ((PolyLine_Da.temp_points.cnt != 0)) {
+				for (int i = 0; (i < PolyLine_Da.temp_points.cnt) && (PolyLine_Da.state == NORMAL); i++) {
 					for (int j =0; (j < 3) && (PolyLine_Da.state == NORMAL); j++) {
 						if (FindDistance(pos,DYNARR_N(PolyPoint_t.PolyLine_Da.points.i).p[j]) < minDistance) {
 							PolyLine_Da.point_selected = i;
@@ -982,9 +978,42 @@ STATUS_T DrawPolyMouse(
 			mode = NORMAL;
 			break;
 		case C_UP:
+		case C_REDRAW:
+			long oldOptions = context->D->funcs->options;
+			context->D->funcs->options |= wDrawOptTemp;
+			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			context->D->funcs->options = oldOptions;
+			break;
 		default:
 	}
 	return C_ERROR;
+}
+
+void PolyCreateSegments() {
+	DYNARR_RESET(tempSegs, points.cnt*6);
+	for (int i=0;i<points.cnt;i++) {
+		DYNARR_ADD(dynArr_t,TempSegs,6);
+		if (!last) TempSegs(temo_segs.cnt).type = curved_line;
+		TempSegs(temo_segs.cnt+1).type = cirle;
+		if (!point_nocp) {
+			if ((first && closed) || !first) {
+				TempSegs(temo_segs.cnt+2).type = point;
+				TempSegs(temo_segs.cnt+3).type = line;
+			}
+			if (!last) {
+				TempSegs(temo_segs.cnt+4).type = point;
+				TempSegs(temo_segs.cnt+5).type = line;
+			}
+		}
+	}
+	if (closed) {
+		DYNARR_ADD(dynArr_t,TempSegs,3);
+		TempSegs(temo_segs.cnt).type = curved_line;
+		if (!point_nocp) {
+			TempSegs(temo_segs.cnt+1).type = point;
+			TempSegs(temo_segs.cnt+2).type = line;
+		}
+	}
 }
 
 /**
@@ -1039,6 +1068,10 @@ STATUS_T JoinPolyLine(
 			joinState = NORMAL;
 			return C_ERROR;
 		case C_REDRAW:
+			long oldOptions = context->D->funcs->options;
+			context->D->funcs->options |= wDrawOptTemp;
+			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			context->D->funcs->options = oldOptions;
 			if (joinState == FIRST_SELECTED) {
 				/* Draw selection point */
 			} else if (joinState == BOTH_SELECTED) {
@@ -1067,51 +1100,93 @@ STATUS_T EditPolyLine(
 		coOrd pos,
 		drawContext_t *context )
 {
-	typedef enum {NORMAL, LINE_SELECTED, POINT_SELECTED } PolyEditState_e;
+	typedef enum {NORMAL, LINE_SELECTED, POINT_SELECTED, POINT_DEFINED, POINT_DRAGGED } PolyEditState_e;
 
-	static PolyJoinState_e edirState;
+	static PolyJoinState_e editState;
 	static track_p join_line[2];
 	static int ep[2];
 	switch (action&0xFF) {
 		case C_START:
-			joinState = NORMAL;
+			editState = NORMAL;
 			break;
 		case C_DOWN:
-			if (State == NORMAL) {
+			if (editState == NORMAL) {
 				/* If on a polyline */
 				/* else complain "no polyline here" */
-				joinState = FIRST_SELECTED;
-			} else if (joinState == FIRST_SELECTED) {
-				/* If on open end point of line, curvedline, polyline */
+				editState = LINE_SELECTED;
+				/* If close enough also select point */
+				editState = LINE_SELECTED;
+			} else if (editState == LINE_SELECTED) {
+				/* If on cp point of line */
 				/* else complain "no open end point here" */
-				joinState = BOTH_SELECTED;
+				editState = POINT_SELECTED;
+			} else if (editState == POINT_SELECTED) {
+				/* If on cp point of line */
+				/* Else */
+				editState = LINE_SELECTED;
 			}
 			return C_CONTINUE;
 			break;
-		case C_UP:
-			if (joinState == BOTH_SELECTED) {
-				/* Create new PolyLine from both lines */
-				NewPolyLine(join_line[0], end[0],
-							join_line[1], end[1]);
-				/* Delete old lines */
-				DeleteTrack(join_line[0]);
-				DeleteTrack(join_line[1]);
-				joinState = NORMAL;
-				return C_TERMINATE;
+		case C_MOVE:
+			if (editState == POINT_SELECTED || editState == POINT_DRAGGED) {
+				/* Move point(s) */
+				editState = POINT_DRAGGED;
 			}
 			break;
+		case C_UP:
+			if (editState == POINT_DRAGGED) {
+				editState = LINE_SELECTED;
+			}
+			return C_CONTINUE;
+			break;
+		case C_RDOWN:
+			if (editState == LINE_SELECTED || editState == POINT_SELECTED) {
+				/* Add Point either at end or between points (if on line) */
+				/* If Shift as well, add to front of line */
+				/* If over start and no shift close */
+				editState = POINT_DEFINED;
+			}
+			return C_CONTINUE;
+			break;
+		case C_RMOVE:
+			if (editState == POINT_DEFINED) {
+				/* Extend CP handles for New Point*/
+			}
+			return C_CONTINUE;
+			break;
+		case C_RUP:
+			editState = LINE_SELECTED;
+			return C_CONTINUE;
+			break;
 		case C_TEXT:
-			/* If "delete" or "D" */
-			/* If "smooth" or "S" */
-			/* If "corner" or "C" */
+			/* If Esc cancel */
+			/* If Return - accept changes */
+			if (editState == POINT_SELECTED) {
+				/* If "delete" or "D" */
+				/* If "smooth" or "S" */
+				/* If "kink" or "K" */
+				/* If "corner" or "L" */
+			} else if (editState == LINE_SELECTED) {
+				/* if "Close" or "C" */
+			}
+			return C_CONTINUE;
+			break;
+		case C_CMDMENU:
+			if (editState == POINT_SELECTED) {
+				/* Show Action Menu at point */
+			}
+			return C_CONTINUE;
+			break;
 		case C_CANCEL:
-			joinState = NORMAL;
+			editState = NORMAL;
 			return C_ERROR;
 		case C_REDRAW:
-			if (joinState == FIRST_SELECTED) {
-				/* Draw selection point */
-			} else if (joinState == BOTH_SELECTED) {
-				/* Draw both selection points */
+			long oldOptions = context->D->funcs->options;
+			context->D->funcs->options |= wDrawOptTemp;
+			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			context->D->funcs->options = oldOptions;
+			if (editState != NORMAL ) {
+				/* Draw line (and point if selected) */
 			}
 			return C_CONTINUE;
 		default:

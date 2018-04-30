@@ -196,14 +196,25 @@ typedef enum { FREEFORM, RECTANGLE, POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
 } PolyType_e;
 typedef enum {  POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
 } PolyLineType_e;
-typedef enum { NONE, PRE, POST, BOTH, LOCKED }  PolyPointType_e;
+
+typedef enum {NO_CPS, LOCKED_CPS, UNLOCKED_CPS} PolyPointType_t;
 
 typedef struct {
-		coOrd pt;
-		coOrd before_cp;
-		coOrd after_cp;
-		PolyPointType_e pointType;
-		} PolyPoint_t;
+	coOrd p[3];  /*Before CP, Point, After CP */
+	PolyPointType_t point_type;
+} PolyPoint_t;
+
+typedef enum { LINECOLOR, FILLCOLOR, LINE_AND_FILLCOLOR } PolyPointColor_t;
+
+typedef dynArr_t PolyPoints;
+
+typedef struct {
+	PolyPoints points;
+	wBool_t closed;
+	PolyPointColor_t color_opts;
+	wDrawColor line_color;
+	wDrawColor fill_color;
+} PolyLine_t;
 
 typedef struct {
 		char type;
@@ -254,12 +265,9 @@ typedef struct {
 				PolyType_e polyType;
 			} p;
 			struct {
-				int cnt;
-				PolyPoint_t * ppts;
+				PolyLine_t line;
 				coOrd orig;
 				ANGLE_T angle;
-				PolyLineType_e polyLineType;
-				wDrawColor fillcolor;
 			} pl;
 		} u;
 		} trkSeg_t, * trkSeg_p;
