@@ -465,6 +465,10 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 
 
 	if (GetTrkType(t) == T_BZRLIN) {
+		if (d->funcs->drawBezierLine) {
+			DrawBezierLine( d, xx->bezierData.pos[0], xx->bezierData.pos[1], xx->bezierData.pos[2], xx->bezierData.pos[3], 0.0, color );
+			return;
+		}
 		DrawSegsO(d,t,zero,0.0,xx->bezierData.arcSegs.ptr,xx->bezierData.arcSegs.cnt, 0.0, color, 0);
 		return;
 	}
@@ -834,6 +838,9 @@ static BOOL_T MergeBezier(
 	}
 	DrawNewTrack( trk0 );
 
+	MainRedraw();
+	MapRedraw();
+
 
 	return TRUE;
 }
@@ -902,6 +909,8 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 
 static BOOL_T TrimBezier( track_p trk, EPINX_T ep, DIST_T dist ) {
 	DeleteTrack(trk, TRUE);
+	MainRedraw();
+	MapRedraw();
 	return TRUE;
 }
 
@@ -1069,6 +1078,8 @@ BOOL_T MoveBezierEndPt ( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 ) {
 		if (trk2) DeleteTrack(trk2,TRUE);
 		xx = GetTrkExtraData(*trk);
 		SetTrkEndPoint( *trk, *ep, *ep?xx->bezierData.pos[3]:xx->bezierData.pos[0], *ep?xx->bezierData.a1:xx->bezierData.a0 );
+		MainRedraw();
+		MapRedraw();
 		return TRUE;
 	}
 	return FALSE;

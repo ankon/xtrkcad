@@ -150,6 +150,15 @@ int createEndPoint(
     DIST_T d, w;
     d = tempD.scale*0.25;
     w = tempD.scale/tempD.dpi; /*double width*/
+    if (point_selectable) {
+		sp[1].u.c.center = pos0;
+		sp[1].u.c.a0 = 0.0;
+		sp[1].u.c.a1 = 360.0;
+		sp[1].u.c.radius = d/2;
+		sp[1].type = SEG_CRVLIN;
+		sp[1].width = w;
+		sp[1].color = point_selected?drawColorRed:drawColorBlack;
+    }
     sp[0].u.c.center = pos0;
     sp[0].u.c.a0 = 0.0;
     sp[0].u.c.a1 = 360.0;
@@ -371,7 +380,7 @@ void DrawTempCornu() {
 				  &Da.trk2Seg,
 				  Da.extend[0]?&Da.extendSeg[0]:NULL,
 				  Da.extend[1]?&Da.extendSeg[1]:NULL,
-				  Da.minRadius<(GetLayoutMinTrackRadius()-EPSILON)?drawColorRed:drawColorBlack);
+				  Da.minRadius<(GetLayoutMinTrackRadius()-EPSILON)?exceptionColor:normalColor);
 
 }
 
@@ -580,7 +589,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 				&& (!QueryTrack(Da.trk[sel],Q_HAS_VARIABLE_ENDPOINTS))) { // Not a Turntable
 				DIST_T ab = FindDistance(GetTrkEndPos(Da.trk[sel],Da.ep[sel]),GetTrkEndPos(Da.trk[sel],1-Da.ep[sel]));
 				DIST_T ac = FindDistance(GetTrkEndPos(Da.trk[sel],Da.ep[sel]),pos);
-				DIST_T cb = FindDistance(GetTrkEndPos(Da.trk[sel],1-Da.ep[sel]), pos);
+				DIST_T cb = FindDistance(GetTrkEndPos(Da.trk[sel],1-Da.ep[sel]),pos);
 				if (cb<minLength) {
 					InfoMessage(_("Too close to other end of selected Track"));
 					return C_CONTINUE;
@@ -1097,7 +1106,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 				if (ep>=0 && QueryTrack(t,Q_CAN_ADD_ENDPOINTS)) ep=-1;  		//Ignore Turntable Unconnected
 				else if (ep==-1 && (!QueryTrack(t,Q_CAN_ADD_ENDPOINTS) && !QueryTrack(t,Q_HAS_VARIABLE_ENDPOINTS))) {  //No endpoints and not Turntable or Helix/Circle
 				  	wBeep();
-				  	InfoMessage(_("No Unconnected end point on that track"));
+				  	InfoMessage(_("No Valid end point on that track"));
 				  	return C_CONTINUE;
 				}
 				Da.trk[end] = t;

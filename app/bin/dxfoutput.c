@@ -176,6 +176,7 @@ static void DxfFillCircle(drawCmd_p d, coOrd center, DIST_T radius,
 static drawFuncs_t dxfDrawFuncs = {
     0,
     DxfLine,
+	NULL,
     DxfArc,
     DxfString,
     DxfBitMap,
@@ -213,7 +214,7 @@ static int DoExportDXFTracks(
     }
 
     oldLocale = SaveLocale("C");
-    wSetCursor(wCursorWait);
+    wSetCursor(mainD.d, wCursorWait);
     time(&clock);
  
 	DxfPrologue(&command, 10, 0.0, 0.0, mapD.size.x, mapD.size.y);
@@ -229,7 +230,7 @@ static int DoExportDXFTracks(
     fclose(dxfF);
     RestoreLocale(oldLocale);
     Reset();
-    wSetCursor(wCursorNormal);
+    wSetCursor(mainD.d, defaultCursor);
     return TRUE;
 }
 

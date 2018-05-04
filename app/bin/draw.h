@@ -42,6 +42,7 @@ typedef struct drawCmd_t * drawCmd_p;
 typedef struct {
 		long options;
 		void (*drawLine)( drawCmd_p, coOrd, coOrd, wDrawWidth, wDrawColor );
+		void (*drawBezierLine) ( drawCmd_p, coOrd, coOrd, coOrd, coOrd, wDrawWidth, wDrawColor);
 		void (*drawArc)( drawCmd_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, BOOL_T, wDrawWidth, wDrawColor );
 		void (*drawString)( drawCmd_p, coOrd, ANGLE_T, char *, wFont_p, FONTSIZE_T, wDrawColor );
 		void (*drawBitMap)( drawCmd_p, coOrd, wDrawBitMap_p, wDrawColor );
@@ -137,6 +138,7 @@ drawFuncs_t tempSegDrawFuncs;
 drawFuncs_t printDrawFuncs;
 
 #define DrawLine( D, P0, P1, W, C ) (D)->funcs->drawLine( D, P0, P1, W, C )
+#define DrawBezierLine( D, P0, P1, P2, P3, W, C ) (D)->funcs->drawBezierLine( D, P0, P1, P2, P3, W, C )
 #define DrawArc( D, P, R, A0, A1, F, W, C ) (D)->funcs->drawArc( D, P, R, A0, A1, F, W, C )
 #define DrawString( D, P, A, S, FP, FS, C ) (D)->funcs->drawString( D, P, A, S, FP, FS, C )
 #define DrawBitMap( D, P, B, C ) (D)->funcs->drawBitMap( D, P, B, C )
@@ -173,7 +175,7 @@ void DrawBoxedString( int, drawCmd_p, coOrd, char *, wFont_p, wFontSize_t, wDraw
 void DrawMultiLineTextSize(drawCmd_p dp, char * text, wFont_p fp, wFontSize_t fs, BOOL_T relative, coOrd * size, coOrd * lastline );
 void DrawTextSize2( drawCmd_p, char *, wFont_p, wFontSize_t, BOOL_T, coOrd *, POS_T *);
 void DrawTextSize( drawCmd_p, char *, wFont_p, wFontSize_t, BOOL_T, coOrd * );
-void DrawMultiString(drawCmd_p d, coOrd pos, char * text, wFont_p fp, wFontSize_t fs, wDrawColor color, ANGLE_T a, coOrd * lo, coOrd * hi);
+void DrawMultiString(drawCmd_p d, coOrd pos, char * text, wFont_p fp, wFontSize_t fs, wDrawColor color, ANGLE_T a, coOrd * lo, coOrd * hi, BOOL_T boxed);
 BOOL_T SetRoomSize( coOrd );
 void GetRoomSize( coOrd * );
 void DoRedraw( void );

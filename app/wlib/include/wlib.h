@@ -170,11 +170,21 @@ unsigned long wGetTimer(	void );
 void wExit(			int );
 
 typedef enum {	wCursorNormal,
+		wCursorNone,
+		wCursorAppStart,
+		wCursorHand,
+		wCursorNo,
+		wCursorSizeAll,
+		wCursorSizeNESW,
+		wCursorSizeNS,
+		wCursorSizeNWSE,
+		wCursorSizeWE,
 		wCursorWait,
 		wCursorIBeam,
 		wCursorCross,
 		wCursorQuestion } wCursor_t;
-void wSetCursor( wCursor_t );
+void wSetCursor( wDraw_p, wCursor_t );
+#define defaultCursor wCursorCross
 
 const char * wMemStats( void );
 
@@ -502,6 +512,10 @@ void wDrawFilledRectangle(	wDraw_p, wPos_t, wPos_t, wPos_t, wPos_t,
 void wDrawFilledPolygon(	wDraw_p, wPos_t [][2], wIndex_t, wDrawColor,
 				wDrawOpts );
 void wDrawFilledCircle(		wDraw_p, wPos_t, wPos_t, wPos_t, wDrawColor, wDrawOpts );
+
+void wDrawBezierLine( wDraw_p, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t, wPos_t,
+				wDrawWidth, wDrawLineType_e, wDrawColor,
+				wDrawOpts );
 
 void wDrawGetTextSize(		wPos_t *, wPos_t *, wPos_t *, wDraw_p, const char *, wFont_p,
 				wFontSize_t );
