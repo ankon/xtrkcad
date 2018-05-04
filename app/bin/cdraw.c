@@ -861,6 +861,16 @@ EXPORT BOOL_T GetClosestEndPt( track_p trk, coOrd * pos)
 					dd1 = FindDistance( p00, xx->segs[0].u.b.pos[3]);
 					p1 = xx->segs[0].u.b.pos[3];
 				break;
+				case SEG_POLYLIN:
+					if (xx->segs[0].u.pl.line.closed)
+						return FALSE;
+					PolyPoint_t pt = DYNARR_N(PolyPoint_t, xx->segs[0].u.pl.line.points, 0);
+					p0 = pt.p[1];
+					dd0 = FindDistance( p00, p0);
+					pt = DYNARR_LAST(PolyPoint_t, xx->segs[0].u.pl.line.points);
+					p1 = pt.p[1];
+					dd1 = FindDistance (p00, p1);
+				break;
 				default:
 					return FALSE;
 			}

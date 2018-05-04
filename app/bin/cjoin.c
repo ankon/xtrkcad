@@ -51,6 +51,7 @@ typedef struct {
 		} joinRes_t;
 
 static struct {
+		wBool_t line;
 		STATE_T state;
 		int joinMoveState;
 		struct {
@@ -59,15 +60,6 @@ static struct {
 				coOrd pos;
 				EPINX_T ep;
 				trackParams_t params;
-#ifdef LATER
-				curveType_e type;
-				ANGLE_T angle;
-				coOrd lineOrig;
-				coOrd lineEnd;
-				coOrd arcP;
-				DIST_T arcR;
-				ANGLE_T arcA0, arcA1;
-#endif
 				} inp[2];
 		joinRes_t jRes;
 		coOrd inp_pos[2];
@@ -385,6 +377,25 @@ LOG( log_join, 2, (" Move P0 X%0.3f A%0.3f  P1 X%0.3f A%0.3f\n",
 	return TRUE;
 }
 
+static STATUS_T DoMoveToJoinLine( coOrd pos) {
+	if (selectedTrackCount <= 0 ) {
+		ErrorMessage( MSG_NO_SELECTED_TRK );
+		return C_CONTINUE;
+	}
+	if ( (Dj.inp[Dj.joinMoveState].trk = OnTrack( &pos, TRUE, FALSE )) == NULL )
+			return C_CONTINUE;
+	if (!CheckTrackLayer( Dj.inp[Dj.joinMoveState].trk ) )
+			return C_CONTINUE;
+	/* Get end of lines */
+
+	if (GetClosestEndPt(Dj.inp[Dj.joinMoveState].trk, &pos))
+		Dj.inp[Dj.joinMoveState].pos = pos;
+	else
+		return C_CONTINUE;
+
+
+
+}
 
 static STATUS_T DoMoveToJoin( coOrd pos )
 {
@@ -396,19 +407,11 @@ static STATUS_T DoMoveToJoin( coOrd pos )
 			return C_CONTINUE;
 		if (!CheckTrackLayer( Dj.inp[Dj.joinMoveState].trk ) )
 			return C_CONTINUE;
+
 		Dj.inp[Dj.joinMoveState].params.ep = PickUnconnectedEndPoint( pos, Dj.inp[Dj.joinMoveState].trk ); /* CHECKME */
 		if ( Dj.inp[Dj.joinMoveState].params.ep == -1 ) {
-#ifdef LATER
-			ErrorMessage( MSG_NO_ENDPTS );
-#endif
 			return C_CONTINUE;
 		}
-#ifdef LATER
-		if ( GetTrkEndTrk( Dj.inp[Dj.joinMoveState].trk, Dj.inp[Dj.joinMoveState].params.ep ) ) {
-			ErrorMessage( MSG_SEL_EP_CONN );
-			return C_CONTINUE;
-		}
-#endif
 		if (Dj.joinMoveState == 0) {
 			Dj.joinMoveState++;
 			InfoMessage( GetTrkSelected(Dj.inp[0].trk)?
@@ -452,13 +455,27 @@ static STATUS_T CmdJoin(
 	DIST_T eR[2];
 	BOOL_T ok;
 
+	if ((wIndex_t)(long)commandContext == 1)
+		Dj.line = TRUE;
+	else
+		Dj.line = FALSE;
+
 	switch (action&0xFF) {
 
 	case C_START:
-		if (selectedTrackCount==0)
-			InfoMessage( _("Left click - join with track") );
-		else
-			InfoMessage( _("Left click - join with track, Shift Left click - move to join") );
+		if (Dj.line) {
+			if (selectedTrackCount==0)
+				InfoMessage( _("Left click - join with line") );
+			else
+				InfoMessage( _("Left click - join with line, Shift Left click - move to join") );
+
+			return C_CONTINUE;
+		} else {
+			if (selectedTrackCount==0)
+				InfoMessage( _("Left click - join with track") );
+			else
+				InfoMessage( _("Left click - join with track, Shift Left click - move to join") );
+		}
 		Dj.state = 0;
 		Dj.joinMoveState = 0;
 		/*ParamGroupRecord( &easementPG );*/
@@ -889,10 +906,14 @@ errorReturn:
  */
 
 #include "bitmaps/join.xpm"
+#include "bitmaps/joinpoly.xpm"
 
 void InitCmdJoin( wMenu_p menu )
 {
-	joinCmdInx = AddMenuButton( menu, CmdJoin, "cmdJoin", _("Join"), wIconCreatePixMap(join_xpm), LEVEL0_50, IC_STICKY|IC_POPUP, ACCL_JOIN, NULL );
+	ButtonGroupBegin( _("Join"), "cmdJoinSetCmd", _("Join Tracks/Lines") );
+	joinCmdInx = AddMenuButton( menu, CmdJoin, "cmdJoin", _("Join Track"), wIconCreatePixMap(join_xpm), LEVEL0_50, IC_STICKY|IC_POPUP, ACCL_JOIN, 0 );
+	joinLineCmdInx = AddMenuButton( menu, CmdJoin, "cmdJoinLine", _("Join Line"), wIconCreatePixMap(joinpoly_xpm), LEVEL0_50, IC_STICKY|IC_POPUP, ACCL_JOINLINE, 1 );
+	ButtonGroupEnd();
 	log_join = LogFindIndex( "join" );
 }
 

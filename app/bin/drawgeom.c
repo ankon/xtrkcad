@@ -874,20 +874,25 @@ STATUS_T DrawGeomModify(
 	return C_ERROR;
 }
 
-typedef enum { START, ADD, SELECTED, COPY, JOIN } PolyLineState_e;
+typedef enum { START, ADD, SELECTED, MOVE, COPY, JOIN } PolyLineState_e;
 
-	static struct {
-		dynArr_t temp_points;
-		wBool_t closed;
-		PolyLineState_e state;
-		wDrawColor line_color;
-		wDrawColor fill_color;
-		int point_selected;
-		int cp_selected;
-	} PolyLine_Da;
+static struct {
+	dynArr_t temp_points;
+	dynArr_t polySegs;
+	wBool_t closed;
+	PolyLineState_e state;
+	wDrawColor line_color;
+	wDrawColor fill_color;
+	int point_selected;
+	int cp_selected;
+} PolyLine_Da;
 
 
-#define PolyPoints(N) DYNARR_N( PolyPoint_t, PolyLine_Da.points, N)
+static PolyLineState_e mode;
+
+#define PolyPoints(N) DYNARR_N( PolyPoint_t, PolyLine_Da.polySegs, N)
+#define PolySegs(N) DYNARR_N( trkSeg_t, PolyLine_Da.temp_points, N)
+#define LastPolySeg DYNARR_LAST(trkSeg_t, PolyLine_Da.temp_points)
 
 /**
  * Create and draw a polyline. The complete handling of mouse
@@ -924,7 +929,7 @@ STATUS_T DrawPolyMouse(
 			if ((PolyLine_Da.temp_points.cnt != 0)) {
 				for (int i = 0; (i < PolyLine_Da.temp_points.cnt) && (PolyLine_Da.state == NORMAL); i++) {
 					for (int j =0; (j < 3) && (PolyLine_Da.state == NORMAL); j++) {
-						if (FindDistance(pos,DYNARR_N(PolyPoint_t.PolyLine_Da.points.i).p[j]) < minDistance) {
+						if (FindDistance(pos,PolyPoints(i).p[j]) < minDistance) {
 							PolyLine_Da.point_selected = i;
 							PolyLine_Da.cp_selected = j;
 							PolyLine_Da.state = SELECTED;
@@ -940,7 +945,7 @@ STATUS_T DrawPolyMouse(
 			/* If close/over first point and >3 points - close polyline */
 			break;
 		case wActionLDrag:
-			if (mode == ADD) {
+			if (PolyLine_Da.state == ADD) {
 				/* If Add mode - Draw out CP handles to start curved section */
 			} else if (mode == COPY) {
 				/* If Copy mode - move copy */
@@ -950,7 +955,7 @@ STATUS_T DrawPolyMouse(
 			/* Go back to base state */
 		case wActionRDown:
 			/* If over an existing point */
-			mode = MOVE;
+			PolyLine_Da.state = MOVE;
 			/* Move Mode enable */
 			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_SHIFT ) {
 			    /* Delete existing point/CP if Shift */
@@ -961,7 +966,7 @@ STATUS_T DrawPolyMouse(
 			}
 			break;
 		case wActionRDrag:
-			if (mode == MOVE) {
+			if (PolyLine_Da.state == MOVE) {
 				/* Move point */
 				if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_ALT ) {
 					/* Move point with Alt unlink/link ends*/
@@ -969,19 +974,19 @@ STATUS_T DrawPolyMouse(
 			}
 			break;
 		case wActionRUp:
-			mode = NORMAL;
+			PolyLine_Da.state = NORMAL;
 			/* Go back to base state */
 			break;
 		case wActionText:
 			/* Finish the polyline  - close it if "c" */
 		case C_CANCEL:
-			mode = NORMAL;
+			PolyLine_Da.state = NORMAL;
 			break;
 		case C_UP:
 		case C_REDRAW:
 			long oldOptions = context->D->funcs->options;
 			context->D->funcs->options |= wDrawOptTemp;
-			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			DrawSegs( context->D, zero, 0.0, &PolyLine_Da.polySegs(0), PolyLine_Da.polySegs.cnt, trackGauge, wDrawColorBlack );
 			context->D->funcs->options = oldOptions;
 			break;
 		default:
@@ -989,20 +994,21 @@ STATUS_T DrawPolyMouse(
 	return C_ERROR;
 }
 
+
 void PolyCreateSegments() {
-	DYNARR_RESET(tempSegs, points.cnt*6);
-	for (int i=0;i<points.cnt;i++) {
-		DYNARR_ADD(dynArr_t,TempSegs,6);
-		if (!last) TempSegs(temo_segs.cnt).type = curved_line;
-		TempSegs(temo_segs.cnt+1).type = cirle;
+	DYNARR_RESET(trkSeg_t,PolyLine_Da.polySegs);
+	for (int i=0;i<PolyLine_Da.temp_points.cnt;i++) {
+		DYNARR_ADD(PolyPoint_t, PolyLine_Da.polySegs,6);
+		if (!(i==PolyLine_Da.temp_points.cnt-1)) PolySegs(LastPolySeg).type = curved_line;
+		PolySegs(temo_segs.cnt+1).type = cirle;
 		if (!point_nocp) {
 			if ((first && closed) || !first) {
-				TempSegs(temo_segs.cnt+2).type = point;
-				TempSegs(temo_segs.cnt+3).type = line;
+				PolySegs(temo_segs.cnt+2).type = point;
+				PolySegs(temo_segs.cnt+3).type = line;
 			}
 			if (!last) {
-				TempSegs(temo_segs.cnt+4).type = point;
-				TempSegs(temo_segs.cnt+5).type = line;
+				PolySegs(temo_segs.cnt+4).type = point;
+				PolySegs(temo_segs.cnt+5).type = line;
 			}
 		}
 	}

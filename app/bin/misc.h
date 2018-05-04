@@ -292,7 +292,9 @@ extern drawCmd_t mapD;
 extern STATUS_T CmdEnumerate( wAction_t, coOrd );
 
 wIndex_t modifyCmdInx;
+wIndex_t modifyLineCmdInx;
 wIndex_t joinCmdInx;
+wIndex_t joinLineCmdInx;
 wIndex_t tunnelCmdInx;
 
 /* ctodesgn.c */

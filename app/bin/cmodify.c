@@ -36,6 +36,7 @@
 #include "utility.h"
 
 static struct {
+		wBool_t line;
 		track_p Trk;
 		trackParams_t params;
 		coOrd pos00, pos00x, pos01;
@@ -114,11 +115,15 @@ static STATUS_T CmdModify(
 /*
  * Extend and alter a track.
  * Extend a track with a curve or straight and optionally an easement.
+ * Decide on altering track versus line based on how the function was called.
  * Alter a ruler.
  * Modify a Bezier.
  */
 {
-
+	if ((wIndex_t)(long)commandContext == 1)
+			Dex.line = TRUE;
+	else
+			Dex.line = FALSE;
 	track_p trk, trk1;
 	ANGLE_T a0;
 	DIST_T d;
@@ -163,7 +168,7 @@ static STATUS_T CmdModify(
 		tempSegs(1).width = 0;
 		tempSegs_da.cnt = 0;
 		SnapPos( &pos );
-		Dex.Trk = OnTrack( &pos, TRUE, FALSE );
+		Dex.Trk = OnTrack( &pos, TRUE, Dex.line );
 		if (Dex.Trk == NULL) {
 			if ( ModifyRuler( C_DOWN, pos ) == C_CONTINUE )
 				modifyRulerMode = TRUE;
@@ -512,6 +517,7 @@ LOG( log_modify, 1, ("A0 = %0.3f, A1 = %0.3f\n",
 	}
 }
 
+
 
 /*****************************************************************************
  *
@@ -520,9 +526,13 @@ LOG( log_modify, 1, ("A0 = %0.3f, A1 = %0.3f\n",
  */
 
 #include "bitmaps/extend.xpm"
+#include "bitmaps/modifyline.xpm"
 
 void InitCmdModify( wMenu_p menu )
 {
-	modifyCmdInx = AddMenuButton( menu, CmdModify, "cmdModify", _("Modify"), wIconCreatePixMap(extend_xpm), LEVEL0_50, IC_STICKY|IC_POPUP, ACCL_MODIFY, NULL );
+	ButtonGroupBegin( _("Modify"), "cmdCircleSetCmd", _("Curve Tracks") );
+	modifyCmdInx = AddMenuButton( menu, CmdModify, "cmdModify", _("Modify Track"), wIconCreatePixMap(extend_xpm), LEVEL0_50, IC_STICKY|IC_POPUP, ACCL_MODIFY, (0) );
+	modifyLineCmdInx = AddMenuButton( menu, CmdModify, "cmdModifyLine", _("Modify Line"), wIconCreatePixMap(modifyline_xpm), LEVEL0_50, IC_STICKY|IC_POPUP, ACCL_MODIFYLINE, (1) );
+	ButtonGroupEnd();
 	log_modify = LogFindIndex( "modify" );
 }
