@@ -194,8 +194,7 @@ dynArr_t tempEndPts_da;
 
 typedef enum { FREEFORM, RECTANGLE, POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
 } PolyType_e;
-typedef enum {  POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
-} PolyLineType_e;
+PolyLineType_e;
 
 typedef enum {NO_CPS, LOCKED_CPS, UNLOCKED_CPS} PolyPointType_t;
 
@@ -405,6 +404,8 @@ typedef union {
 				int  bezSegInx;			/* OUT if a bezier proc, the index of the sub segment */
 		} getAngle;			// Get pos on seg nearest, angle at that (-ve for forwards)
 		} segProcData_t, *segProcData_p;
+typedef enum {  POLYLINE, CLOSEDPOLYLINE, FILLEDPOLYLINE
+}
 typedef enum {
 		SEGPROC_TRAVERSE1,
 		SEGPROC_TRAVERSE2,

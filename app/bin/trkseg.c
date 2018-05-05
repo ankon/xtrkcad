@@ -145,6 +145,15 @@ EXPORT coOrd GetSegEndPt(
         if (ep ==1) pos = segPtr->u.b.pos[3];       //For Bezier, use the End Points of the overall curve
         else pos = segPtr->u.b.pos[0];
         break;
+    case SEG_POLYLIN:
+    	if (segPtr->u.pl.line.closed) {
+    		if(ep==0) {
+    			pos = DYNARR_N(PolyPoint_t,segPtr->u.pl.line.points,0).p[1];
+    		} else {
+    			pos = DYNARR_LAST(PolyPoint_t,segPtr->u.pl.line.points).p[1];
+    		}
+    	}
+    	break;
     default:
 		AbortProg("GetSegCntPt(%c)", segPtr->type );
 	}
@@ -308,6 +317,24 @@ static void Get1SegBounds( trkSeg_p segPtr, coOrd xlat, ANGLE_T angle, coOrd *lo
 			}
 		}
 		break;
+	case SEG_POLYLIN:
+		for (inx=0;inx<segPtr->u.pl.line.points.cnt-1;inx++) {
+			p0 = DYNARR_N(PolyPoint_t, segPtr->u.pl.line.points,inx).p[1];
+			REORIGIN( p0, p0, angle, xlat );
+			if (inx==0) {
+				*lo = *hi = p0;
+			} else {
+				if (p0.x < lo->x)
+					lo->x = p0.x;
+				if (p0.y < lo->y)
+					lo->y = p0.y;
+				if (p0.x > hi->x)
+					hi->x = p0.x;
+				if (p0.y > hi->y)
+					hi->y = p0.y;
+			}
+		}
+		break;
 	case SEG_FILCRCL:
 		REORIGIN( p0, segPtr->u.c.center, angle, xlat )
 		lo->x = p0.x - fabs(segPtr->u.c.radius);
@@ -435,6 +462,15 @@ EXPORT void MoveSegs(
 				s->u.p.pts[inx].y += orig.y;
 			}
 			break;
+		case SEG_POLYLIN:
+			for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, s->u.pl.line.points)-1); inx++) {
+				PolyPoint_t pp = DYNARR_N(PolyPoint_t, s->u.pl.line.points, inx);
+				for (int i=0;i<3;i++) {
+					pp.p[i].x += orig.x;
+					pp.p[i].y += orig.y;
+				}
+			}
+			break;
 		case SEG_JNTTRK:
 			s->u.j.pos.x += orig.x;
 			s->u.j.pos.y += orig.y;
@@ -485,6 +521,15 @@ EXPORT void RotateSegs(
 		case SEG_FILPOLY:
 			for (inx=0; inx<s->u.p.cnt; inx++) {
 				Rotate( &s->u.p.pts[inx], orig, angle );
+			}
+			break;
+		case SEG_POLYLIN:
+			for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, s->u.pl.line.points)-1); inx++) {
+				PolyPoint_t pp = DYNARR_N(PolyPoint_t, s->u.pl.line.points, inx);
+				for (int i=0;i<3;i++) {
+					pp.p[i].x += orig.x;
+					pp.p[i].y += orig.y;
+				}
 			}
 			break;
 		case SEG_JNTTRK:
@@ -544,6 +589,14 @@ EXPORT void FlipSegs(
 				s->u.p.pts[inx].y = -s->u.p.pts[inx].y;
 			}
 			MyFree(pts);
+			break;
+		case SEG_POLYLIN:
+			for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, s->u.pl.line.points)-1); inx++) {
+				PolyPoint_t pp = DYNARR_N(PolyPoint_t, s->u.pl.line.points, inx);
+				for (int i=0;i<3;i++) {
+					pp.p[i].y -= pp.p[i].y;
+				}
+			}
 			break;
 		case SEG_JNTTRK:
 			s->u.j.pos.y = - s->u.j.pos.y;
@@ -605,6 +658,15 @@ EXPORT void RescaleSegs(
 				s->u.p.pts[inx].y *= scale_y;
 			}
 			break;
+		case SEG_POLYLIN:
+			for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, s->u.pl.line.points)-1); inx++) {
+				PolyPoint_t pp = DYNARR_N(PolyPoint_t, s->u.pl.line.points, inx);
+				for (int i=0;i<3;i++) {
+					pp.p[i].x *= scale_x;
+					pp.p[i].y *= scale_y;
+				}
+			}
+			break;
 		case SEG_JNTTRK:
 			s->u.j.pos.x *= scale_x;
 			s->u.j.pos.y *= scale_y;
@@ -660,17 +722,20 @@ EXPORT void CloneFilledDraw(
 			sp->u.p.pts = newPts;
 			break;
 		case SEG_POLYLIN:
-			newPolyPts = (PolyPoint_t *)MyMalloc( sp->u.pl.ppts * sizeof *(PolyPoint_t*)0 );
+			newPolyPts = (PolyPoint_t *)MyMalloc( DYNARR_SIZE(PolyPoint_t, sp->u.pl.line.points) * sizeof *(PolyPoint_t*)0 );
 			if (reorigin) {
-				for (inx = 0; inx<sp->u.pl.cnt; inx++) {
-					REORIGIN (newPolyPts[inx].after_cp,sp->u.pl.ppts[inx].after_cp,sp->u.pl.angle,sp->u.pl.orig);
-					REORIGIN (newPolyPts[inx].before_cp,sp->u.pl.ppts[inx].after_cp,sp->u.pl.angle,sp->u.pl.orig);
-					REORIGIN (newPolyPts[inx].pt,sp->u.pl.ppts[inx].pt, sp->u.pl.angle,sp->u.pl.orig);
+				for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, sp->u.pl.line.points)-1); inx++) {
+					PolyPoint_t pp = DYNARR_N(PolyPoint_t, sp->u.pl.line.points, inx);
+					PolyPoint_t np = DYNARR_N(PolyPoint_t, newPolyPts, inx);
+					for (int i=0;i<3;i++) {
+						REORIGIN(np.p[i],pp.p[i],sp->u.pl.angle,sp->u.pl.orig);
+					}
+					np.point_type = pp.point_type;
 				}
 			} else {
-				memcopy (newPolyPts, sp->u.pl.ppts, sp->u.pl.cnt * sizeof *(PolyPoint_t*)0);
+				memcopy (newPolyPts, sp->u.pl.line.points, DYNARR_SIZE(PolyPoint_t, sp->u.pl.line.points) * sizeof *(PolyPoint_t*)0);
 			}
-			sp->u.pl.ppts = newPolyPts;
+			sp->u.pl.line.points = newPolyPts;
 			break;
 		case SEG_TEXT:
 			sp->u.t.string = strdup( sp->u.t.string);
@@ -705,9 +770,9 @@ EXPORT void FreeFilledDraw(
 			sp->u.p.pts = NULL;
 			break;
 		case SEG_POLYLIN:
-			if (sp->u.pl.ppts )
-				MyFree ( sp->u.pl.ppts );
-			sp->u.pl.ppts = NULL;
+			if (sp->u.pl.line.points )
+				MyFree ( sp->u.pl.line.points );
+			sp->u.pl.line.points = NULL;
 			break;
 		case SEG_TEXT:
 			if (sp->u.t.string)
@@ -783,23 +848,30 @@ EXPORT DIST_T DistanceSegs(
 			break;
 		case SEG_POLYLIN:
 			ddd = 100000.00;
-			for (int i = 0; i<segPtr->u.pl.cnt-2; i++) {
-				pt = p0;
-				pb[0] = segPtr->u.pl.ppts[i].pt;
-				pb[1] = segPtr->u.pl.ppts[i].after_cp;
-				pb[2] = segPtr->u.pl.ppts[i+1].before_cp;
-				pb[3] = segPtr->u.pl.ppts[i+1].pt;
+			for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, segPtr->u.pl.line.points)-2); inx++) {
+				PolyPoint_t pp = DYNARR_N(PolyPoint_t, segPtr->u.pl.line.points, inx);
+				for (int i=0;i<2;i++) {
+					pb[i] = pp.p[i+1];
+				}
+				pp = DYNARR_N(PolyPoint_t, segPtr->u.pl.line.points, inx+1);
+				for (int i=2;i<4;i++) {
+					pb[i] = pp.p[i-2];
+				}
 				ddd = BezierMathDistance( &pt, &pb, 20, NULL);
 				if (ddd <dd ) {
 					dd = ddd;
 					p1 = pt;
 				}
 			}
-			if (segPtr->u.pl.polyLineType != POLYLINE ) {
-				pb[0] = segPtr->u.pl.ppts[segPtr->u.pl.cnt-1].pt;
-				pb[1] = segPtr->u.pl.ppts[segPtr->u.pl.cnt-1].after_cp;
-				pb[2] = segPtr->u.pl.ppts[0].before_cp;
-				pb[3] = segPtr->u.pl.ppts[0].pt;
+			if (segPtr->u.pl.line.closed) {
+				PolyPoint_t pp = DYNARR_LAST(PolyPoint_t, segPtr->u.pl.line.points);
+				for (int i=0;i<2;i++) {
+					pb[i] = pp.p[i+1];
+				}
+				pp = DYNARR_N(PolyPoint_t, segPtr->u.pl.line.points, 0);
+				for (int i=2;i<4;i++) {
+					pb[i] = pp.p[i-2];
+				}
 				ddd = BezierMathDistance( &pt, &pb, 20, NULL);
 				if (ddd <dd ) {
 					dd = ddd;
@@ -948,6 +1020,15 @@ EXPORT ANGLE_T GetAngleSegs(
 		}
 		break;
 	case SEG_POLYLINE:
+
+		for (inx=0; inx < (DYNARR_SIZE(PolyPoint_t, segPtr->u.pl.line.points)-1); inx++) {
+			PolyPoint_t pp = DYNARR_N(PolyPoint_t, segPtr->u.pl.line.points, inx);
+			for (int i=0;i<3;i++) {
+				pp.p[i].x *= scale_x;
+				pp.p[i].y *= scale_y;
+			}
+		}
+
 		for (inx=0;inx<segPtr->u.pl.cnt-2; inx++) {
 			p0 = pos2;
 			pb[0] = segPtr->u.pl.ppts[inx].pt;

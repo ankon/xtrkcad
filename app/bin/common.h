@@ -108,6 +108,8 @@ typedef struct {
 		} \
 		(DA).max = 0; \
 		(DA).cnt = 0; }
+#define DYNARR_SIZE(T,DA) \
+		((DA).cnt) \
 
 #ifdef WINDOWS
 #define M_PI 3.14159
