@@ -201,6 +201,7 @@ typedef enum {NO_CPS, LOCKED_CPS, UNLOCKED_CPS} PolyPointType_t;
 typedef struct {
 	coOrd p[3];  /*Before CP, Point, After CP */
 	PolyPointType_t point_type;
+	ANGLE_T CP_angle;
 } PolyPoint_t;
 
 typedef enum { LINECOLOR, FILLCOLOR, LINE_AND_FILLCOLOR } PolyPointColor_t;
