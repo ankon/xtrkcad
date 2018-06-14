@@ -1,3 +1,7 @@
+
+
+
+
 /** \file ccornu.c
  * Cornu Command. Draw or modify a Cornu Easement Track.
  */
@@ -1114,6 +1118,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 		DYNARR_RESET(trkSeg_t,Da.crvSegs_da);
 		Da.ep1Segs_da_cnt = 0;
 		Da.ep2Segs_da_cnt = 0;
+		Da.crvSegs_da_cnt = 0;
 		Da.extend[0] = FALSE;
 		Da.extend[1] = FALSE;
 		if (selectedTrackCount==0)
@@ -1140,6 +1145,11 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 				  	wBeep();
 				  	InfoMessage(_("No Valid end point on that track"));
 				  	return C_CONTINUE;
+				}
+				if (GetTrkScale(t) != (char)GetLayoutCurScale()) {
+					wBeep();
+					InfoMessage(_("Track is different scale"));
+					return C_CONTINUE;
 				}
 				Da.trk[end] = t;
 				Da.ep[end] = ep;           // Note: -1 for Turntable or Circle

@@ -115,6 +115,7 @@ EXPORT wButton_p redoB;
 EXPORT wButton_p zoomUpB;
 EXPORT wButton_p zoomDownB;
 wButton_p mapShowB;
+wButton_p backgroundB;
 
 EXPORT wIndex_t checkPtMark = 0;
 
@@ -2413,6 +2414,7 @@ static void CreateMenus(void) {
 			ACCL_PRICELIST, (void*) PriceListInit(), 0, (void *) 0);
 
 	cmdGroup = BG_LAYER | BG_BIGGAP;
+
 	InitLayers();
 
 	cmdGroup = BG_HOTBAR;
