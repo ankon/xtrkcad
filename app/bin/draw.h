@@ -113,6 +113,7 @@ extern wDrawColor drawColorRed;
 extern wDrawColor drawColorBlue;
 extern wDrawColor drawColorGreen;
 extern wDrawColor drawColorAqua;
+extern wDrawColor drawColorPowderedBlue;
 extern wDrawColor drawColorPurple;
 extern wDrawColor drawColorGold;
 #define wDrawColorBlack drawColorBlack
@@ -172,7 +173,7 @@ void DrawBoxedString( int, drawCmd_p, coOrd, char *, wFont_p, wFontSize_t, wDraw
 void DrawMultiLineTextSize(drawCmd_p dp, char * text, wFont_p fp, wFontSize_t fs, BOOL_T relative, coOrd * size, coOrd * lastline );
 void DrawTextSize2( drawCmd_p, char *, wFont_p, wFontSize_t, BOOL_T, coOrd *, POS_T *);
 void DrawTextSize( drawCmd_p, char *, wFont_p, wFontSize_t, BOOL_T, coOrd * );
-void DrawMultiString(drawCmd_p d, coOrd pos, char * text, wFont_p fp, wFontSize_t fs, wDrawColor color, ANGLE_T a, coOrd * lo, coOrd * hi);
+void DrawMultiString(drawCmd_p d, coOrd pos, char * text, wFont_p fp, wFontSize_t fs, wDrawColor color, ANGLE_T a, coOrd * lo, coOrd * hi, BOOL_T boxed);
 BOOL_T SetRoomSize( coOrd );
 void GetRoomSize( coOrd * );
 void DoRedraw( void );
