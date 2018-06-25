@@ -132,6 +132,7 @@ static struct {
 		BOOL_T circleorHelix[2];
 		DIST_T trackGauge;
 
+		BOOL_T complexity;
 		bezctx * bezc;
 		} Da;
 
@@ -267,7 +268,11 @@ BOOL_T CallCornu0(coOrd pos[2], coOrd center[2], ANGLE_T angle[2], DIST_T radius
 		Rotate(&posk[5],center[1],(back)?10:-10);
 	}
 	SetKnots(knots,posk);
-	TaggedSpiroCPsToBezier(knots,Da.bezc);
+	Da.complexity = FALSE;
+	if (!TaggedSpiroCPsToBezier(knots,Da.bezc)) {
+		Da.complexity = TRUE;
+		return FALSE;
+	}
 	if (!bezctx_xtrkcad_close(Da.bezc)) {
 		return FALSE;
 	}
@@ -526,7 +531,12 @@ EXPORT STATUS_T AdjustCornuCurve(
 			Da.crvSegs_da.cnt = 0;
 			SetUpCornuParms(&cp);
 			if (CallCornu(Da.pos,Da.trk,Da.ep,&Da.crvSegs_da,&cp)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
-			else Da.crvSegs_da_cnt = 0;
+			else {
+				Da.crvSegs_da_cnt = 0;
+				DrawTempCornu();
+				InfoMessage( _("Cornu Curve Creation Failed - Too Complex?") );
+				return C_CONTINUE;
+			}
 			Da.minRadius = CornuMinRadius(Da.pos,Da.crvSegs_da);
 			InfoMessage( _("Select End-Point") );
 			DrawTempCornu();
@@ -557,7 +567,12 @@ EXPORT STATUS_T AdjustCornuCurve(
 		CreateBothEnds(Da.selectPoint);
 		SetUpCornuParms(&cp);
 		if (CallCornu(Da.pos, Da.trk,Da.ep, &Da.crvSegs_da, &cp)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
-		else Da.crvSegs_da_cnt = 0;
+		else {
+			Da.crvSegs_da_cnt = 0;
+			DrawTempCornu();
+			InfoMessage( _("Cornu Curve Creation Failed - Too Complex?") );
+			return C_CONTINUE;
+		}
 		Da.minRadius = CornuMinRadius(Da.pos, Da.crvSegs_da);
 		DrawTempCornu();
 		return C_CONTINUE;
@@ -723,7 +738,12 @@ EXPORT STATUS_T AdjustCornuCurve(
 		SetUpCornuParms(&cp);    //In case we want to use these because the ends are not on the track
 
 		if (CallCornu(Da.pos, Da.trk, Da.ep, &Da.crvSegs_da,&cp)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
-		else Da.crvSegs_da_cnt = 0;
+		else {
+			Da.crvSegs_da_cnt = 0;
+			InfoMessage( _("Cornu Curve Creation Failed - Too Complex?") );
+			DrawTempCornu();
+			return C_CONTINUE;
+		}
 		Da.minRadius = CornuMinRadius(Da.pos,Da.crvSegs_da);
 		DIST_T rin = Da.radius[0];
 		InfoMessage( _("Cornu : Min Radius=%s MaxRateofCurveChange/Scale=%s Length=%s Winding Arc=%s"),
@@ -742,7 +762,13 @@ EXPORT STATUS_T AdjustCornuCurve(
 		CreateBothEnds(Da.selectPoint);
 		SetUpCornuParms(&cp);
 		if (CallCornu(Da.pos,Da.trk,Da.ep,&Da.crvSegs_da,&cp)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
-		else Da.crvSegs_da_cnt = 0;
+		else {
+			DYNARR_RESET(dynArr_t,Da.crvSegs_da);
+			DrawTempCornu();
+			InfoMessage( _("Cornu Curve Creation Failed - Too Complex? - Pick a point - ESC to abort") );
+			Da.state = PICK_POINT;
+			return C_CONTINUE;
+		}
 		Da.minRadius = CornuMinRadius(Da.pos,Da.crvSegs_da);
 		InfoMessage(_("Pick on point to adjust it along track - Enter to confirm, ESC to abort"));
 		DrawTempCornu();
@@ -1043,6 +1069,7 @@ DIST_T CornuMinRadius(coOrd pos[4],dynArr_t segs) {
 	return r;
 }
 
+
 DIST_T CornuTotalWindingArc(coOrd pos[4],dynArr_t segs) {
 	DIST_T rr = 0;
 	if (segs.cnt == 0 ) return 0;
@@ -1054,6 +1081,7 @@ DIST_T CornuTotalWindingArc(coOrd pos[4],dynArr_t segs) {
 			rr += CornuTotalWindingArc(t.u.b.pos, t.bezSegs);
 		}
 	}
+
 	return rr;
 }
 
@@ -1176,8 +1204,14 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 				Da.state = POINT_PICKED;
 				DrawCornuCurve(NULL,Da.ep1Segs,Da.ep1Segs_da_cnt,NULL,0,NULL,0,NULL,NULL,NULL,drawColorBlack); //Wipe out initial Arm
 				CreateBothEnds(1);
-				if (CallCornu(Da.pos,Da.trk,Da.ep,&Da.crvSegs_da, &cp))
+				if (CallCornu(Da.pos,Da.trk,Da.ep,&Da.crvSegs_da, &cp)) {
 						Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
+				} else {
+					DYNARR_RESET(dynArr_t,Da.crvSegs_da);
+					DrawTempCornu();
+					InfoMessage( _("Cornu Curve Creation Failed - Too Complex? - move point") );
+					return C_CONTINUE;
+				}
 				DrawTempCornu();
 				InfoMessage( _("Move 2nd end point of Cornu track along track 2") );
 			}

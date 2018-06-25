@@ -37,6 +37,7 @@
 
 
 #include "track.h"
+#include "trackx.h"
 #include "draw.h"
 #include "cbezier.h"
 #include "tbezier.h"
@@ -94,7 +95,10 @@ EXPORT BOOL_T FixUpCornu(coOrd pos[2], track_p trk[2], EPINX_T ep[2], struct ext
 
 	SetUpCornuParmFromTracks(trk,&cp,xx);
 
-	if (!CallCornu(pos, trk, ep, &xx->cornuData.arcSegs, &cp)) return FALSE;
+	if (!CallCornu(pos, trk, ep, &xx->cornuData.arcSegs, &cp)) {
+
+		return FALSE;
+	}
 
 	xx->cornuData.r[0] = cp.radius[0];
 	if (cp.radius[0]==0) {
@@ -417,7 +421,9 @@ static void UpdateCornu( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	ts[0] = GetTrkEndTrk(trk,0);
 	ts[1] = GetTrkEndTrk(trk,1);
 	SetUpCornuParmFromTracks(ts,&cp,xx);
-	CallCornu(xx->cornuData.pos, tracks, NULL, &xx->cornuData.arcSegs, &cp);
+	if (!CallCornu(xx->cornuData.pos, tracks, NULL, &xx->cornuData.arcSegs, &cp)) {
+		DYNARR_RESET(arcSeg_t,xx->cornuData.arcSegs);
+	}
 
 	//FixUpCornu(xx->bezierData.pos, xx, IsTrack(trk));
 	ComputeCornuBoundingBox(trk, xx);
@@ -633,7 +639,10 @@ static void ReadCornu( char * line )
     xx->cornuData.r[1] = r1;
     xx->cornuData.descriptionOff.x = xx->cornuData.descriptionOff.y = 0.0;
     ReadSegs();
-    FixUpCornu0(xx->cornuData.pos,xx->cornuData.c,xx->cornuData.a, xx->cornuData.r, xx);
+    if (!FixUpCornu0(xx->cornuData.pos,xx->cornuData.c,xx->cornuData.a, xx->cornuData.r, xx)) {
+    	UndoDelete( t );
+    	return;
+    }
     ComputeCornuBoundingBox(t,xx);
 	SetEndPts(t,2);
 }
@@ -1261,7 +1270,17 @@ static BOOL_T MakeParallelCornu(
 
 	} else {
 		tempSegs_da.cnt = 0;
-		CallCornu0(np,nc,na,nr,&tempSegs_da,FALSE);
+		if (!CallCornu0(np,nc,na,nr,&tempSegs_da,FALSE)) {
+			wBeep();
+			InfoMessage(_("Cornu Create Failed for p1[%0.3f,%0.3f] p2[%0.3f,%0.3f], c1[%0.3f,%0.3f] c2[%0.3f,%0.3f], a1=%0.3f a2=%0.3f, r1=%s r2=%s"),
+						np[0].x,np[0].y,
+						np[1].x,np[1].y,
+						nc[0].x,nc[0].y,
+						nc[1].x,nc[1].y,
+						na[0],na[1],
+						FormatDistance(nr[0]),FormatDistance(nr[1]));
+			return FALSE;
+		}
 	}
 	if ( p0R ) *p0R = np[0];
 	if ( p1R ) *p1R = np[1];

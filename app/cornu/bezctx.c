@@ -46,3 +46,9 @@ void bezctx_mark_knot(bezctx *bc, int knot_idx)
     if (bc->mark_knot)
 	bc->mark_knot(bc, knot_idx);
 }
+
+void bezctx_error(bezctx *bc, char * error)
+{
+	if (bc->error)
+	bc->error(bc, error);
+}

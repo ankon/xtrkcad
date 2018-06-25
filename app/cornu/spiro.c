@@ -810,10 +810,11 @@ solve_spiro(spiro_seg *s, int nseg)
     free(m);
     free(v);
     free(perm);
-    return 0;
+    if (i==10) return 0;
+    return 1;
 }
 
-static void
+static int
 spiro_seg_to_bpath(const double ks[4],
 		   double x0, double y0, double x1, double y1,
 		   bezctx *bc, int depth)
@@ -823,6 +824,7 @@ spiro_seg_to_bpath(const double ks[4],
 
     if (!(bend > 1e-8)) {
 	bezctx_lineto(bc, x1, y1);
+	return 1;
     } else {
 	double seg_ch = hypot(x1 - x0, y1 - y0);
 	double seg_th = atan2(y1 - y0, x1 - x0);
@@ -838,6 +840,10 @@ spiro_seg_to_bpath(const double ks[4],
 	th = atan2(xy[1], xy[0]);
 	scale = seg_ch / ch;
 	rot = seg_th - th;
+	if (depth > 10) {
+		bezctx_error(bc, "Cornu to Bezier Split Depth");
+		return 0;
+	}
 	if (depth > 10 || bend < 0.5) {
 	    th_even = (1./384) * ks[3] + (1./8) * ks[1] + rot;
 	    th_odd = (1./48) * ks[2] + .5 * ks[0];
@@ -864,13 +870,20 @@ spiro_seg_to_bpath(const double ks[4],
 	    integrate_spiro(ksub, xysub);
 	    xmid = x0 + cth * xysub[0] - sth * xysub[1];
 	    ymid = y0 + cth * xysub[1] + sth * xysub[0];
-	    spiro_seg_to_bpath(ksub, x0, y0, xmid, ymid, bc, depth + 1);
+	    if (!spiro_seg_to_bpath(ksub, x0, y0, xmid, ymid, bc, depth + 1)) {
+	    	bezctx_error(bc, "Cornu to Bezier Split 1");
+	    	return 0;
+	    }
 	    ksub[0] += .25 * ks[1] + (1./384) * ks[3];
 	    ksub[1] += .125 * ks[2];
 	    ksub[2] += (1./16) * ks[3];
-	    spiro_seg_to_bpath(ksub, xmid, ymid, x1, y1, bc, depth + 1);
+	    if (!spiro_seg_to_bpath(ksub, xmid, ymid, x1, y1, bc, depth + 1)) {
+	    	bezctx_error(bc, "Cornu to Bezier Split 2");
+	    	return 0;
+	    }
 	}
     }
+    return 1;
 }
 
 spiro_seg *
@@ -879,7 +892,10 @@ run_spiro(const spiro_cp *src, int n)
     int nseg = src[0].ty == '{' ? n - 1 : n;
     spiro_seg *s = setup_path(src, n);
     if (nseg > 1)
-	solve_spiro(s, nseg);
+	if (!solve_spiro(s, nseg)) {
+		free(s);
+		return NULL;
+	}
     return s;
 }
 
@@ -889,7 +905,7 @@ free_spiro(spiro_seg *s)
     free(s);
 }
 
-void
+int
 spiro_to_bpath(const spiro_seg *s, int n, bezctx *bc)
 {
     int i;
@@ -904,9 +920,13 @@ spiro_to_bpath(const spiro_seg *s, int n, bezctx *bc)
 	if (i == 0)
 	    bezctx_moveto(bc, x0, y0, s[0].ty == '{');
 	bezctx_mark_knot(bc, i);
-	spiro_seg_to_bpath(s[i].ks, x0, y0, x1, y1, bc, 0);
+	if (!spiro_seg_to_bpath(s[i].ks, x0, y0, x1, y1, bc, 0)) {
+		return 0;
+	}
     }
+    return 1;
 }
+
 
 double
 get_knot_th(const spiro_seg *s, int i)

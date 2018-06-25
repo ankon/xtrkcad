@@ -20,4 +20,7 @@ bezctx_curveto(bezctx *bc, double x1, double y1, double x2, double y2,
 
 void
 bezctx_mark_knot(bezctx *bc, int knot_idx);
+
+void
+bezctx_error(bezctx *bc, char * error_text);
 #endif

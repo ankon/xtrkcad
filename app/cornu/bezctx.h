@@ -9,5 +9,6 @@ struct _bezctx {
     void (*curveto)(bezctx *bc, double x1, double y1, double x2, double y2,
 		    double x3, double y3);
     void (*mark_knot)(bezctx *bc, int knot_idx);
+    void (*error)(bezctx *bc, char * error);
 };
 #endif

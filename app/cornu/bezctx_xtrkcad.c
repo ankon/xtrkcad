@@ -184,6 +184,12 @@ bezctx_xtrkcad_mark_knot(bezctx *z, int knot_idx) {
 
 }
 
+void
+bezctx_xtrkcad_error(bezctx *z, char * error) {
+	bezctx_xtrkcad *bc = (bezctx_xtrkcad *)z;
+	ErrorMessage(_("Error in Cornu curve - %s"),error);
+}
+
 
 
 bezctx *
@@ -200,6 +206,7 @@ new_bezctx_xtrkcad(dynArr_t * segArray, int ends[2], BOOL_T spots) {
     result->base.quadto = bezctx_xtrkcad_quadto;
     result->base.curveto = bezctx_xtrkcad_curveto;
     result->base.mark_knot = bezctx_xtrkcad_mark_knot;
+    result->base.error = bezctx_xtrkcad_error;
     result->is_open = FALSE;
     result->has_NAN = FALSE;
     result->draw_spots = spots;
@@ -210,7 +217,10 @@ new_bezctx_xtrkcad(dynArr_t * segArray, int ends[2], BOOL_T spots) {
 
 BOOL_T bezctx_xtrkcad_close(bezctx *z) {
 	bezctx_xtrkcad *bc = (bezctx_xtrkcad *)z;
-	if (bc->has_NAN) return FALSE;
+	if (bc->has_NAN) {
+		bezctx_error(z, "Cornu produced infinite roots");
+		return FALSE;
+	}
 	return TRUE;
 }
 
