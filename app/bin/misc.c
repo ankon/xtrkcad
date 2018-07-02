@@ -1869,10 +1869,16 @@ static wWin_p debugW;
 static int debugCnt = 0;
 static paramIntegerRange_t r0_100 = { 0, 100, 80 };
 static void DebugOk(void * junk);
-static paramData_t debugPLs[20];
+static paramData_t debugPLs[30];
+static long debug_values[30];
+static int debug_index[30];
+
 static paramGroup_t debugPG = { "debug", 0, debugPLs, 0 };
 
 static void DebugOk(void * junk) {
+	for (int i = 0; i<debugCnt;i++) {
+			logTable(debug_index[i]).level = debug_values[i];
+	}
 	wHide(debugW);
 }
 
@@ -1883,6 +1889,36 @@ static void CreateDebugW(void) {
 			DebugOk, NULL, FALSE, NULL, 0, NULL);
 	wHide(debugW);
 }
+
+EXPORT void DebugInit(void) {
+
+	if (!debugW) {
+		BOOL_T default_line = FALSE;
+		debugCnt = 0;    //Reset to start building the dynamic dialog over again
+		int i = 0;
+		for ( int inx=0; inx<logTable_da.cnt; inx++ ) {
+			if (logTable(inx).name[0]) {
+				debug_values[i] = logTable(inx).level;
+				debug_index[i] = inx;
+				InitDebug(logTable(inx).name,&debug_values[i]);
+				i++;
+			} else {
+				if (!default_line) {
+					debug_values[i] = logTable(inx).level;
+					debug_index[i] = inx;
+					InitDebug("Default Trace",&debug_values[i]);
+					i++;
+					default_line = TRUE;
+				}
+			}
+		}
+		//ParamCreateControls( &debugPG, NULL );
+		CreateDebugW();
+	}
+	ParamLoadControls( &debugPG );
+	wShow(debugW);
+}
+
 
 EXPORT void InitDebug(char * label, long * valueP) {
 	if (debugCnt >= sizeof debugPLs / sizeof debugPLs[0])
@@ -2321,7 +2357,7 @@ static void CreateMenus(void) {
 	if (extraButtons) {
 		menuPLs[menuPG.paramCnt].context = debugW;
 		MiscMenuItemCreate(optionM, NULL, "cmdDebug", _("&Debug ..."), 0,
-				(void*) (wMenuCallBack_p) wShow, IC_MODETRAIN_TOO, (void *) 0);
+				(void*) (wMenuCallBack_p) DebugInit, IC_MODETRAIN_TOO, (void *) 0);
 	}
 	MiscMenuItemCreate(optionM, NULL, "cmdPref", _("&Preferences ..."),
 			ACCL_PREFERENCES, (void*) PrefInit(), IC_MODETRAIN_TOO, (void *) 0);
@@ -2712,7 +2748,7 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	LOG1(log_init, ( "loadFileList\n" ))
 	LoadFileList();
 	AddPlaybackProc("MENU", MenuPlayback, NULL);
-	CreateDebugW();
+	//CreateDebugW();
 
 	/*
 	 * TIDY UP

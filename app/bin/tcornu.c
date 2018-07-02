@@ -486,11 +486,10 @@ static void DescribeCornu( track_p trk, char * str, CSIZE_T len )
 
 	DoDescribe( _("Cornu Track"), trk, cornuDesc, UpdateCornu );
 
-
 }
 
 
-static DIST_T DistanceCornu( track_p t, coOrd * p )
+DIST_T DistanceCornu( track_p t, coOrd * p )
 {
 	struct extraData *xx = GetTrkExtraData(t);
 	//return BezierMathDistance(p,xx->bezierData.pos,100, &s);
@@ -642,7 +641,6 @@ static void ReadCornu( char * line )
 static void MoveCornu( track_p trk, coOrd orig )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	UndoModify(trk);
     for (int i=0;i<2;i++) {
         xx->cornuData.pos[i].x += orig.x;
         xx->cornuData.pos[i].y += orig.y;
@@ -655,7 +653,6 @@ static void MoveCornu( track_p trk, coOrd orig )
 static void RotateCornu( track_p trk, coOrd orig, ANGLE_T angle )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	UndoModify(trk);
     for (int i=0;i<2;i++) {
         Rotate( &xx->cornuData.pos[i], orig, angle );
         Rotate( &xx->cornuData.c[i], orig, angle);
@@ -667,7 +664,6 @@ static void RotateCornu( track_p trk, coOrd orig, ANGLE_T angle )
 static void RescaleCornu( track_p trk, FLOAT_T ratio )
 {
 	struct extraData *xx = GetTrkExtraData(trk);
-	UndoModify(trk);
 	for (int i=0;i<2;i++) {
 		xx->cornuData.pos[i].x *= ratio;
 		xx->cornuData.pos[i].y *= ratio;
@@ -681,7 +677,6 @@ static void RescaleCornu( track_p trk, FLOAT_T ratio )
 
 EXPORT BOOL_T SetCornuEndPt(track_p trk, EPINX_T inx, coOrd pos, coOrd center, ANGLE_T angle, DIST_T radius) {
     struct extraData *xx = GetTrkExtraData(trk);
-
     xx->cornuData.pos[inx] = pos;
     xx->cornuData.c[inx] = center;
     xx->cornuData.a[inx] = angle;
@@ -689,6 +684,35 @@ EXPORT BOOL_T SetCornuEndPt(track_p trk, EPINX_T inx, coOrd pos, coOrd center, A
     if (!RebuildCornu(trk)) return FALSE;
     SetTrkEndPoint( trk, inx, xx->cornuData.pos[inx], xx->cornuData.a[inx]);
     return TRUE;
+}
+
+
+void GetCornuParmsNear(track_p t, int sel, coOrd * pos2, coOrd * center, ANGLE_T * angle2,  DIST_T * radius ) {
+	struct extraData *xx = GetTrkExtraData(t);
+	coOrd pos = *pos2;
+	double dd = DistanceCornu(t, &pos);   //Pos adjusted to be on curve
+	int inx;
+	wBool_t back,neg;
+	ANGLE_T angle = GetAngleSegs(xx->cornuData.arcSegs.cnt,(trkSeg_t *)(xx->cornuData.arcSegs.ptr),&pos,&inx,NULL,&back,NULL,&neg);
+
+	trkSeg_p segPtr = &DYNARR_N(trkSeg_t, xx->cornuData.arcSegs, inx);
+
+	GetAngleSegs(segPtr->bezSegs.cnt,(trkSeg_t *)(segPtr->bezSegs.ptr),&pos,&inx,NULL,&back,NULL,&neg);
+	segPtr = &DYNARR_N(trkSeg_t, segPtr->bezSegs, inx);
+
+	if (segPtr->type == SEG_STRTRK) {
+		*radius = 0.0;
+		*center = zero;
+	} else if (segPtr->type == SEG_CRVTRK) {
+		*center = segPtr->u.c.center;
+		*radius = fabs(segPtr->u.c.radius);
+	}
+	if (sel)
+		angle = NormalizeAngle(angle+(neg==back?0:180));
+	else
+		angle = NormalizeAngle(angle+(neg==back?180:0));
+	*angle2 = angle;
+	*pos2 = pos;
 }
 
 
@@ -847,7 +871,7 @@ LOG( log_traverseCornu, 1, ( "TravCornu-In [%0.3f %0.3f] A%0.3f D%0.3f \n", trvT
 		ep = 1-ep;
 	}
 	segProcData.traverse1.pos = pos2;					//actual point on curve
-	segProcData.traverse1.angle = trvTrk->angle;       //direction car is going for Traverse 1
+	segProcData.traverse1.angle = trvTrk->angle;        //direction car is going for Traverse 1
 LOG( log_traverseCornu, 1, ( "  TravCornu-GetSubA A%0.3f I%d N%d B%d CB%d\n", a2, segInx, neg, back, cornu_backwards ))
 	inx = segInx;
 	while (inx >=0 && inx<xx->cornuData.arcSegs.cnt) {
@@ -876,7 +900,6 @@ LOG( log_traverseCornu, 1, ( "TravCornu-Ex1 -> [%0.3f %0.3f] A%0.3f D%0.3f\n", t
 		dist = segProcData.traverse2.dist;						//How far left?
 		coOrd pos = segProcData.traverse2.pos;					//Will always be at a Bezseg end
 		ANGLE_T angle = segProcData.traverse2.angle;			//Angle of end therefore
-
 		segProcData.traverse1.angle = angle; 					//Set up Traverse1
 		segProcData.traverse1.pos = pos;
 		inx = cornu_backwards?inx-1:inx+1;						//Here's where the global segment direction comes in
@@ -886,7 +909,7 @@ LOG( log_traverseCornu, 2, ( "  TravCornu-Loop D%0.3f A%0.3f I%d \n", dist, angl
 	*distR = dist;												//Tell caller what dist is left
 
 	trvTrk->pos = GetTrkEndPos(trk,ep);							//Which end were we heading for?
-	trvTrk->angle = NormalizeAngle(GetTrkEndAngle(trk, ep)+(cornu_backwards?180:0));
+	trvTrk->angle = NormalizeAngle(GetTrkEndAngle(trk, ep));    //+(cornu_backwards?180:0));
 	trvTrk->trk = GetTrkEndTrk(trk,ep);							//go onto next track (or NULL)
 
 	if (trvTrk->trk==NULL) {
@@ -1131,6 +1154,20 @@ static void FlipCornu(
 	FlipPoint( &xx->cornuData.c[1], orig, angle);
 	xx->cornuData.a[0] = NormalizeAngle( 2*angle - xx->cornuData.a[0] );
 	xx->cornuData.a[1] = NormalizeAngle( 2*angle - xx->cornuData.a[1] );
+
+	/* Reverse internals so that they match the new ends */
+	coOrd pos_save = xx->cornuData.pos[0];
+	xx->cornuData.pos[0] = xx->cornuData.pos[1];
+	xx->cornuData.pos[1] = pos_save;
+	ANGLE_T angle_save = xx->cornuData.a[0];
+	xx->cornuData.a[0] = xx->cornuData.a[1];
+	xx->cornuData.a[1] = angle_save;
+	coOrd c_save = xx->cornuData.c[0];
+	xx->cornuData.c[0] = xx->cornuData.c[1];
+	xx->cornuData.c[1] = c_save;
+	DIST_T rad_save = xx->cornuData.r[0];
+	xx->cornuData.r[0] = xx->cornuData.r[1];
+	xx->cornuData.r[1] = rad_save;
 
     RebuildCornu(trk);
 
