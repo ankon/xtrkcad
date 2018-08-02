@@ -104,7 +104,7 @@ wlibDialogFromTemplate( int winType, const char *labelStr, const char *nameStr, 
     	                  NULL );
     	        exit(1);
     }
-    w->widget = w->gtkwin;      /**<TODO: w->widget was used for the fixed grid, not needed anymore */
+    //w->widget = w->gtkwin;      /**<TODO: w->widget was used for the fixed grid, not needed anymore */
     g_string_free(filename, TRUE);
    
     return w;
@@ -113,5 +113,17 @@ wlibDialogFromTemplate( int winType, const char *labelStr, const char *nameStr, 
 GtkWidget *
 wlibWidgetFromId( wWin_p win, char *id )
 {
-    return( (GtkWidget *)gtk_builder_get_object(win->builder, id));
+    GObject * wi = gtk_builder_get_object(win->builder, id);
+    if (!wi) {
+		GString *errorMessage = g_string_new("Could not find widget ");
+		g_string_append( errorMessage, id);
+		wNoticeEx( NT_ERROR,
+			   errorMessage->str,
+			   "OK",
+			   NULL );
+		exit(1);
+    }
+    else g_object_ref(wi);
+    return (GtkWidget *)wi;
+
 }    

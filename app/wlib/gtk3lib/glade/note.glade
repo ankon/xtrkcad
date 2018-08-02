@@ -13,33 +13,18 @@
         <property name="margin_top">12</property>
         <property name="margin_bottom">12</property>
         <property name="orientation">vertical</property>
-        <property name="spacing">12</property>
+        <property name="spacing">6</property>
         <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="halign">start</property>
-            <property name="label" translatable="yes">Enter comments or information for this layout. </property>
-            <attributes>
-              <attribute name="style" value="normal"/>
-            </attributes>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkScrolledWindow" id="scrollwindow">
+          <object class="GtkScrolledWindow" id="note-text.scrollwindow">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
             <property name="shadow_type">in</property>
             <child>
               <object class="GtkTextView" id="note-text">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="has_focus">True</property>
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
               </object>
@@ -52,22 +37,20 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButtonBox">
+          <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="halign">end</property>
-            <property name="orientation">vertical</property>
-            <property name="layout_style">start</property>
+            <property name="spacing">6</property>
             <child>
-              <object class="GtkButton" id="id-ok">
-                <property name="label" translatable="yes">_Save</property>
+              <object class="GtkToggleButton" id="id-ok">
+                <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="can_default">True</property>
-                <property name="has_default">True</property>
                 <property name="receives_default">True</property>
-                <property name="valign">end</property>
-                <property name="use_underline">True</property>
+                <style>
+                  <class name="suggested-action"/>
+                </style>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -85,5 +68,4 @@
       </object>
     </child>
   </object>
-  <object class="GtkTextBuffer" id="textbuffer1"/>
 </interface>

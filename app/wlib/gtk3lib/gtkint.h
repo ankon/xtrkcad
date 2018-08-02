@@ -71,7 +71,8 @@ typedef void (*setTriggerCallback_p)( wControl_p b );
 		doneProcCallback_p doneProc; \
 		cairo_t * cr; \
 		void * data; \
-        int fromTemplate;              /**< widget was build from ui template */
+        int fromTemplate;               /**< widget was build from ui template */ \
+		int useGrid;					 /**< widget will be dynamically placed into a Grid */
 
 struct wWin_t {
 		WOBJ_COMMON
@@ -88,12 +89,16 @@ struct wWin_t {
 		int resizeTimer;		       /** resizing **/
 		int resizeW,resizeH;
 		int modalLevel;
-        GtkBuilder *builder;            
+        GtkBuilder *builder;
+        GtkWidget *grid;
 
 		};
 
 struct wControl_t {
 		WOBJ_COMMON
+		int col;          /* assigned Grid col */
+		int row;		  /* assigned Grid row */
+		int label_col;    /* assigned label Grid col */
 		};
 		
 typedef struct wListItem_t * wListItem_p;

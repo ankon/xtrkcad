@@ -34,7 +34,9 @@
 #include "gtkint.h"
 #include "i18n.h"
 
+
 #define MIN_BUTTON_WIDTH (80)
+#define MIN_BUTTON_HEIGHT (80)
 
 /*
  *****************************************************************************
@@ -202,7 +204,7 @@ wButton_p wButtonCreate(
     b->action = action;
     wlibComputePos((wControl_p)b);
 
-    if(!(option & F_USETEMPLATE ))
+    if(!(option & BO_USETEMPLATE ))
     {    
         b->widget = gtk_toggle_button_new();
 
@@ -213,7 +215,11 @@ wButton_p wButtonCreate(
             wButtonSetLabel(b, labelStr);
         }
 
-        gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
+        if (option&BO_CONTROLGRID) {
+        	g_object_ref(b->widget);
+        	b->useGrid = TRUE;
+        } else
+        	gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
 
         if (option & BB_DEFAULT) {
             gtk_widget_set_can_default(b->widget, TRUE);
@@ -225,13 +231,15 @@ wButton_p wButtonCreate(
 
         if (width == 0 && b->w < MIN_BUTTON_WIDTH && (b->option&BO_ICON)==0) {
             b->w = MIN_BUTTON_WIDTH;
+            if (b->h<MIN_BUTTON_HEIGHT) b->h = MIN_BUTTON_HEIGHT;
             gtk_widget_set_size_request(b->widget, b->w, b->h);
         }
 
         gtk_widget_show(b->widget);
     } else {
+    	wBool_t free_needed = FALSE;
         char *id;
-        switch( option & ~F_USETEMPLATE ) {
+        switch( option & (BB_DEFAULT|BB_CANCEL|BB_HELP) ) {
         case BB_DEFAULT:
             id="id-ok";
             break;
@@ -241,9 +249,19 @@ wButton_p wButtonCreate(
         case BB_HELP:
             id="id-help";
             break;
+        default:
+        	if (helpStr) {
+        		id = strdup(helpStr);
+        		free_needed = TRUE;
+        	} else
+        		id="unknown-button";
         }
-        b->widget = wlibWidgetFromId(parent,  id);
-        b->fromTemplate = TRUE;
+        if (!(id==NULL || *id==0)) {
+        	b->widget = wlibWidgetFromId(parent, id);
+        	if (b->widget)
+        		b->fromTemplate = TRUE;
+        }
+        if (free_needed) free(id);
     }
     wlibAddButton((wControl_p)b);
     
@@ -268,6 +286,7 @@ struct wChoice_t {
     long *valueP;
     wChoiceCallBack_p action;
     int recursion;
+    char * helpStr;
 };
 
 
@@ -506,31 +525,49 @@ wChoice_p wRadioCreate(
     b->valueP = valueP;
     wlibComputePos((wControl_p)b);
 
-    if (option&BC_HORZ) {
-        b->widget = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+    if(option&BO_USETEMPLATE) {
+    	char boxname[256];
+    	sprintf(boxname,"%s%s",helpStr,".box");
+    	b->widget = wlibWidgetFromId( parent, boxname );
+    	if (b->widget) b->fromTemplate = TRUE;
     } else {
-        b->widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+		if (option&BC_HORZ) {
+			b->widget = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+		} else {
+			b->widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+		}
     }
 
     if (b->widget == 0) {
         abort();
     }
 
-    for (label=labels; *label; label++) {
-        butt = gtk_radio_button_new_with_label(
-                   butt0?gtk_radio_button_get_group(GTK_RADIO_BUTTON(butt0)):NULL, _(*label));
+    if(b->fromTemplate) {
+    	GList * child, * children;
 
-        if (butt0==NULL) {
-            butt0 = butt;
-        }
+		for (children=child=gtk_container_get_children(GTK_CONTAINER(b->widget));
+					child; child=child->next) {
+			g_signal_connect(child->data, "toggled",
+							G_CALLBACK(pushChoice), b);
+			wlibAddHelpString(child->data, helpStr);
+		}
+		if (children) g_list_free(children);
 
-        gtk_box_pack_start(GTK_BOX(b->widget), butt, TRUE, TRUE, 0);
-        gtk_widget_show(butt);
-        g_signal_connect(butt, "toggled",
-                         G_CALLBACK(pushChoice), b);
-        wlibAddHelpString(butt, helpStr);
-    }
+    } else {
 
+		for (label=labels; *label; label++) {
+				butt = gtk_radio_button_new_with_label(
+					   butt0?gtk_radio_button_get_group(GTK_RADIO_BUTTON(butt0)):NULL, _(*label));
+			}
+			if (butt0==NULL) {
+				butt0 = butt;
+			}
+			gtk_box_pack_start(GTK_BOX(b->widget), butt, TRUE, TRUE, 0);
+			gtk_widget_show(butt);
+			g_signal_connect(butt, "toggled",
+							 G_CALLBACK(pushChoice), b);
+			wlibAddHelpString(butt, helpStr);
+	}
     if (option & BB_DEFAULT) {
         gtk_widget_set_can_default(b->widget, TRUE);
         gtk_widget_grab_default(b->widget);
@@ -546,17 +583,28 @@ wChoice_p wRadioCreate(
         b->h += 2;
     }
 
-    gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
+    if (option&BO_CONTROLGRID) {
+    		//If the grid is to be used, take a reference to the widget to ensure it lives
+    		//outside a container. It will be placed later.
+    		g_object_ref(b->widget);
+            b->useGrid = TRUE;
+    } else if (!b->fromTemplate) {
+    	gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
+    }
     wlibControlGetSize((wControl_p)b);
 
     if (labelStr) {
         b->labelW = wlibAddLabel((wControl_p)b, labelStr);
     }
 
-    gtk_widget_show(b->widget);
-    wlibAddButton((wControl_p)b);
+    if (!(b->useGrid)) {
+    	gtk_widget_show(b->widget);
+    	wlibAddButton((wControl_p)b);
+    }
+
     return b;
 }
+
 
 /**
  * Create a group of toggle buttons.
@@ -608,25 +656,50 @@ wChoice_p wToggleCreate(
     b->action = action;
     wlibComputePos((wControl_p)b);
 
-    if (option&BC_HORZ) {
-        b->widget = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+    if (option&BO_USETEMPLATE ) {
+    	char boxname[256];
+    	sprintf(boxname,"%s%s",helpStr,".box");
+    	b->widget = wlibWidgetFromId( parent, boxname);
+    	if (b->widget) b->fromTemplate = TRUE;
     } else {
-        b->widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+		if (option&BC_HORZ) {
+			b->widget = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+		} else {
+			b->widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+		}
     }
 
     if (b->widget == 0) {
         abort();
     }
 
-    for (label=labels; *label; label++) {
-        GtkWidget *butt;
+    if (b->fromTemplate) {
 
-        butt = gtk_check_button_new_with_label(_(*label));
-        gtk_box_pack_start(GTK_BOX(b->widget), butt, TRUE, TRUE, 0);
-        gtk_widget_show(butt);
-        g_signal_connect(butt, "toggled",
-                         G_CALLBACK(pushChoice), b);
-        wlibAddHelpString(butt, helpStr);
+    	 GList * child, * children;
+
+    	for (children=child=gtk_container_get_children(GTK_CONTAINER(b->widget));
+    	            child; child=child->next) {
+    		g_signal_connect(child->data, "toggled",
+    						G_CALLBACK(pushChoice), b);
+    		wlibAddHelpString(child->data, helpStr);
+
+    	}
+    	if (children) g_list_free(children);
+
+    } else {
+
+    	for (label=labels; *label; label++) {
+			GtkWidget *butt;
+
+
+			butt = gtk_check_button_new_with_label(_(*label));
+			gtk_box_pack_start(GTK_BOX(b->widget), butt, TRUE, TRUE, 0);
+			gtk_widget_show(butt);
+
+			g_signal_connect(butt, "toggled",
+							 G_CALLBACK(pushChoice), b);
+			wlibAddHelpString(butt, helpStr);
+    	}
     }
 
     if (valueP) {
@@ -639,14 +712,23 @@ wChoice_p wToggleCreate(
         b->h += 2;
     }
 
-    gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
+    if (option&BO_CONTROLGRID) {
+    		//If the grid is to be used, take a reference to the widget to ensure it lives
+    		//outside a container. It will be placed later.
+    		g_object_ref(b->widget);
+    		b->useGrid = TRUE;
+    } else if (!b->fromTemplate){
+    	gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
+    }
     wlibControlGetSize((wControl_p)b);
 
     if (labelStr) {
         b->labelW = wlibAddLabel((wControl_p)b, labelStr);
     }
 
-    gtk_widget_show(b->widget);
-    wlibAddButton((wControl_p)b);
+    if (!(b->useGrid)) {
+    	gtk_widget_show(b->widget);
+    	wlibAddButton((wControl_p)b);
+    }
     return b;
 }

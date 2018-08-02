@@ -148,6 +148,7 @@ wPos_t wMessageGetHeight(
  * \param IN parent Handle of parent window
  * \param IN x position in x direction
  * \param IN y position in y direction
+ * \param IN helpStr - name of field
  * \param IN labelStr ???
  * \param IN width horizontal size of window
  * \param IN message message to display ( null terminated )
@@ -159,6 +160,7 @@ wMessage_p wMessageCreateEx(
     wWin_p	parent,
     wPos_t	x,
     wPos_t	y,
+	const char * helpStr,
     const char 	* labelStr,
     wPos_t	width,
     const char	*message,
@@ -173,7 +175,14 @@ wMessage_p wMessageCreateEx(
     wlibComputePos((wControl_p)b);
     b->message = message;
     b->labelWidth = width;
-    b->labelWidget = gtk_label_new(message?wlibConvertInput(message):"");
+    if (flags&BO_USETEMPLATE) {
+    	char name[256];
+    	sprintf(name,"%s",helpStr);
+    	b->labelWidget = wlibWidgetFromId( parent, name );
+    	b->fromTemplate = TRUE;
+    }
+    if (!b->labelWidget)
+    	b->labelWidget = gtk_label_new(message?wlibConvertInput(message):"");
 
     /* do we need to set a special font? */
     if (wMessageSetFont(flags))	{
@@ -210,17 +219,28 @@ wMessage_p wMessageCreateEx(
 	   }
     }
     
-    b->widget = gtk_fixed_new();
-    GtkRequisition min_requisition,natural_requisition;
-    gtk_widget_get_preferred_size (b->labelWidget,&min_requisition,&natural_requisition);
-    gtk_container_add(GTK_CONTAINER(b->widget), b->labelWidget);
-    gtk_widget_set_size_request(b->widget, width?width:natural_requisition.width,
-                                natural_requisition.height);
-    wlibControlGetSize((wControl_p)b);
-    gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
-    gtk_widget_show(b->widget);
-    gtk_widget_show(b->labelWidget);
-    wlibAddButton((wControl_p)b);
+    if (flags&BO_CONTROLGRID) {
+    	g_object_ref(b->labelWidget);
+    	b->useGrid = TRUE;
+    } else if (!b->fromTemplate) {
+    	b->widget = gtk_fixed_new();
+		GtkRequisition min_requisition,natural_requisition;
+		gtk_widget_get_preferred_size (b->labelWidget,&min_requisition,&natural_requisition);
+		gtk_container_add(GTK_CONTAINER(b->widget), b->labelWidget);
+		gtk_widget_set_size_request(b->widget, width?width:natural_requisition.width,
+									natural_requisition.height);
+		wlibControlGetSize((wControl_p)b);
+		gtk_fixed_put(GTK_FIXED(parent->widget), b->widget, b->realX, b->realY);
+		gtk_widget_show(b->widget);
+		gtk_widget_show(b->labelWidget);
+		 wlibAddButton((wControl_p)b);
+    } else {
+    	char boxname[256];
+    	sprintf(boxname,"%s%s",helpStr,".box");
+    	b->widget = wlibWidgetFromId( parent, boxname );
+    	if (b->widget)
+    		gtk_widget_show_all(b->widget);
+    }
 
     return b;
 }
