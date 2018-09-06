@@ -59,6 +59,8 @@ typedef enum {
 #define PDO_DRAW				(1L<<8)
 #define PDO_FILE				(1L<<9)
 
+#define PDO_GRID                (1L<<10)	/** Used in templates to still set position */
+
 #define PDO_STRINGLIMITLENGTH	(1L<<11)	/**< context has maximum length for string */
 #define PDO_SMALLDIM			(1L<<12)
 
@@ -140,6 +142,7 @@ typedef struct {
 		void * context;
         int max_string;
 		wControl_p control;
+		char * assigned_helpStr;
 		paramGroup_p group;
 		paramOldData_t oldD, demoD;
 		} paramData_t, *paramData_p;
@@ -157,6 +160,8 @@ typedef void (*paramGroupProc_t) ( long, long );
 #define PGO_PREFMISCGROUP		(1<<8)
 #define PGO_PREFDRAWGROUP		(1<<9)
 #define PGO_PREFMISC			(1<<10)
+#define PGO_DIALOGTEMPLATE      (1<<11)
+#define PGO_DYNAMICTEMPLATE     (1<<12)
 
 typedef void (*paramLayoutProc)( paramData_t *, int, wPos_t, wPos_t *, wPos_t * );
 typedef void (*paramActionOkProc)( void * );
@@ -182,6 +187,7 @@ typedef struct paramGroup_t {
 		wPos_t origW;
 		wPos_t origH;
 		wBox_p * boxs;
+		char * template_id;
 		} paramGroup_t;
 
 wIndex_t ColorTabLookup( wDrawColor );

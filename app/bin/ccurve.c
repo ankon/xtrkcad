@@ -502,8 +502,8 @@ static paramData_t helixPLs[] = {
 	{ PD_FLOAT, &helixGrade, "grade", 0, &r0_100, N_("Grade") },
 	{ PD_FLOAT, &helixVertSep, "vertSep", PDO_DIM, &r0_1000000, N_("Vertical Separation") },
 #define I_HELIXMSG		(6)
-	{ PD_MESSAGE, N_("Total Length"), NULL, PDO_DLGRESETMARGIN, (void*)200 } };
-static paramGroup_t helixPG = { "helix", PGO_PREFMISCGROUP, helixPLs, sizeof helixPLs/sizeof helixPLs[0] };
+	{ PD_MESSAGE, N_("Total Length"), "length-mess", PDO_DLGRESETMARGIN, (void*)200 } };
+static paramGroup_t helixPG = { "helix", PGO_DIALOGTEMPLATE | PGO_PREFMISCGROUP, helixPLs, sizeof helixPLs/sizeof helixPLs[0] };
 
 static paramData_t circleRadiusPLs[] = {
 	{ PD_FLOAT, &circleRadius, "radius", PDO_DIM, &r1_10000 } };
@@ -632,14 +632,14 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 				controls[0] = circleRadiusPLs[0].control;
 				controls[1] = NULL;
 				labels[0] = N_("Circle Radius");
-				InfoSubstituteControls( controls, labels );
+				InfoSubstituteControls( controls, labels, circleRadiusPG.nameStr );
 				break;
 			case circleCmdFromTangent:
-				InfoSubstituteControls( NULL, NULL );
+				InfoSubstituteControls( NULL, NULL, NULL );
 				InfoMessage( _("Click on Circle Edge") );
 				break;
 			case circleCmdFromCenter:
-				InfoSubstituteControls( NULL, NULL );
+				InfoSubstituteControls( NULL, NULL, NULL );
 				InfoMessage( _("Click on Circle Center") );
 				break;
 			}
@@ -670,11 +670,11 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 				}
 				break;
 			case circleCmdFromTangent:
-				InfoSubstituteControls( NULL, NULL );
+				InfoSubstituteControls( NULL, NULL, NULL );
 				InfoMessage( _("Drag to Center") );
 				break;
 			case circleCmdFromCenter:
-				InfoSubstituteControls( NULL, NULL );
+				InfoSubstituteControls( NULL, NULL, NULL );
 				InfoMessage( _("Drag to Edge") );
 				break;
 			}
@@ -748,7 +748,7 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		if (helix)
 			wHide( helixW );
 		else
-			InfoSubstituteControls( NULL, NULL );
+			InfoSubstituteControls( NULL, NULL, NULL );
 		tempSegs_da.cnt = 0;
 		return C_TERMINATE;
 
@@ -760,7 +760,7 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		if (helix)
 			wHide( helixW );
 		else
-			InfoSubstituteControls( NULL, NULL );
+			InfoSubstituteControls( NULL, NULL, NULL );
 		return C_CONTINUE;
 
 	default:

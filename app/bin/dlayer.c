@@ -453,14 +453,14 @@ static paramData_t layerPLs[] = {
     { PD_TOGGLE, &layerOnMap, "onmap", PDO_NOPREF|PDO_DLGHORZ, onMapLabels, N_("On Map"), BC_HORZ|BC_NOBORDER },
 #define I_COUNT (6)
     { PD_STRING, NULL, "object-count", PDO_NOPREF|PDO_DLGBOXEND, (void*)(80), N_("Count"), BO_READONLY },
-    { PD_MESSAGE, N_("Personal Preferences"), NULL, PDO_DLGRESETMARGIN, (void *)180 },
+    { PD_MESSAGE, N_("Personal Preferences"), "prefs", PDO_DLGRESETMARGIN, (void *)180 },
     { PD_BUTTON, (void*)DoLayerOp, "reset", PDO_DLGRESETMARGIN, 0, N_("Load"), 0, (void *)ENUMLAYER_RELOAD },
     { PD_BUTTON, (void*)DoLayerOp, "save", PDO_DLGHORZ, 0, N_("Save"), 0, (void *)ENUMLAYER_SAVE },
     { PD_BUTTON, (void*)DoLayerOp, "clear", PDO_DLGHORZ | PDO_DLGBOXEND, 0, N_("Defaults"), 0, (void *)ENUMLAYER_CLEAR },
     { PD_LONG, &newLayerCount, "button-count", PDO_DLGBOXEND|PDO_DLGRESETMARGIN, &i0_20, N_("Number of Layer Buttons") },
 };
 
-static paramGroup_t layerPG = { "layer", 0, layerPLs, sizeof layerPLs/sizeof layerPLs[0] };
+static paramGroup_t layerPG = { "layer", PGO_DIALOGTEMPLATE, layerPLs, sizeof layerPLs/sizeof layerPLs[0] };
 
 #define layerL	((wList_p)layerPLs[I_LIST].control)
 
@@ -474,7 +474,7 @@ LayerSystemDefaults(void)
     int inx;
 
     for (inx=0; inx<NUM_LAYERS; inx++) {
-        strcpy(layers[inx].name, inx==0?_("Main"):"");
+        strcpy(layers[inx].name, inx==0?_("Main"):" ");
         layers[inx].visible = TRUE;
         layers[inx].frozen = FALSE;
         layers[inx].onMap = TRUE;
@@ -493,7 +493,7 @@ void LoadLayerLists(void)
     /* clear both lists */
     wListClear(setLayerL);
 
-    if (layerL) {
+    if (layerW) {
         wListClear(layerL);
     }
 
@@ -502,7 +502,7 @@ void LoadLayerLists(void)
         char *layerLabel;
         layerLabel = FormatLayerName(inx);
 
-        if (layerL) {
+        if (layerW) {
             wListAddValue(layerL, layerLabel, NULL, NULL);
         }
 
@@ -513,7 +513,7 @@ void LoadLayerLists(void)
     /* set current layer to selected */
     wListSetIndex(setLayerL, curLayer);
 
-    if (layerL) {
+    if (layerW) {
         wListSetIndex(layerL, curLayer);
     }
 }
@@ -523,7 +523,7 @@ void LoadLayerLists(void)
  *	dialog, this function is called. The parameter identifies the button pressed and
  * the operation is performed.
  *
- * \param[IN] data identifier for the button prerssed
+ * \param[IN] data identifier for the button pressed
  * \return
  */
 
@@ -575,23 +575,26 @@ UpdateLayerDlg()
     sprintf(message, "%ld", layers[curLayer].objCount);
     ParamLoadMessage(&layerPG, I_COUNT, message);
 
-    /* force update of the 'manage layers' dialogbox */
+    /* force update of the 'manage layers' dialog box */
     if (layerL) {
         ParamLoadControls(&layerPG);
     }
 
-    /* finally show the layer buttons with ballon text */
-    for (inx = 0; inx < NUM_BUTTONS; inx++) {
-        wButtonSetBusy(layer_btns[inx], layers[inx].visible != 0);
-        wControlSetBalloonText((wControl_p)layer_btns[inx],
-                               (layers[inx].name[0] != '\0' ? layers[inx].name :_("Show/Hide Layer")));
+    /* finally show the layer buttons in the toolbar with balloon text */
+     for (inx = 0; inx < NUM_BUTTONS; inx++) {
+         if (inx<=layerCount) {
+        	wButtonSetBusy(layer_btns[inx], layers[inx].visible != 0);
+        	wControlShow((wControl_p)layer_btns[inx], TRUE);
+        	wControlSetBalloonText((wControl_p)layer_btns[inx],
+                 ((layers[inx].name[0] != '\0' || (strcmp(layers[inx].name," ")==0)) ? layers[inx].name :_("Show/Hide Layer")));
+        }
     }
 }
 
 /**
  * Initialize the layer lists.
  *
- * \param IN pointer to function that actually initialize tha data structures
+ * \param IN pointer to function that actually initialize the data structures
  * \param IN current layer (0...NUM_LAYERS), (-1) for no change
  */
 
@@ -695,7 +698,7 @@ LayerPrefLoad(void)
             if (layerValue) {
                 strcpy(layers[inx].name, layerValue);
             } else {
-                *(layers[inx].name) = '\0';
+                strcpy(layers[inx].name, " ");
             }
 
             /* get and set the color, using the system default color in case color is not available from prefs */
@@ -890,7 +893,7 @@ void ResetLayers(void)
     int inx;
 
     for (inx=0; inx<NUM_LAYERS; inx++) {
-        strcpy(layers[inx].name, inx==0?_("Main"):"");
+        strcpy(layers[inx].name, inx==0?_("Main"):" ");
         layers[inx].visible = TRUE;
         layers[inx].frozen = FALSE;
         layers[inx].onMap = TRUE;
@@ -949,7 +952,7 @@ void RestoreLayers(void)
         layers[inx].color = -1;
         SetLayerColor(inx, color);
 
-        if (layers[inx].name[0] == '\0') {
+        if (layers[inx].name[0] == '\0' || (strcmp(layers[inx].name," ")==0)) {
             if (inx == 0) {
                 label = _("Main");
             } else {
@@ -1178,7 +1181,7 @@ void InitLayers(void)
     }
 
     /* layer list for toolbar */
-    setLayerL = wDropListCreate(mainW, 0, 0, "cmdLayerSet", NULL, 0, 10, 200, NULL,
+    setLayerL = wDropListCreate(mainW, 0, 0, "cmdLayerSet", NULL, BO_TOOLBAR, 10, 200, NULL,
                                 SetCurrLayer, NULL);
     wControlSetBalloonText((wControl_p)setLayerL, GetBalloonHelpStr("cmdLayerSet"));
     AddToolbarControl((wControl_p)setLayerL, IC_MODETRAIN_TOO);
@@ -1193,15 +1196,16 @@ void InitLayers(void)
         if (i<NUM_BUTTONS) {
             /* create the layer button */
             sprintf(message, "cmdLayerShow%u", i);
-            layer_btns[i] = wButtonCreate(mainW, 0, 0, message,
+            layer_btns[i] = wButtonCreateForToolbar(mainW, 0, 0, message,
                                           (char*)(show_layer_bmps[i]),
-                                          BO_ICON, 0, (wButtonCallBack_p)FlipLayer, (void*)(intptr_t)i);
+                                          BO_ICON|BO_TOOLBAR, 0, (wButtonCallBack_p)FlipLayer, (void*)(intptr_t)i);
             /* add the help text */
             wControlSetBalloonText((wControl_p)layer_btns[i], _("Show/Hide Layer"));
             /* put on toolbar */
             AddToolbarControl((wControl_p)layer_btns[i], IC_MODETRAIN_TOO);
             /* set state of button */
             wButtonSetBusy(layer_btns[i], 1);
+            wControlShow((wControl_p)layer_btns[i],FALSE);
         }
 
         layerName = FormatLayerName(i);

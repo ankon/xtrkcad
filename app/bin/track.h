@@ -638,14 +638,21 @@ typedef struct {
 		descType type;
 		char * label;
 		void * valueP;
+		char * helpStr;
 		int max_string;
 		int mode;
 		wControl_p control0;
 		wControl_p control1;
 		wPos_t posy;
+		int grid_col0;
+		int grid_col1;
+		int grid_row0;
+		int grid_row1;
+		void * param0;
+		void * param1;
 		} descData_t, * descData_p;
 typedef void (*descUpdate_t)( track_p, int, descData_p, BOOL_T );
-void DoDescribe( char *, track_p, descData_p, descUpdate_t );
+void DoDescribe( char *, char *, track_p, descData_p, descUpdate_t );
 void DescribeCancel( void );
 BOOL_T UpdateDescStraight( int, int, int, int, int, descData_p, long );
 

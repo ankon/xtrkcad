@@ -51,7 +51,7 @@ static paramData_t notePLs[] = {
 #define noteT			((wText_p)notePLs[I_NOTETEXT].control)
     {	PD_TEXT, NULL, "text", PDO_DLGRESIZE, &noteTextData }
 };
-static paramGroup_t notePG = { "note", 0, notePLs, sizeof notePLs/sizeof notePLs[0] };
+static paramGroup_t notePG = { "note", PGO_DIALOGTEMPLATE, notePLs, sizeof notePLs/sizeof notePLs[0] };
 
 
 static track_p NewNote(wIndex_t index, coOrd p, long size)
@@ -159,9 +159,9 @@ static struct {
 } noteData;
 typedef enum { OR, LY, TX } noteDesc_e;
 static descData_t noteDesc[] = {
-    /*OR*/	{ DESC_POS, N_("Position"), &noteData.pos },
-    /*LY*/	{ DESC_LAYER, N_("Layer"), &noteData.layer },
-    /*TX*/	{ DESC_TEXT, NULL, NULL },
+    /*OR*/	{ DESC_POS, N_("Position"), &noteData.pos , "position" },
+    /*LY*/	{ DESC_LAYER, N_("Layer"), &noteData.layer, "layer" },
+    /*TX*/	{ DESC_TEXT, NULL, NULL, "text"},
     { DESC_NULL }
 };
 
@@ -231,7 +231,7 @@ static void DescribeNote(track_p trk, char * str, CSIZE_T len)
     noteDesc[OR].mode = 0;
     noteDesc[TX].mode = 0;
     noteDesc[LY].mode = DESC_NOREDRAW;
-    DoDescribe(_("Note"), trk, noteDesc, UpdateNote);
+    DoDescribe(_("Note"), "describe-note", trk, noteDesc, UpdateNote);
 }
 
 static void DeleteNote(track_p t)

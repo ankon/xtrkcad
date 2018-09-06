@@ -157,9 +157,9 @@ static struct {
 
 typedef enum { NM, PS, SC } sensorDesc_e;
 static descData_t sensorDesc[] = {
-    /* NM */ { DESC_STRING, N_("Name"),     &sensorProperties.name, sizeof(sensorProperties.name) },
-    /* PS */ { DESC_POS,    N_("Position"), &sensorProperties.pos },
-    /* SC */ { DESC_STRING, N_("Script"),   &sensorProperties.script, sizeof(sensorProperties.script) },
+    /* NM */ { DESC_STRING, N_("Name"),     &sensorProperties.name, "name", sizeof(sensorProperties.name) },
+    /* PS */ { DESC_POS,    N_("Position"), &sensorProperties.pos, "position" },
+    /* SC */ { DESC_STRING, N_("Script"),   &sensorProperties.script, "script", sizeof(sensorProperties.script) },
     { DESC_NULL } };
 
 static void UpdateSensorProperties (  track_p trk, int inx, descData_p
@@ -256,7 +256,7 @@ static void DescribeSensor (track_p trk, char * str, CSIZE_T len )
     sensorProperties.pos = xx->orig;
     sensorDesc[NM].mode = 
           sensorDesc[SC].mode = DESC_NOREDRAW;
-    DoDescribe( _("Sensor"), trk, sensorDesc, UpdateSensorProperties );
+    DoDescribe( _("Sensor"), "describe-sensor", trk, sensorDesc, UpdateSensorProperties );
 }
 
 static void DeleteSensor ( track_p trk ) 
@@ -378,7 +378,7 @@ static paramData_t sensorEditPLs[] = {
     /*3*/ { PD_STRING, sensorEditScript, "script", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Script"), 0, 0, sizeof(sensorEditScript)},
 };
 
-static paramGroup_t sensorEditPG = { "sensorEdit", 0, sensorEditPLs, sizeof sensorEditPLs/sizeof sensorEditPLs[0] };
+static paramGroup_t sensorEditPG = { "sensorEdit", PGO_DIALOGTEMPLATE, sensorEditPLs, sizeof sensorEditPLs/sizeof sensorEditPLs[0] };
 static wWin_p sensorEditW;
 
 static void SensorEditOk ( void * junk )

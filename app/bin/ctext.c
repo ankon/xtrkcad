@@ -60,14 +60,14 @@ static struct {
         BOOL_T boxed;
 		} Dt;
 
-static char * boxLabels[] = { N_(""), NULL };
+static char * boxLabels[] = { "", NULL };
 static paramData_t textPLs[] = {
 #define textPD (textPLs[0])
-		{ PD_DROPLIST, &Dt.fontSizeInx, "Fontsize", 0, NULL, N_("Font Size"), BL_EDITABLE },
+		{ PD_DROPLIST, &Dt.fontSizeInx, "fontsize", 0, NULL, N_("Font Size"), BL_EDITABLE },
 #define colorPD (textPLs[1])
-        { PD_COLORLIST, &Dt.color, "Color", PDO_NORECORD, NULL, N_("Color") },
+        { PD_COLORLIST, &Dt.color, "color", PDO_NORECORD, NULL, N_("Color") },
 #define boxPD (textPLs[2])
-		{ PD_TOGGLE, &Dt.boxed, "Boxed", 0, boxLabels, NULL, 0 }
+		{ PD_TOGGLE, &Dt.boxed, "boxed", 0, boxLabels, NULL, 0 }
         };
 static paramGroup_t textPG = { "text", 0, textPLs, sizeof textPLs/sizeof textPLs[0] };
 
@@ -156,7 +156,7 @@ static STATUS_T CmdText( wAction_t action, coOrd pos )
 		labels[0] = N_("Font Size");
         labels[1] = N_("Color");
         labels[2] = N_("Boxed");
-		InfoSubstituteControls( controls, labels );
+		InfoSubstituteControls( controls, labels, textPG.nameStr );
 		return C_CONTINUE;
 		break;
 	case C_DOWN:
@@ -217,7 +217,7 @@ static STATUS_T CmdText( wAction_t action, coOrd pos )
 			UndoEnd();
 			DrawNewTrack(t);
 			Dt.state = POSITION_TEXT;
-			InfoSubstituteControls( NULL, NULL );
+			InfoSubstituteControls( NULL, NULL, NULL );
 			return C_TERMINATE;
 		default:
 			if (Dt.len < sizeof Dt.text - 1 ) {
@@ -249,7 +249,7 @@ static STATUS_T CmdText( wAction_t action, coOrd pos )
 		if (Dt.state != POSITION_TEXT) {
 			Dt.state = POSITION_TEXT;
 		}
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 		MainRedraw();
 		MapRedraw();
 		return C_TERMINATE;
@@ -264,7 +264,7 @@ static STATUS_T CmdText( wAction_t action, coOrd pos )
 				DrawNewTrack(t);
 			}
 		}
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
         MainRedraw();
         MapRedraw();
 		return C_TERMINATE;

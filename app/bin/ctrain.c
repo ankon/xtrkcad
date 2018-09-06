@@ -178,13 +178,13 @@ static struct {
 } carData;
 typedef enum { IT, PN, AN, LN, WD, DE, NM } carDesc_e;
 static descData_t carDesc[] = {
-    /*IT*/	{ DESC_LONG, N_("Index"), &carData.index },
-    /*PN*/	{ DESC_POS, N_("Position"), &carData.pos },
-    /*AN*/	{ DESC_ANGLE, N_("Angle"), &carData.angle },
-    /*LN*/	{ DESC_DIM, N_("Length"), &carData.length },
-    /*WD*/	{ DESC_DIM, N_("Width"), &carData.width },
-    /*DE*/	{ DESC_STRING, N_("Description"), &carData.desc, sizeof(carData.desc)  },
-    /*NM*/	{ DESC_STRING, N_("Rep Marks"), &carData.number, sizeof(carData.number) },
+    /*IT*/	{ DESC_LONG, N_("Index"), &carData.index, "index" },
+    /*PN*/	{ DESC_POS, N_("Position"), &carData.pos, "position"},
+    /*AN*/	{ DESC_ANGLE, N_("Angle"), &carData.angle, "angle" },
+    /*LN*/	{ DESC_DIM, N_("Length"), &carData.length, "length" },
+    /*WD*/	{ DESC_DIM, N_("Width"), &carData.width, "width" },
+    /*DE*/	{ DESC_STRING, N_("Description"), &carData.desc, "description", sizeof(carData.desc)  },
+    /*NM*/	{ DESC_STRING, N_("Rep Marks"), &carData.number, "repmarks", sizeof(carData.number) },
     { DESC_NULL }
 };
 
@@ -262,7 +262,7 @@ static void DescribeCar(
                     carDesc[WD].mode = DESC_RO;
     carDesc[DE].mode =
         carDesc[NM].mode = DESC_RO;
-    DoDescribe(_("Car"), trk, carDesc, UpdateCar);
+    DoDescribe(_("Car"), "describe-car", trk, carDesc, UpdateCar);
 }
 
 
@@ -603,9 +603,9 @@ static paramData_t trainPLs[] = {
     /*0*/ { PD_LIST, NULL, "list", PDO_NOPREF|PDO_NOPSHUPD, &listData, NULL, 0 },
 #endif
 #define I_STATUS			(1)
-    { PD_MESSAGE, NULL, NULL, 0, (void*)120 },
+    { PD_MESSAGE, NULL, "mess1", 0, (void*)120 },
 #define I_POS				(2)
-    { PD_MESSAGE, NULL, NULL, 0, (void*)120 },
+    { PD_MESSAGE, NULL, "mess2", 0, (void*)120 },
 #define I_SLIDER			(3)
     { PD_DRAW, NULL, "speed", PDO_NOPSHUPD|PDO_DLGSETY, &speedParamData },
 #define I_DIST				(4)
@@ -623,10 +623,10 @@ static paramData_t trainPLs[] = {
 #define I_STOP				(10)
     { PD_BUTTON, NULL, "stop", PDO_DLGWIDE, NULL, N_("Stop") },
 #define I_SPEED				(11)
-    { PD_MESSAGE, NULL, NULL, PDO_DLGIGNOREX, (void *)120 }
+    { PD_MESSAGE, NULL, "mess3", PDO_DLGIGNOREX, (void *)120 }
 };
 
-static paramGroup_t trainPG = { "train", 0, trainPLs, sizeof trainPLs/sizeof trainPLs[0] };
+static paramGroup_t trainPG = { "train", PGO_DIALOGTEMPLATE, trainPLs, sizeof trainPLs/sizeof trainPLs[0] };
 
 
 typedef struct {
@@ -2611,7 +2611,7 @@ static STATUS_T CmdTrain(wAction_t action, coOrd pos)
         }
 
         DrawAllCars();
-        InfoSubstituteControls(NULL, NULL);
+        InfoSubstituteControls(NULL, NULL, NULL);
         currCar = trk0 = NULL;
         currCarItemPtr = NULL;
 
@@ -2755,7 +2755,7 @@ static STATUS_T CmdTrain(wAction_t action, coOrd pos)
         currCar = NULL;
         currCarItemPtr = NULL;
         HotBarCancel();
-        InfoSubstituteControls(NULL, NULL);
+        InfoSubstituteControls(NULL, NULL, NULL);
         return C_TERMINATE;
     }
 
@@ -2820,7 +2820,7 @@ static BOOL_T TrainStopGoPlayback(char * line)
 static void CmdTrainExit(void * junk)
 {
     Reset();
-    InfoSubstituteControls(NULL, NULL);
+    InfoSubstituteControls(NULL, NULL, NULL);
     MainRedraw();
     MapRedraw();
 }
@@ -2914,7 +2914,7 @@ static void TrainFunc(
         /*DeleteTrack( trainFuncCar, FALSE );*/
         CarItemUpdate(xx->item);
         HotBarCancel();
-        InfoSubstituteControls(NULL, NULL);
+        InfoSubstituteControls(NULL, NULL, NULL);
         break;
 
     case DO_DELTRAIN:
@@ -2948,7 +2948,7 @@ static void TrainFunc(
         }
 
         HotBarCancel();
-        InfoSubstituteControls(NULL, NULL);
+        InfoSubstituteControls(NULL, NULL, NULL);
         break;
 
     case DO_MUMASTER:
