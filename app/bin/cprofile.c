@@ -646,7 +646,7 @@ static void SelProfileW(
 	case C_MOVE:
 		if ( inx < 0 )
 			break;
-		ProfileTempDraw( inx, oldElev );
+		//ProfileTempDraw( inx, oldElev );
 		if (profElem_da.cnt == 1 ) {
 			sprintf(message, _("Elev = %0.1f"), PutDim(elev) );
 		} else if (inx == 0) {
@@ -665,7 +665,9 @@ static void SelProfileW(
 		}
 		ParamLoadMessage( &profilePG, I_PROFILEMSG, message );
 		oldElev = elev;
-		ProfileTempDraw( inx, oldElev );
+		//ProfileTempDraw( inx, oldElev );
+		profElem(inx).elev = oldElev;
+		RedrawProfileW();
 		break;
 	case C_UP:
 		if (profileUndo == FALSE) {
