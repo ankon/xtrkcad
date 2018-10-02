@@ -496,7 +496,7 @@ static trkSeg_p carProtoSegPtr;
 static int carProtoSegCnt;
 
 
-static coOrd dummyOutlineSegPts[5];
+static PolyPoint_t dummyOutlineSegPts[5];
 static trkSeg_t dummyOutlineSegs;
 static void CarProtoDlgCreateDummyOutline(
 		int * segCntP,
@@ -507,7 +507,7 @@ static void CarProtoDlgCreateDummyOutline(
 		wDrawColor color )
 {
 	trkSeg_p segPtr;
-	coOrd * pts;
+	PolyPoint_t * pts;
 	DIST_T length2;
 
 	*segCntP = 1;
@@ -516,29 +516,34 @@ static void CarProtoDlgCreateDummyOutline(
 	segPtr->type = SEG_FILPOLY;
 	segPtr->color = color;
 	segPtr->width = 0;
-	segPtr->u.p.cnt = isLoco?5:4;
-	segPtr->u.p.pts = pts = dummyOutlineSegPts;
+	segPtr->u.p.pts_array.cnt = isLoco?5:4;
+	segPtr->u.p.pts_array.max = segPtr->u.p.pts_array.cnt;
+	segPtr->u.p.pts_array.ptr = pts = &dummyOutlineSegPts;
 	segPtr->u.p.orig.x = 0;
 	segPtr->u.p.orig.y = 0;
 	segPtr->u.p.angle = 0;
 	length2 = length;
 	if ( isLoco ) {
-		pts->x = length;
-		pts->y = width/2.0;
+		pts->point.x = length;
+		pts->point.y = width/2.0;
 		pts++;
 		length2 -= width/2.0;
 	}
-	pts->x = length2;
-	pts->y = 0.0;
+	pts->point.x = length2;
+	pts->point.y = 0.0;
 	pts++;
-	pts->x = 0.0;
-	pts->y = 0.0;
+	pts->point.x = 0.0;
+	pts->point.y = 0.0;
 	pts++;
-	pts->x = 0.0;
-	pts->y = width;
+	pts->point.x = 0.0;
+	pts->point.y = width;
 	pts++;
-	pts->x = length2;
-	pts->y = width;
+	pts->point.x = length2;
+	pts->point.y = width;
+	for (int i=0;i<segPtr->u.p.pts_array.cnt;i++) {
+		DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).pre_control = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
+		DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).post_control = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
+	}
 }
 
 
@@ -1794,7 +1799,7 @@ EXPORT void CarItemDraw(
 	wFont_p fp;
 	wDrawWidth width;
 	trkSeg_t simpleSegs[1];
-	coOrd simplePts[4];
+	PolyPoint_t simplePts[4];
 	int dir;
 	DIST_T rad;
 	static int couplerLineWidth = 3;
@@ -1802,17 +1807,21 @@ EXPORT void CarItemDraw(
 
 	CarItemSize( item, &size );
 	if ( d->scale >= ((d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale) ) {
-		simplePts[0].x = simplePts[3].x = -size.x/2.0;
-		simplePts[1].x = simplePts[2].x = size.x/2.0;
-		simplePts[0].y = simplePts[1].y = -size.y/2.0;
-		simplePts[2].y = simplePts[3].y = size.y/2.0;
+		simplePts[0].point.x = simplePts[3].point.x = -size.x/2.0;
+		simplePts[1].point.x = simplePts[2].point.x = size.x/2.0;
+		simplePts[0].point.y = simplePts[1].point.y = -size.y/2.0;
+		simplePts[2].point.y = simplePts[3].point.y = size.y/2.0;
 		simpleSegs[0].type = SEG_FILPOLY;
 		simpleSegs[0].color = item->color;
 		simpleSegs[0].width = 0;
-		simpleSegs[0].u.p.cnt = 4;
-		simpleSegs[0].u.p.pts = simplePts;
+		simpleSegs[0].u.p.pts_array.cnt = 4;
+		simpleSegs[0].u.p.pts_array.ptr = simplePts;
 		simpleSegs[0].u.p.orig = zero;
 		simpleSegs[0].u.p.angle = 0.0;
+		for (int i = 0; i<simpleSegs[0].u.p.pts_array.cnt;i++) {
+			DYNARR_N(PolyPoint_t,simpleSegs[0].u.p.pts_array,i).pre_control = DYNARR_N(PolyPoint_t,simpleSegs[0].u.p.pts_array,i).point;
+			DYNARR_N(PolyPoint_t,simpleSegs[0].u.p.pts_array,i).post_control = 	DYNARR_N(PolyPoint_t,simpleSegs[0].u.p.pts_array,i).point;
+		}
 		DrawSegs( d, item->pos, item->angle-90.0, simpleSegs, 1, 0.0, color );
 	} else {
 		if ( item->segCnt == 0 )

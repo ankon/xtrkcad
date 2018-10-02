@@ -808,15 +808,6 @@ static void TempSegFillPoly(
 		coOrd * pts,
 		wDrawColor color )
 {
-#ifdef LATER
-	pts is not guaranteed to valid
-	DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
-	tempSegs(tempSegs_da.cnt-1).type = SEG_FILPOLY;
-	tempSegs(tempSegs_da.cnt-1).color = color;
-	tempSegs(tempSegs_da.cnt-1).width = 0;
-	tempSegs(tempSegs_da.cnt-1).u.p.cnt = cnt;
-	tempSegs(tempSegs_da.cnt-1).u.p.pts = pts;
-#endif
 	return;
 }
 

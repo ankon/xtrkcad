@@ -2199,9 +2199,9 @@ EXPORT BOOL_T WriteSegs(
 			rc &= fprintf( f, "\t%c %ld %0.6f %d\n",
 				segs[i].type, roadbedColorRGB, segs[i].width,
 				segs[i].u.p.cnt )>0;
-			for ( j=0; j<segs[i].u.p.cnt; j++ )
+			for ( j=0; j<segs[i].u.p.pts_array.cnt; j++ )
 				rc &= fprintf( f, "\t\t%0.6f %0.6f\n",
-						segs[i].u.p.pts[j].x, segs[i].u.p.pts[j].y )>0;
+						DYNARR_N(PolyPoint_t,segs[i].u.p.pts_array,j).point.x, DYNARR_N(PolyPoint_t,segs[i].u.p.pts_array,j).point.y )>0;
 			break;
 		}
 	}

@@ -216,6 +216,24 @@ double DistanceToLineSegment(coOrd p, coOrd l1, coOrd l2) {
     return sqrt(dx * dx + dy * dy);
 }
 
+double BezDistanceToPoint(coOrd pos[4], coOrd pos, coOrd * found, ANGLE_T * angle) {
+	double d = 10000;
+	for (double t=0; t<100; t++) {
+		coOrd point = GetPoint(pos,t);
+		if (GetDistance(point,pos)<d) {
+			d = GetDistance(point,pos);
+			if (found) *found = point;
+			if (angle) {
+				if (t<99)
+					*angle = FindAngle(point,GetPoint(pos,t+1));
+				else
+					*angle = FindAngle(pos[2],pos[3]);
+			}
+		}
+	}
+	return d;
+}
+
 /*
  * Get Error between a straight line segment and the Bezier curve.
  * Sum distance to straight line of quarter points.

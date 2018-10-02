@@ -50,4 +50,5 @@ track_p NewBezierTrack(coOrd[4], trkSeg_t *, int);
 double BezierLength(coOrd[4], dynArr_t);
 double BezierMinRadius(coOrd[4],dynArr_t);
 void UpdateParms(wDrawColor color,long width);
+double BezDistanceToPoint(coOrd pos[4], coOrd pos, coOrd * found, ANGLE_T * angle);
 

@@ -194,8 +194,24 @@ typedef struct {
 dynArr_t tempEndPts_da;
 #define tempEndPts(N) DYNARR_N( trkEndPt_t, tempEndPts_da, N )
 
-typedef enum { FREEFORM, RECTANGLE
+typedef enum { FREEFORM, RECTANGLE, POLYLINE, CLOSEDPOLYLINE
 } PolyType_e;
+
+typedef enum { POINT, SHARP, SMOOTH } PointType_e;
+
+typedef enum { LINEAR, RADIAL } GradientType_e;
+
+typedef struct {
+	GradientType_e type;
+	dynArr_t gradpoints;
+} Gradient_t;
+
+typedef struct {
+	coOrd point;
+	coOrd pre_control;
+	coOrd post_control;
+	PointType_e type;
+}  PolyPoint_t ;
 
 typedef struct {
 		char type;
@@ -240,11 +256,11 @@ typedef struct {
 				char * string;
 			} t;
 			struct {
-				int cnt;
-				coOrd * pts;
+				dynArr_t pts_array;
 				coOrd orig;
 				ANGLE_T angle;
 				PolyType_e polyType;
+				Gradient_t * gradient;
 			} p;
 		} u;
 		} trkSeg_t, * trkSeg_p;

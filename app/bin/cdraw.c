@@ -171,8 +171,8 @@ static track_p MakeDrawFromSeg1(
 
 	if (xx->segs[0].type == SEG_POLY ||
 		xx->segs[0].type == SEG_FILPOLY) {
-		xx->segs[0].u.p.pts = (coOrd*)MyMalloc( (sp->u.p.cnt) * sizeof (coOrd) );
-		memcpy(xx->segs[0].u.p.pts, sp->u.p.pts, sp->u.p.cnt * sizeof (coOrd) );
+		xx->segs[0].u.p.pts_array.ptr = MyMalloc( (sp->u.p.pts_array.cnt) * sizeof (PolyPoint_t) );
+		memcpy(xx->segs[0].u.p.pts_array.ptr, sp->u.p.pts_array.ptr, sp->u.p.pts_array.cnt * sizeof (PolyPoint_t) );
 	}
 	if (xx->segs[0].type == SEG_TEXT) {
 		xx->segs[0].u.t.string = MyStrdup(sp->u.t.string);
@@ -302,14 +302,20 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		break;
 	case OI:
 		if (segPtr->type == SEG_POLY || segPtr->type == SEG_FILPOLY) {
-			DIST_T dist = FindDistance(drawData.origin,segPtr->u.p.pts[0]);
+			DIST_T dist = FindDistance(drawData.origin,DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point);
 			if (dist>0.0) {
-				ANGLE_T angle = FindAngle(segPtr->u.p.pts[0],drawData.origin);
-				coOrd orig = segPtr->u.p.pts[0];
-				for (int i=0;i<segPtr->u.p.cnt;i++) {
-					coOrd pnt = segPtr->u.p.pts[i];
+				ANGLE_T angle = FindAngle(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point,drawData.origin);
+				coOrd orig = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point;
+				for (int i=0;i<segPtr->u.p.pts_array.cnt;i++) {
+					coOrd pnt = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
 					Translate(&pnt, pnt, angle, dist);
-					UNREORIGIN(segPtr->u.p.pts[i], pnt, xx->angle, xx->orig );
+					UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point, pnt, xx->angle, xx->orig );
+					coOrd pnt = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).pre_control;
+					Translate(&pnt, pnt, angle, dist);
+					UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).pre_control, pnt, xx->angle, xx->orig );
+					coOrd pnt = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).post_control;
+					Translate(&pnt, pnt, angle, dist);
+					UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).post_control, pnt, xx->angle, xx->orig );
 				}
 			}
 		}
@@ -319,37 +325,39 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		if ((segPtr->type == SEG_POLY) || (segPtr->type == SEG_FILPOLY)) {
 			if (segPtr->u.p.polyType == RECTANGLE) {
 				coOrd oldMiddle, oldEnd;
-				oldMiddle.x = (segPtr->u.p.pts[2].x - segPtr->u.p.pts[0].x)/2+segPtr->u.p.pts[0].x;
-				oldMiddle.y = (segPtr->u.p.pts[2].y - segPtr->u.p.pts[0].y)/2+segPtr->u.p.pts[0].y;
-				oldEnd = segPtr->u.p.pts[2];
+				oldMiddle.x = (DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point.x - DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.x)/2+DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.x;
+				oldMiddle.y = (DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point.y - DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.y)/2+DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.y;
+				oldEnd = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point;
 				for (int i=0;i<4;i++) {
-					drawData.endPt[i] = segPtr->u.p.pts[i];
+					drawData.endPt[i] = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point;
 				}
 				if (inx == HT) {
-					ANGLE_T angle = NormalizeAngle((FindAngle(segPtr->u.p.pts[0],segPtr->u.p.pts[1]))+90);
+					ANGLE_T angle = NormalizeAngle((FindAngle(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point,DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,1).point))+90);
 					Translate( &drawData.endPt[3], drawData.endPt[0], angle, drawData.height);
-					UNREORIGIN( segPtr->u.p.pts[3], drawData.endPt[3], xx->angle, xx->orig );
+					UNREORIGIN( DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,3).point, drawData.endPt[3], xx->angle, xx->orig );
 					Translate( &drawData.endPt[2], drawData.endPt[1], angle, drawData.height);
-					UNREORIGIN( segPtr->u.p.pts[2], drawData.endPt[2], xx->angle, xx->orig );
+					UNREORIGIN( DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point, drawData.endPt[2], xx->angle, xx->orig );
 				} else {
 					ANGLE_T angle = drawData.angle;
 					Translate( &drawData.endPt[1], drawData.endPt[0], angle, drawData.width);
-					UNREORIGIN( segPtr->u.p.pts[1], drawData.endPt[1], xx->angle, xx->orig );
+					UNREORIGIN( DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,1).point, drawData.endPt[1], xx->angle, xx->orig );
 					Translate( &drawData.endPt[2], drawData.endPt[3], angle, drawData.width);
-					UNREORIGIN( segPtr->u.p.pts[2], drawData.endPt[2], xx->angle, xx->orig );
+					UNREORIGIN( DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point, drawData.endPt[2], xx->angle, xx->orig );
 				}
 				ANGLE_T angle;
 				DIST_T dist;
 				coOrd newOrig;
-				newOrig.x= (segPtr->u.p.pts[2].x - segPtr->u.p.pts[0].x)/2+segPtr->u.p.pts[0].x;
-				newOrig.y= (segPtr->u.p.pts[2].y - segPtr->u.p.pts[0].y)/2+segPtr->u.p.pts[0].y;
+				newOrig.x= (DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point.x - DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.x)/2+DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.x;
+				newOrig.y= (DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point.y - DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.y)/2+DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.y;
 				angle = FindAngle(newOrig,oldMiddle);
 				dist = FindDistance(oldMiddle,newOrig);
-				for (int i=0;i<segPtr->u.p.cnt;i++) {
+				for (int i=0;i<segPtr->u.p.pts_array.cnt;i++) {
 					Translate(&drawData.endPt[i], drawData.endPt[i], angle, dist);
-					UNREORIGIN(segPtr->u.p.pts[i], drawData.endPt[i], xx->angle, xx->orig );
+					UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point, drawData.endPt[i], xx->angle, xx->orig );
+					DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).pre_control = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
+					DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).post_control = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
 				}
-				drawData.origin = segPtr->u.p.pts[0];
+				drawData.origin = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point;
 				drawDesc[OI].mode |= DESC_CHANGE;
 			}
 		}
@@ -360,15 +368,21 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 			ANGLE_T angle = -(drawData.angle-drawData.oldAngle);
 			coOrd origin = drawData.origin;
 			if (segPtr->u.p.polyType == RECTANGLE) {
-				origin.x= (segPtr->u.p.pts[2].x - segPtr->u.p.pts[0].x)/2+segPtr->u.p.pts[0].x;
-				origin.y= (segPtr->u.p.pts[2].y - segPtr->u.p.pts[0].y)/2+segPtr->u.p.pts[0].y;
+				origin.x= (DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point.x - DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.x)/2+DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.x;
+				origin.y= (DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,2).point.y - DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.y)/2+DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point.y;
 			}
-			for (int i=0;i<segPtr->u.p.cnt;i++) {
-				coOrd pnt = segPtr->u.p.pts[i];
+			for (int i=0;i<segPtr->u.p.pts_array.cnt;i++) {
+				coOrd pnt = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
 				Rotate(&pnt, origin, angle);
-				UNREORIGIN(segPtr->u.p.pts[i], pnt, xx->angle, xx->orig );
+				UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point, pnt, xx->angle, xx->orig );
+				coOrd pnt = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).pre_control;
+				Rotate(&pnt, origin, angle);
+				UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).pre_control, pnt, xx->angle, xx->orig );
+				coOrd pnt = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).post_control;
+				Rotate(&pnt, origin, angle);
+				UNREORIGIN(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).post_control, pnt, xx->angle, xx->orig );
 			}
-			drawData.origin = segPtr->u.p.pts[0];
+			drawData.origin = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point;
 			drawDesc[OI].mode |= DESC_CHANGE;
 			drawData.oldAngle = drawData.angle;
 			break;
@@ -593,23 +607,23 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 		title = _("Filled Circle");
 		break;
 	case SEG_POLY:
-		drawData.pointCount = segPtr->u.p.cnt;
+		drawData.pointCount = segPtr->u.p.pts_array.cnt;
 		drawDesc[VC].mode = DESC_RO;
 		drawData.angle = 0.0;
 		drawData.oldAngle = 0.0;
 		drawDesc[AL].mode = 0;
-		drawData.origin = segPtr->u.p.pts[0];
+		drawData.origin = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point;
 		drawDesc[OI].mode = 0;
 		switch (segPtr->u.p.polyType) {
 			case RECTANGLE:
 				title = _("Rectangle");
 				drawDesc[VC].mode = DESC_IGNORE;
-				drawData.width = FindDistance(segPtr->u.p.pts[0], segPtr->u.p.pts[1]);
+				drawData.width = FindDistance(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point, DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,1).point);
 				drawDesc[WT].mode = 0;
-				drawData.height = FindDistance(segPtr->u.p.pts[0], segPtr->u.p.pts[3]);
+				drawData.height = FindDistance(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point, DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,3).point);
 				drawDesc[HT].mode = 0;
 				for(int i=0;i<4;i++) {
-					drawData.endPt[i] = segPtr->u.p.pts[i];
+					drawData.endPt[i] = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
 				}
 				break;
 			default:
@@ -617,24 +631,24 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 		}
 		break;
 	case SEG_FILPOLY:
-		drawData.pointCount = segPtr->u.p.cnt;
+		drawData.pointCount = segPtr->u.p.pts_array.cnt;
 		drawDesc[VC].mode = DESC_RO;
 		drawDesc[LW].mode = DESC_IGNORE;
 		drawData.angle = 0.0;
 		drawData.oldAngle = 0.0;
 		drawDesc[AL].mode = 0;
-		drawData.origin = segPtr->u.p.pts[0];
+		drawData.origin = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point;
 		drawDesc[OI].mode = 0;
 		switch (segPtr->u.p.polyType) {
 			case RECTANGLE:
 				title =_("Filled Rectangle");
 				drawDesc[VC].mode = DESC_IGNORE;
-				drawData.width = FindDistance(segPtr->u.p.pts[0], segPtr->u.p.pts[1]);
+				drawData.width = FindDistance(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point, DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,1).point);
 				drawDesc[WT].mode = 0;
-				drawData.height = FindDistance(segPtr->u.p.pts[0], segPtr->u.p.pts[3]);
+				drawData.height = FindDistance(DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,0).point, DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,3).point);
 				drawDesc[HT].mode = 0;
 				for(int i=0;i<4;i++) {
-					drawData.endPt[i] = segPtr->u.p.pts[i];
+					drawData.endPt[i] = DYNARR_N(PolyPoint_t,segPtr->u.p.pts_array,i).point;
 				}
 				break;
 			default:
@@ -697,7 +711,10 @@ static void DeleteDraw( track_p t )
 	struct extraData * xx = GetTrkExtraData(t);
 	if (xx->segs[0].type == SEG_POLY ||
 			xx->segs[0].type == SEG_FILPOLY) {
-		MyFree(xx->segs[0].u.p.pts);
+		MyFree(xx->segs[0].u.p.pts_array.ptr);
+		xx->segs[0].u.p.pts_array.ptr = NULL;
+		xx->segs[0].u.p.pts_array.cnt = 0;
+		xx->segs[0].u.p.pts_array.max = 0;
 	}
 }
 
@@ -873,8 +890,8 @@ static BOOL_T StoreDraw(
 	struct extraData * xx = GetTrkExtraData(trk);
 	if (xx->segs[0].type == SEG_POLY ||
 		xx->segs[0].type == SEG_FILPOLY) {
-		*data = xx->segs[0].u.p.pts;
-		*len = xx->segs[0].u.p.cnt* sizeof (coOrd);
+		*data = xx->segs[0].u.p.pts_array.ptr;
+		*len = xx->segs[0].u.p.pts_array.cnt* sizeof (PolyPoint_t);
 		return TRUE;
 	}
 	return FALSE;
@@ -888,8 +905,8 @@ static BOOL_T ReplayDraw(
 	struct extraData * xx = GetTrkExtraData(trk);
 	if (xx->segs[0].type == SEG_POLY ||
 		xx->segs[0].type == SEG_FILPOLY) {
-		xx->segs[0].u.p.pts = MyMalloc(len);
-		memcpy(xx->segs[0].u.p.pts,data,len);
+		xx->segs[0].u.p.pts_array.ptr = MyMalloc(len);
+		memcpy(xx->segs[0].u.p.pts_array.ptr,data,len);
 		return TRUE;
 	}
 	return FALSE;
