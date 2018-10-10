@@ -59,6 +59,7 @@ typedef void (*setTriggerCallback_p)( wControl_p b );
 		wWin_p parent; \
 		wPos_t origX, origY; \
 		wPos_t realX, realY; \
+		wPos_t default_size_x, default_size_y; \
 		wPos_t labelW; \
 		wPos_t w, h; \
 		int maximize_initially; \
@@ -273,6 +274,7 @@ struct wDraw_t {
 		wBool_t delayUpdate;
 		cairo_t *printContext;
 		cairo_surface_t *curPrintSurface;
+		GdkPixbuf * background;
 		};
 
 void WlibApplySettings(GtkPrintOperation *op);

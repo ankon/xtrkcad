@@ -14,8 +14,6 @@ if(UNIX)
     if(APPLE)
 	SET(XTRKCAD_USE_GETTEXT_DEFAULT OFF)
     else()
-	set(XTRKCAD_USE_GETTEXT_DEFAULT ON)
-    add_compile_options("-std=gnu99")
 	PKG_CHECK_MODULES(GTK_WEBKIT "webkit-1.0")
         if(GTK_WEBKIT_FOUND)
             set(XTRKCAD_USE_BROWSER_DEFAULT OFF)
@@ -26,6 +24,9 @@ if(UNIX)
 endif(UNIX)
 
 IF(WIN32)
+	# Set FreeImage path:
+	SET(FREEIMAGE_ROOT_DIR "" CACHE PATH "Location of FreeImage files (.h, .lib and .dll)")
+
 	SET(XTRKCAD_USE_GTK_DEFAULT OFF)
 	SET(XTRKCAD_USE_GETTEXT_DEFAULT ON)
 
@@ -83,12 +84,12 @@ IF(XTRKCAD_USE_PACKAGEMAKER)
 ENDIF(XTRKCAD_USE_PACKAGEMAKER)
 
 # Find unit testing framework
-find_package(CMocka)
-if(CMOCKA_FOUND)
-  include_directories(${CMOCKA_INCLUDE_DIR})
-  set(LIBS ${LIBS} ${CMOCKA_LIBRARIES})
-  option( XTRKCAD_TESTING "Build unittests" ON)
-endif()
+#find_package(CMocka)
+#if(CMOCKA_FOUND)
+#  include_directories(${CMOCKA_INCLUDE_DIR})
+#  set(LIBS ${LIBS} ${CMOCKA_LIBRARIES})
+#  option( XTRKCAD_TESTING "Build unittests" ON)
+#endif()
 
 # Find document conversion tool
 find_package(Pandoc)
@@ -100,9 +101,9 @@ CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
 
 # Setup some global options for installation ...
 SET(XTRKCAD_MAJOR_VERSION "5")
-SET(XTRKCAD_MINOR_VERSION "1")
-SET(XTRKCAD_RELEASE_VERSION "2")
-SET(XTRKCAD_VERSION_MODIFIER "a")
+SET(XTRKCAD_MINOR_VERSION "2")
+SET(XTRKCAD_RELEASE_VERSION "0")
+SET(XTRKCAD_VERSION_MODIFIER "BSF")
 SET(XTRKCAD_VERSION "${XTRKCAD_MAJOR_VERSION}.${XTRKCAD_MINOR_VERSION}.${XTRKCAD_RELEASE_VERSION}${XTRKCAD_VERSION_MODIFIER}")
 
 IF(WIN32)
