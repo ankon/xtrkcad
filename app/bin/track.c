@@ -117,10 +117,17 @@ static BOOL_T inDrawTracks;
  * 
  *
  */
+EXPORT void ActivateTrack( track_cp trk) {
+	int inx = GetTrkType(trk);
+	if (trackCmds( inx )->activate != NULL)
+		trackCmds( inx )->activate (trk);
+
+}
 
 
 EXPORT void DescribeTrack( track_cp trk, char * str, CSIZE_T len )
 {
+
 	trackCmds( GetTrkType(trk) )->describe ( trk, str, len );
 	/*epCnt = GetTrkEndPtCnt(trk);
 	if (debugTrack >= 2)
@@ -1063,29 +1070,29 @@ LOG( log_track, 4, ( "DeleteTrack(T%d)\n", GetTrkIndex(trk) ) )
 			}
 		}
 	}
-	UndrawNewTrack( trk );
+	//UndrawNewTrack( trk );
 	for (i=0;i<trk->endCnt;i++) {
 		if ((trk2=trk->endPt[i].track) != NULL) {
 			ep2 = GetEndPtConnectedToMe( trk2, trk );
 			/*UndrawNewTrack( trk2 );*/
-			DrawEndPt( &mainD, trk2, ep2, wDrawColorWhite );
+			//DrawEndPt( &mainD, trk2, ep2, wDrawColorWhite );
 			DisconnectTracks( trk2, ep2, trk, i );
 			/*DrawNewTrack( trk2 );*/
 			if (!QueryTrack(trk2,Q_DONT_DRAW_ENDPOINT))
-				DrawEndPt( &mainD, trk2, ep2, wDrawColorBlack );
+				//DrawEndPt( &mainD, trk2, ep2, wDrawColorBlack );
 			if ( QueryTrack(trk,Q_CANNOT_BE_ON_END) )
 				UndoJoint( trk2, ep2, trk, i );
-			ClrTrkElev( trk2 );
+			//ClrTrkElev( trk2 );
 		}
 	}
-        CheckDeleteSwitchmotor( trk );
-        CheckDeleteBlock( trk );
+    CheckDeleteSwitchmotor( trk );
+    CheckDeleteBlock( trk );
 	DecrementLayerObjects(trk->layer);
 	trackCount--;
 	AuditTracks( "deleteTrack T%d", trk->index);
 	UndoDelete(trk);					/**< Attention: trk is invalidated during that call */
-	MainRedraw();
-	MapRedraw();
+	//MainRedraw();
+	//MapRedraw();
 	InfoCount( trackCount );
 	return TRUE;
 }
@@ -1697,7 +1704,7 @@ EXPORT void LoosenTracks( void )
 		InfoMessage(_("No tracks loosened"));
 }
 
-EXPORT void ConnectTracks( track_p trk0, EPINX_T inx0, track_p trk1, EPINX_T inx1 )
+EXPORT int ConnectTracks( track_p trk0, EPINX_T inx0, track_p trk1, EPINX_T inx1 )
 {
 	DIST_T d;
 	ANGLE_T a;
@@ -1705,11 +1712,11 @@ EXPORT void ConnectTracks( track_p trk0, EPINX_T inx0, track_p trk1, EPINX_T inx
 
 	if ( !IsTrack(trk0) ) {
 		NoticeMessage( _("Connecting a non-track(%d) to (%d)"), _("Continue"), NULL, GetTrkIndex(trk0), GetTrkIndex(trk1) );
-		return;
+		return -1;
 	}
 	if ( !IsTrack(trk1) ) {
 		NoticeMessage( _("Connecting a non-track(%d) to (%d)"), _("Continue"), NULL, GetTrkIndex(trk1), GetTrkIndex(trk0) );
-		return;
+		return -1;
 	}
 	pos0 = trk0->endPt[inx0].pos;
 	pos1 = trk1->endPt[inx1].pos;
@@ -1728,8 +1735,10 @@ LOG( log_track, 3, ( "ConnectTracks( T%d[%d] @ [%0.3f, %0.3f] = T%d[%d] @ [%0.3f
 		PrintEndPt( logFile, trk1, 1 );???*/
 		LogPrintf("\n");
 #endif
-		if (d > connectDistance || (a > connectAngle && a < 360.0 - connectAngle))
+		if (d > connectDistance || (a > connectAngle && a < 360.0 - connectAngle)) {
 			NoticeMessage( MSG_CONNECT_TRK, _("Continue"), NULL, trk0->index, inx0, trk1->index, inx1, d, a );
+			return -1; /* Stop connecting out of alignment tracks! */
+		}
 	}
 	UndoModify( trk0 );
 	UndoModify( trk1 );
@@ -1738,6 +1747,7 @@ LOG( log_track, 3, ( "ConnectTracks( T%d[%d] @ [%0.3f, %0.3f] = T%d[%d] @ [%0.3f
 	trk0->endPt[inx0].track = trk1;
 	trk1->endPt[inx1].track = trk0;
 	AuditTracks( "connectTracks T%d[%d], T%d[%d]", trk0->index, inx0, trk1->index, inx1 );
+	return 0;
 }
 
 

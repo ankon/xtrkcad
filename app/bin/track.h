@@ -166,6 +166,7 @@ typedef struct {
 		BOOL_T (*rebuildSegs)(track_p);
 		BOOL_T (*replayData)(track_p, void *,long );
 		BOOL_T (*storeData)(track_p, void **,long *);
+		void  (*activate)(track_p);
 		} trackCmd_t;
 
 
@@ -236,6 +237,7 @@ typedef struct {
 				ANGLE_T angle;
 				wFont_p fontP;
 				FONTSIZE_T fontSize;
+				BOOL_T boxed;
 				char * string;
 			} t;
 			struct {
@@ -506,6 +508,7 @@ void AuditTracks( char *, ... );
 void CheckTrackLength( track_cp );
 track_p NewTrack( wIndex_t, TRKTYP_T, EPINX_T, CSIZE_T );
 void DescribeTrack( track_cp, char *, CSIZE_T );
+void ActivateTrack( track_cp );
 EPINX_T GetEndPtConnectedToMe( track_p, track_p );
 EPINX_T GetNearestEndPtConnectedToMe( track_p, track_p, coOrd);
 void SetEndPts( track_p, EPINX_T );
@@ -581,7 +584,7 @@ void SaveCarState( void );
 void RestoreCarState( void );
 TRKTYP_T InitObject( trackCmd_t* );
 
-void ConnectTracks( track_p, EPINX_T, track_p, EPINX_T );
+int ConnectTracks( track_p, EPINX_T, track_p, EPINX_T );
 BOOL_T ReconnectTrack( track_p, EPINX_T, track_p, EPINX_T );
 void DisconnectTracks( track_p, EPINX_T, track_p, EPINX_T );
 BOOL_T ConnectAbuttingTracks( track_p, EPINX_T, track_p, EPINX_T );
@@ -621,7 +624,7 @@ BOOL_T MakeParallelTrack( track_p, coOrd, DIST_T, track_p *, coOrd *, coOrd * );
 
 /* cmisc.c */
 wIndex_t describeCmdInx;
-typedef enum { DESC_NULL, DESC_POS, DESC_FLOAT, DESC_ANGLE, DESC_LONG, DESC_COLOR, DESC_DIM, DESC_PIVOT, DESC_LAYER, DESC_STRING, DESC_TEXT, DESC_LIST, DESC_EDITABLELIST } descType;
+typedef enum { DESC_NULL, DESC_POS, DESC_FLOAT, DESC_ANGLE, DESC_LONG, DESC_COLOR, DESC_DIM, DESC_PIVOT, DESC_LAYER, DESC_STRING, DESC_TEXT, DESC_LIST, DESC_EDITABLELIST, DESC_BOXED } descType;
 #define DESC_RO			(1<<0)
 #define DESC_IGNORE		(1<<1)
 #define DESC_NOREDRAW	(1<<2)

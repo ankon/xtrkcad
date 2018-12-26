@@ -22,6 +22,7 @@
 
 #define _WIN32_WINNT 0x0500
 #include <windows.h>
+#include <shellapi.h>
 #include <string.h>
 #include <malloc.h>
 #include <stdlib.h>
@@ -32,6 +33,7 @@
 #include <htmlhelp.h>
 #include "mswint.h"
 #include "i18n.h"
+#include "FreeImage.h"
 
 #if _MSC_VER > 1300
 #define stricmp _stricmp
@@ -87,7 +89,12 @@ static wControl_p getControlFromCursor(HWND, wWin_p *);
  */
 
 struct wWin_t {
-    WOBJ_COMMON
+	WOBJ_COMMON
+	int validGeometry;
+	int min_width;
+	int max_width;
+	int min_height;
+	int max_height;
     wPos_t lastX, lastY;
     wPos_t padX, padY;
     wControl_p first, last;
@@ -174,7 +181,21 @@ static int dumpControls;
 
 extern char *userLocale;
 
-
+// list of supported fileformats for image files
+char * filterImageFiles[] = { N_("All image files"),
+							"*.gif;*.jpg;*.jpeg;*.png;*.tif;*.tiff",
+							N_("GIF files (*.gif)"),
+							"*.gif",
+							N_("JPEG files (*.jpeg,*.jpg)"),
+							"*.jpg;*.jpeg",
+							N_("PNG files (*.png)"),
+							"*.png",
+							N_("TIFF files (*.tiff, *.tif)"),
+							"*.tif;*.tiff",
+							N_("All files (*)"),
+							"*",
+							};
+
 /*
  *****************************************************************************
  *
@@ -607,6 +628,35 @@ static void getSavedSizeAndPos(
             *ry = y;
         }
     }
+}
+
+/**
+ * Set min and max dimensions for a window. 
+ *
+ * \param min_width IN minimum width of window
+ * \param max_width IN maximum width of window
+ * \param min_height IN minimum height of window
+ * \param max_height IN maximum height of window
+ * \param base_width IN unused on Windows
+ * \param base_height IN unused on Windows
+ * \param aspect_ration IN unused on Windows
+ */
+void wSetGeometry(wWin_p win,
+	int min_width,
+	int max_width,
+	int min_height,
+	int max_height,
+	int base_width,
+	int base_height,
+	double aspect_ratio)
+{
+	win->validGeometry = TRUE;	//remember that geometry was set
+	win->min_width = min_width;
+	win->max_width = max_width;
+	win->min_height = min_height;
+	win->max_height = max_height;
+
+	return;
 }
 
 /**
@@ -1380,12 +1430,11 @@ void wWinClear(
 {
 }
 
-void wSetCursor(
+void wSetCursor( wWin_p win,
     wCursor_t cursor)
 {
     switch (cursor) {
     case wCursorNormal:
-    case wCursorQuestion:
     default:
         SetCursor(LoadCursor(NULL, IDC_ARROW));
         break;
@@ -1400,6 +1449,42 @@ void wSetCursor(
 
     case wCursorIBeam:
         SetCursor(LoadCursor(NULL, IDC_IBEAM));
+        break;
+
+    case wCursorQuestion:
+    	SetCursor(LoadCursor(NULL, IDC_HELP));
+    	break;
+
+    case wCursorHand:
+       	SetCursor(LoadCursor(NULL, IDC_HAND));
+       	break;
+
+    case wCursorNo:
+       	SetCursor(LoadCursor(NULL, IDC_NO));
+       	break;
+
+    case wCursorSizeAll:
+       	SetCursor(LoadCursor(NULL, IDC_SIZEALL));
+       	break;
+
+    case wCursorSizeNESW:
+       	SetCursor(LoadCursor(NULL, IDC_SIZENESW));
+       	break;
+
+    case wCursorSizeNWSE:
+       	SetCursor(LoadCursor(NULL, IDC_SIZENWSE));
+       	break;
+
+    case wCursorSizeNS:
+       	SetCursor(LoadCursor(NULL, IDC_SIZENS));
+       	break;
+
+    case wCursorSizeWE:
+       	SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+       	break;
+
+    case wCursorAppStart:
+    	SetCursor(LoadCursor(NULL, IDC_APPSTARTING));
         break;
     }
 
@@ -1766,6 +1851,26 @@ void wMessage(
     ReleaseDC(w->hWnd, hDc);
 }
 
+/**
+ * Open a document using an external application
+ * 
+ * \param file
+ * \return TRUE on success, FALSE on error
+ * 
+ */
+unsigned wOpenFileExternal(char *file)
+{
+	HINSTANCE res;
+
+	res = ShellExecute(mswHWnd, "open", file, NULL, NULL, SW_SHOW);
+
+	if ((int)res <= 32) {
+		wNoticeEx(NT_ERROR, "Error when opening file!", "Cancel", NULL);
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
 
 void wExit(int rc)
 {
@@ -2326,6 +2431,24 @@ struct wFilSel_t {
 
 #define SELECTEDFILENAME_BUFFERSIZE	(8*1024)	/**<estimated size in case all param files are selected */
 
+char *
+GetImageFileFormats(void)
+{
+	char *filter = malloc(2048);
+	char *current = filter;
+	char *message;
+
+	for (int i = 0; i < sizeof(filterImageFiles) / sizeof(filterImageFiles[0]); i += 2) {
+		message = gettext(filterImageFiles[i]);
+		strcpy(current, message);
+		current += strlen(message) + 1;
+		strcpy(current, filterImageFiles[i + 1]);
+		current += strlen(current) + 1;
+	}
+	*current = '\0';
+	return(filter);
+}
+
 /**
  * Run the file selector. After the selector is finished an array of filenames is
  * created. Each filename will be fully qualified. The array and the number of
@@ -2356,11 +2479,16 @@ int wFilSelect(
             strcmp(dirName, ".") == 0) {
         dirName = wGetUserHomeDir();
     }
-
     memset(&ofn, 0, sizeof ofn);
     ofn.lStructSize = sizeof ofn;
     ofn.hwndOwner = mswHWnd;
-    ofn.lpstrFilter = fs->extList;
+	if (fs->option == FS_PICTURES) {
+		ofn.lpstrFilter = GetImageFileFormats();
+	}
+	else {
+		ofn.lpstrFilter = fs->extList;
+	}
+
     ofn.nFilterIndex = 0;
     selFileName = malloc(SELECTEDFILENAME_BUFFERSIZE);
     memset(selFileName, '\0', SELECTEDFILENAME_BUFFERSIZE);
@@ -2599,6 +2727,23 @@ MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     wAccelKey_e extChar;
 
     switch (message) {
+	case WM_GETMINMAXINFO:
+		LPMINMAXINFO pMMI = (LPMINMAXINFO)lParam;
+		inx = GetWindowWord(hWnd, 0);
+
+		if (inx >= CONTROL_BASE && inx <= controlMap_da.cnt) {
+			w = (wWin_p)controlMap(inx - CONTROL_BASE).b;
+			if (w != NULL) {
+				if (w->validGeometry) {
+					pMMI->ptMaxTrackSize.x = w->max_width;
+					pMMI->ptMaxTrackSize.y = w->max_height;
+					pMMI->ptMinTrackSize.x = w->min_width;
+					pMMI->ptMinTrackSize.y = w->min_height;
+				}
+			}
+		}
+		return(0);
+
     case WM_MOUSEWHEEL:
         inx = GetWindowWord(hWnd, 0);
         b = getControlFromCursor(hWnd, NULL);
@@ -2913,7 +3058,7 @@ MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_SETCURSOR:
         /*if (any buttons down)
         	break;*/
-        wSetCursor(curCursor);
+        wSetCursor(NULL, curCursor);
 
         if (!mswAllowBalloonHelp) {
             break;
@@ -3211,7 +3356,7 @@ static BOOL InitApplication(HINSTANCE hinstCurrent)
         return FALSE;
     }
 
-    wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
+    wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC | CS_DBLCLKS;
     wc.lpfnWndProc = mswDrawPush;
     wc.lpszClassName = mswDrawWindowClassName;
     wc.cbWndExtra = 4;
