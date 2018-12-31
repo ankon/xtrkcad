@@ -74,6 +74,7 @@ typedef enum { curveTypeNone, curveTypeCurve, curveTypeStraight, curveTypeBezier
 #define PARAMS_PARALLEL (3)
 #define PARAMS_BEZIER   (4)	   //Not used (yet)
 #define PARAMS_CORNU    (5)    //Called to get end characteristics
+#define PARAMS_TURNOUT  (6)
 
 typedef struct {
 		curveType_e type;			//Straight, Curve, Bezier, Cornu
@@ -95,6 +96,7 @@ typedef struct {
 		coOrd cornuCenter[2];		//Center at Cornu Ends
 		coOrd ttcenter;				//Turntable
 		DIST_T ttradius; 			//Turntable
+		coOrd centroid;				//Turnout
 
 		} trackParams_t;
 
@@ -166,6 +168,7 @@ typedef struct {
 		BOOL_T (*rebuildSegs)(track_p);
 		BOOL_T (*replayData)(track_p, void *,long );
 		BOOL_T (*storeData)(track_p, void **,long *);
+		void  (*activate)(track_p);
 		} trackCmd_t;
 
 
@@ -180,6 +183,9 @@ typedef struct {
 			DIST_T height;
 			char * name;
 		} u;
+		BOOL_T cacheSet;
+		double cachedElev;
+		double cachedLength;
 		} elev_t;
 #define EPOPT_GAPPED	(1L<<0)
 typedef struct {
@@ -236,6 +242,7 @@ typedef struct {
 				ANGLE_T angle;
 				wFont_p fontP;
 				FONTSIZE_T fontSize;
+				BOOL_T boxed;
 				char * string;
 			} t;
 			struct {
@@ -481,6 +488,8 @@ void SetTrkEndElev( track_p, EPINX_T, int, DIST_T, char * );
 int GetTrkEndElevMode( track_p, EPINX_T );
 int GetTrkEndElevUnmaskedMode( track_p, EPINX_T );
 DIST_T GetTrkEndElevHeight( track_p, EPINX_T );
+BOOL_T GetTrkEndElevCachedHeight (track_p trk, EPINX_T e, DIST_T *height, DIST_T *length);
+void SetTrkEndElevCachedHeight ( track_p trk, EPINX_T e, DIST_T height, DIST_T length);
 char * GetTrkEndElevStation( track_p, EPINX_T );
 #define EndPtIsDefinedElev( T, E ) (GetTrkEndElevMode(T,E)==ELEV_DEF)
 #define EndPtIsIgnoredElev( T, E ) (GetTrkEndElevMode(T,E)==ELEV_IGNORE)
@@ -506,6 +515,7 @@ void AuditTracks( char *, ... );
 void CheckTrackLength( track_cp );
 track_p NewTrack( wIndex_t, TRKTYP_T, EPINX_T, CSIZE_T );
 void DescribeTrack( track_cp, char *, CSIZE_T );
+void ActivateTrack( track_cp );
 EPINX_T GetEndPtConnectedToMe( track_p, track_p );
 EPINX_T GetNearestEndPtConnectedToMe( track_p, track_p, coOrd);
 void SetEndPts( track_p, EPINX_T );
@@ -523,7 +533,7 @@ EPINX_T GetNextTrkOnPath( track_p, EPINX_T );
 #define FDE_UDF 1
 #define FDE_END 2
 int FindDefinedElev( track_p, EPINX_T, int, BOOL_T, DIST_T *, DIST_T *);
-BOOL_T ComputeElev( track_p, EPINX_T, BOOL_T, DIST_T *, DIST_T * );
+BOOL_T ComputeElev( track_p trk, EPINX_T ep, BOOL_T on_path, DIST_T * elev, DIST_T * grade, BOOL_T force);
 
 #define DTS_LEFT		(1<<0)
 #define DTS_RIGHT		(1<<1)
@@ -581,7 +591,7 @@ void SaveCarState( void );
 void RestoreCarState( void );
 TRKTYP_T InitObject( trackCmd_t* );
 
-void ConnectTracks( track_p, EPINX_T, track_p, EPINX_T );
+int ConnectTracks( track_p, EPINX_T, track_p, EPINX_T );
 BOOL_T ReconnectTrack( track_p, EPINX_T, track_p, EPINX_T );
 void DisconnectTracks( track_p, EPINX_T, track_p, EPINX_T );
 BOOL_T ConnectAbuttingTracks( track_p, EPINX_T, track_p, EPINX_T );
@@ -621,7 +631,7 @@ BOOL_T MakeParallelTrack( track_p, coOrd, DIST_T, track_p *, coOrd *, coOrd * );
 
 /* cmisc.c */
 wIndex_t describeCmdInx;
-typedef enum { DESC_NULL, DESC_POS, DESC_FLOAT, DESC_ANGLE, DESC_LONG, DESC_COLOR, DESC_DIM, DESC_PIVOT, DESC_LAYER, DESC_STRING, DESC_TEXT, DESC_LIST, DESC_EDITABLELIST } descType;
+typedef enum { DESC_NULL, DESC_POS, DESC_FLOAT, DESC_ANGLE, DESC_LONG, DESC_COLOR, DESC_DIM, DESC_PIVOT, DESC_LAYER, DESC_STRING, DESC_TEXT, DESC_LIST, DESC_EDITABLELIST, DESC_BOXED } descType;
 #define DESC_RO			(1<<0)
 #define DESC_IGNORE		(1<<1)
 #define DESC_NOREDRAW	(1<<2)
@@ -662,7 +672,7 @@ STATUS_T CompoundDescriptionMove( track_p, wAction_t, coOrd );
 long oldElevationEvaluation;
 EPINX_T GetNextTrkOnPath( track_p trk, EPINX_T ep );
 int FindDefinedElev( track_p, EPINX_T, int, BOOL_T, DIST_T *, DIST_T * );
-BOOL_T ComputeElev( track_p, EPINX_T, BOOL_T, DIST_T *, DIST_T * );
+BOOL_T ComputeElev( track_p, EPINX_T, BOOL_T, DIST_T *, DIST_T *, BOOL_T );
 void RecomputeElevations( void );
 void UpdateAllElevations( void );
 DIST_T GetElevation( track_p );

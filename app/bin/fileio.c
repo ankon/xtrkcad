@@ -876,11 +876,12 @@ EXPORT int LoadTracks(
 
 	SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
 	paramVersion = -1;
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	ClearTracks();
 	ResetLayers();
 	checkPtMark = changed = 0;
+	LayoutBackGroundInit();
 	UndoSuspend();
 	useCurrentLayer = FALSE;
 #ifdef TIME_READTRACKFILE
@@ -904,7 +905,7 @@ EXPORT int LoadTracks(
 	}
 	UndoResume();
 	Reset();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	return TRUE;
 }
 
@@ -945,7 +946,7 @@ static BOOL_T DoSaveTracks(
 
 		return FALSE;
 	}
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	time(&clock);
 	rc &= fprintf(f,"#%s Version: %s, Date: %s\n", sProdName, sVersion, ctime(&clock) )>0;
 	rc &= fprintf(f, "VERSION %d %s\n", iParamVersion, PARAMVERSIONVERSION )>0;
@@ -967,7 +968,7 @@ static BOOL_T DoSaveTracks(
 	RestoreLocale( oldLocale );
 
 	checkPtMark = changed;
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	return rc;
 }
 
@@ -1013,6 +1014,7 @@ EXPORT void DoSave( doSaveCallBack_p after )
 		SaveTracks( 1, &temp, NULL );
 	}
 	SetWindowTitle();
+	SaveState();
 }
 
 EXPORT void DoSaveAs( doSaveCallBack_p after )
@@ -1023,6 +1025,7 @@ EXPORT void DoSaveAs( doSaveCallBack_p after )
 			sSourceFilePattern, SaveTracks, NULL );
 	wFilSelect( saveFile_fs, GetCurrentPath(LAYOUTPATHKEY));
 	SetWindowTitle();
+	SaveState();
 }
 
 EXPORT void DoLoad( void )
@@ -1030,6 +1033,7 @@ EXPORT void DoLoad( void )
 	loadFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Open Tracks"),
 		sSourceFilePattern, LoadTracks, NULL );
 	wFilSelect( loadFile_fs, GetCurrentPath(LAYOUTPATHKEY));
+	SaveState();
 }
 
 
@@ -1107,7 +1111,7 @@ EXPORT int LoadCheckpoint( void )
 	char *search;
 
 	paramVersion = -1;
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 
 	MakeFullpath(&search, workingDir, sCheckPointF, NULL);
 	UndoSuspend();
@@ -1124,7 +1128,7 @@ EXPORT int LoadCheckpoint( void )
 	Reset();
 	UndoResume();
 
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 
 	SetLayoutFullPath("");
 	SetWindowTitle();
@@ -1156,7 +1160,7 @@ static int ImportTracks(
 
 	nameOfFile = FindFilename(fileName[ 0 ]);
 	paramVersion = -1;
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	SetAllTrackSelect( FALSE );
 	ImportStart();
@@ -1167,7 +1171,7 @@ static int ImportTracks(
 	useCurrentLayer = FALSE;
 	/*DoRedraw();*/
 	EnableCommands();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	paramVersion = paramVersionOld;
 	importMove = TRUE;
 	DoCommandB( (void*)(intptr_t)selectCmdInx );
@@ -1216,7 +1220,7 @@ static int DoExportTracks(
 
 	oldLocale = SaveLocale("C");
 
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	time(&clock);
 	fprintf(f,"#%s Version: %s, Date: %s\n", sProdName, sVersion, ctime(&clock) );
 	fprintf(f, "VERSION %d %s\n", iParamVersion, PARAMVERSIONVERSION );
@@ -1227,7 +1231,7 @@ static int DoExportTracks(
 	RestoreLocale( oldLocale );
 
 	Reset();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	UpdateAllElevations();
 	return TRUE;
 }
@@ -1299,7 +1303,7 @@ EXPORT BOOL_T EditPaste( void )
 
 	oldLocale = SaveLocale("C");
 
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	SetAllTrackSelect( FALSE );
 	ImportStart();
@@ -1313,7 +1317,7 @@ EXPORT BOOL_T EditPaste( void )
 	useCurrentLayer = FALSE;
 	/*DoRedraw();*/
 	EnableCommands();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	importMove = TRUE;
 	DoCommandB( (void*)(intptr_t)selectCmdInx );
 	SelectRecount();

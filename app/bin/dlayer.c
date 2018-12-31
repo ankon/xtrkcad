@@ -29,6 +29,7 @@
 #include "dynstring.h"
 #include "fileio.h"
 #include "i18n.h"
+#include "layout.h"
 #include "messages.h"
 #include "param.h"
 #include "track.h"
@@ -587,6 +588,28 @@ UpdateLayerDlg()
     }
 }
 
+/**
+ * Fill a layer dropbox with the current layer settings
+ * 
+ * \param listLayers the dropbox
+ * \return 
+ */
+  
+void
+FillLayerList( wList_p listLayers)
+{
+	wListClear(listLayers);  // Rebuild list on each invovation
+
+	for (int inx = 0; inx < NUM_LAYERS; inx++) {
+		char *layerFormattedName;
+		layerFormattedName = FormatLayerName(inx);
+		wListAddValue((wList_p)listLayers, layerFormattedName, NULL, (void*)(long)inx);
+		free(layerFormattedName);
+	}
+
+	/* set current layer to selected */
+	wListSetIndex(listLayers, curLayer);
+}
 /**
  * Initialize the layer lists.
  *
@@ -1157,6 +1180,7 @@ BOOL_T WriteLayers(FILE * f)
     return TRUE;
 }
 
+#include "bitmaps/background.xpm"
 
 void InitLayers(void)
 {
@@ -1180,6 +1204,10 @@ void InitLayers(void)
                                 SetCurrLayer, NULL);
     wControlSetBalloonText((wControl_p)setLayerL, GetBalloonHelpStr("cmdLayerSet"));
     AddToolbarControl((wControl_p)setLayerL, IC_MODETRAIN_TOO);
+	
+	backgroundB = AddToolbarButton("cmdBackgroundShow", wIconCreatePixMap(background), 0,
+		(addButtonCallBack_t)BackgroundToggleShow, NULL);
+	wControlActive((wControl_p)backgroundB, FALSE);
 
     for (i = 0; i<NUM_LAYERS; i++) {
         char *layerName;

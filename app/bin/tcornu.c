@@ -384,7 +384,7 @@ static void UpdateCornu( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), cornData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &cornData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &cornData.elev[1-ep], NULL, TRUE );
 		if ( cornData.length > minLength )
 			cornData.grade = fabs( (cornData.elev[0]-cornData.elev[1])/cornData.length )*100.0;
 		else
@@ -454,8 +454,8 @@ static void DescribeCornu( track_p trk, char * str, CSIZE_T len )
     cornData.radius[0] = xx->cornuData.r[0];
     cornData.radius[1] = xx->cornuData.r[1];
     if (GetTrkType(trk) == T_CORNU) {
-		ComputeElev( trk, 0, FALSE, &cornData.elev[0], NULL );
-		ComputeElev( trk, 1, FALSE, &cornData.elev[1], NULL );
+		ComputeElev( trk, 0, FALSE, &cornData.elev[0], NULL, FALSE );
+		ComputeElev( trk, 1, FALSE, &cornData.elev[1], NULL, FALSE );
 
 		if ( cornData.length > minLength )
 			cornData.grade = fabs( (cornData.elev[0]-cornData.elev[1])/cornData.length )*100.0;
@@ -667,6 +667,9 @@ static void RescaleCornu( track_p trk, FLOAT_T ratio )
 	for (int i=0;i<2;i++) {
 		xx->cornuData.pos[i].x *= ratio;
 		xx->cornuData.pos[i].y *= ratio;
+		xx->cornuData.c[i].x *= ratio;
+		xx->cornuData.c[i].y *= ratio;
+		xx->cornuData.r[i] *= ratio;
 	}
     RebuildCornu(trk);
 
@@ -803,6 +806,8 @@ BOOL_T MoveCornuEndPt ( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 ) {
 		struct extraData *xx = GetTrkExtraData(*trk);
 		if (trk2) DeleteTrack(trk2,TRUE);
 		SetTrkEndPoint( *trk, *ep, *ep?xx->cornuData.pos[1]:xx->cornuData.pos[0], *ep?xx->cornuData.a[1]:xx->cornuData.a[0] );
+		MainRedraw();
+		MapRedraw();
 		return TRUE;
 	}
 	return FALSE;
@@ -1003,7 +1008,8 @@ static BOOL_T MergeCornu(
 	}
 	DrawNewTrack( trk3 );
 	UndoEnd();
-
+	MainRedraw();
+	MapRedraw();
 
 	return TRUE;
 }

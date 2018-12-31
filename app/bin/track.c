@@ -117,10 +117,17 @@ static BOOL_T inDrawTracks;
  * 
  *
  */
+EXPORT void ActivateTrack( track_cp trk) {
+	int inx = GetTrkType(trk);
+	if (trackCmds( inx )->activate != NULL)
+		trackCmds( inx )->activate (trk);
+
+}
 
 
 EXPORT void DescribeTrack( track_cp trk, char * str, CSIZE_T len )
 {
+
 	trackCmds( GetTrkType(trk) )->describe ( trk, str, len );
 	/*epCnt = GetTrkEndPtCnt(trk);
 	if (debugTrack >= 2)
@@ -441,6 +448,7 @@ EXPORT void SetTrkEndElev( track_p trk, EPINX_T ep, int option, DIST_T height, c
 	track_p trk1;
 	EPINX_T ep1;
 	trk->endPt[ep].elev.option = option;
+	trk->endPt[ep].elev.cacheSet = FALSE;
 	if (EndPtIsDefinedElev(trk,ep)) {
 		trk->endPt[ep].elev.u.height = height;
 	} else if (EndPtIsStationElev(trk,ep)) {
@@ -485,6 +493,23 @@ EXPORT DIST_T GetTrkEndElevHeight( track_p trk, EPINX_T e )
 {
 	ASSERT( EndPtIsDefinedElev(trk,e) );
 	return trk->endPt[e].elev.u.height;
+}
+
+EXPORT BOOL_T GetTrkEndElevCachedHeight (track_p trk, EPINX_T e, DIST_T * height, DIST_T * length)
+{
+	if (trk->endPt[e].elev.cacheSet) {
+		*height = trk->endPt[e].elev.cachedElev;
+		*length = trk->endPt[e].elev.cachedLength;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+EXPORT void SetTrkEndElevCachedHeight ( track_p trk, EPINX_T e, DIST_T height, DIST_T length)
+{
+	trk->endPt[e].elev.cachedElev = height;
+	trk->endPt[e].elev.cachedLength = length;
+	trk->endPt[e].elev.cacheSet = TRUE;
 }
 
 
@@ -549,6 +574,9 @@ EXPORT void SetTrkElev( track_p trk, int mode, DIST_T elev )
 	SetTrkBits( trk, TB_ELEVPATH );
 	trk->elev = elev;
 	trk->elevMode = mode;
+	for (int i=0;i<trk->endCnt;i++) {
+		trk->endPt[i].elev.cacheSet = FALSE;
+	}
 }
 
 
@@ -1063,29 +1091,29 @@ LOG( log_track, 4, ( "DeleteTrack(T%d)\n", GetTrkIndex(trk) ) )
 			}
 		}
 	}
-	UndrawNewTrack( trk );
+	//UndrawNewTrack( trk );
 	for (i=0;i<trk->endCnt;i++) {
 		if ((trk2=trk->endPt[i].track) != NULL) {
 			ep2 = GetEndPtConnectedToMe( trk2, trk );
 			/*UndrawNewTrack( trk2 );*/
-			DrawEndPt( &mainD, trk2, ep2, wDrawColorWhite );
+			//DrawEndPt( &mainD, trk2, ep2, wDrawColorWhite );
 			DisconnectTracks( trk2, ep2, trk, i );
 			/*DrawNewTrack( trk2 );*/
 			if (!QueryTrack(trk2,Q_DONT_DRAW_ENDPOINT))
-				DrawEndPt( &mainD, trk2, ep2, wDrawColorBlack );
+				//DrawEndPt( &mainD, trk2, ep2, wDrawColorBlack );
 			if ( QueryTrack(trk,Q_CANNOT_BE_ON_END) )
 				UndoJoint( trk2, ep2, trk, i );
-			ClrTrkElev( trk2 );
+			//ClrTrkElev( trk2 );
 		}
 	}
-        CheckDeleteSwitchmotor( trk );
-        CheckDeleteBlock( trk );
+    CheckDeleteSwitchmotor( trk );
+    CheckDeleteBlock( trk );
 	DecrementLayerObjects(trk->layer);
 	trackCount--;
 	AuditTracks( "deleteTrack T%d", trk->index);
 	UndoDelete(trk);					/**< Attention: trk is invalidated during that call */
-	MainRedraw();
-	MapRedraw();
+	//MainRedraw();
+	//MapRedraw();
 	InfoCount( trackCount );
 	return TRUE;
 }
@@ -1697,7 +1725,7 @@ EXPORT void LoosenTracks( void )
 		InfoMessage(_("No tracks loosened"));
 }
 
-EXPORT void ConnectTracks( track_p trk0, EPINX_T inx0, track_p trk1, EPINX_T inx1 )
+EXPORT int ConnectTracks( track_p trk0, EPINX_T inx0, track_p trk1, EPINX_T inx1 )
 {
 	DIST_T d;
 	ANGLE_T a;
@@ -1705,11 +1733,11 @@ EXPORT void ConnectTracks( track_p trk0, EPINX_T inx0, track_p trk1, EPINX_T inx
 
 	if ( !IsTrack(trk0) ) {
 		NoticeMessage( _("Connecting a non-track(%d) to (%d)"), _("Continue"), NULL, GetTrkIndex(trk0), GetTrkIndex(trk1) );
-		return;
+		return -1;
 	}
 	if ( !IsTrack(trk1) ) {
 		NoticeMessage( _("Connecting a non-track(%d) to (%d)"), _("Continue"), NULL, GetTrkIndex(trk1), GetTrkIndex(trk0) );
-		return;
+		return -1;
 	}
 	pos0 = trk0->endPt[inx0].pos;
 	pos1 = trk1->endPt[inx1].pos;
@@ -1728,8 +1756,10 @@ LOG( log_track, 3, ( "ConnectTracks( T%d[%d] @ [%0.3f, %0.3f] = T%d[%d] @ [%0.3f
 		PrintEndPt( logFile, trk1, 1 );???*/
 		LogPrintf("\n");
 #endif
-		if (d > connectDistance || (a > connectAngle && a < 360.0 - connectAngle))
+		if (d > connectDistance || (a > connectAngle && a < 360.0 - connectAngle)) {
 			NoticeMessage( MSG_CONNECT_TRK, _("Continue"), NULL, trk0->index, inx0, trk1->index, inx1, d, a );
+			return -1; /* Stop connecting out of alignment tracks! */
+		}
 	}
 	UndoModify( trk0 );
 	UndoModify( trk1 );
@@ -1738,6 +1768,7 @@ LOG( log_track, 3, ( "ConnectTracks( T%d[%d] @ [%0.3f, %0.3f] = T%d[%d] @ [%0.3f
 	trk0->endPt[inx0].track = trk1;
 	trk1->endPt[inx1].track = trk0;
 	AuditTracks( "connectTracks T%d[%d], T%d[%d]", trk0->index, inx0, trk1->index, inx1 );
+	return 0;
 }
 
 
@@ -2153,9 +2184,33 @@ EXPORT DIST_T GetTrkLength( track_p trk, EPINX_T ep0, EPINX_T ep1 )
 	} else {
 		pos0 = GetTrkEndPos(trk,ep0);
 		if (ep1==-1) {
+			// Usual case for asking about distance to center of turnout for grades
+			if (trk->type==T_TURNOUT) {
+				trackParams_t trackParamsData;
+				trackParamsData.ep = ep0;
+				if (trackCmds(trk->type)->getTrackParams != NULL) {
+					//Find distance to centroid of end points * 2 or actual length if epCnt < 3
+					trackCmds(trk->type)->getTrackParams(PARAMS_TURNOUT,trk,pos0,&trackParamsData);
+					return trackParamsData.len/2.0;
+				}
+			}
 			pos1.x = (trk->hi.x+trk->lo.x)/2.0;
 			pos1.y = (trk->hi.y+trk->lo.y)/2.0;
 		} else {
+			if (trk->type==T_TURNOUT) {
+				pos1 = GetTrkEndPos(trk,ep1);
+				trackParams_t trackParamsData;
+				trackParamsData.ep = ep0;
+				if (trackCmds(trk->type)->getTrackParams != NULL) {
+					//Find distance via centroid of end points or actual length if epCnt < 3
+					trackCmds(trk->type)->getTrackParams(PARAMS_TURNOUT,trk,pos0,&trackParamsData);
+					d = trackParamsData.len/2.0;
+					trackParamsData.ep = ep1;
+					trackCmds(trk->type)->getTrackParams(PARAMS_TURNOUT,trk,pos1,&trackParamsData);
+					d += trackParamsData.len/2.0;
+					return d;
+				}
+			}
 			pos1 = GetTrkEndPos(trk,ep1);
 		}
 		pos1.x -= pos0.x;
@@ -2471,15 +2526,19 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 
 EXPORT wDrawColor GetTrkColor( track_p trk, drawCmd_p d )
 {
-	DIST_T len, elev0, elev1;
+	DIST_T len, len1, elev0, elev1;
 	ANGLE_T grade = 0.0;
 
 	if ( IsTrack( trk ) && GetTrkEndPtCnt(trk) == 2 ) {
-		len = GetTrkLength( trk, 0, 1 );
-		if (len>0.1) {
-			ComputeElev( trk, 0, FALSE, &elev0, NULL );
-			ComputeElev( trk, 1, FALSE, &elev1, NULL );
-			grade = fabs( (elev1-elev0)/len )*100.0;
+		if (GetTrkEndElevCachedHeight(trk,0,&elev0,&len) && GetTrkEndElevCachedHeight(trk,1,&elev1,&len1)) {
+			grade = fabs( (elev1-elev0)/(len+len1))*100.0;
+		} else {
+			len = GetTrkLength( trk, 0, 1 );
+			if (len>0.1) {
+				ComputeElev( trk, 0, FALSE, &elev0, NULL, FALSE );
+				ComputeElev( trk, 1, FALSE, &elev1, NULL, FALSE );
+				grade = fabs( (elev1-elev0)/len )*100.0;
+			}
 		}
 	}
 	if ( (d->options&(DC_GROUP)) == 0 ) {
@@ -2643,7 +2702,7 @@ EXPORT void DrawEndElev( drawCmd_p d, track_p trk, EPINX_T ep, wDrawColor color 
 	case ELEV_GRADE:
 		if ( color == wDrawColorWhite ) {
 			elev0 = grade = elev->u.height;
-		} else if ( !ComputeElev( trk, ep, FALSE, &elev0, &grade ) ) {
+		} else if ( !ComputeElev( trk, ep, FALSE, &elev0, &grade, FALSE ) ) {
 			elev0 = grade = 0;
 			gradeOk = FALSE;
 		}
@@ -2651,7 +2710,7 @@ EXPORT void DrawEndElev( drawCmd_p d, track_p trk, EPINX_T ep, wDrawColor color 
 			elevStr = FormatDistance(elev0);
 			elev->u.height = elev0;
 		} else if (gradeOk) {
-			sprintf( message, "%0.1f%%", fabs(grade*100.0) );
+			sprintf( message, "%0.1f%%", round(fabs(grade*100.0)*10)/10 );
 			elevStr = message;
 			a = GetTrkEndAngle( trk, ep );
 			style = BOX_ARROW;

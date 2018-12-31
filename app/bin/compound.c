@@ -616,7 +616,7 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 		GetBoundingBox( trk, &hi, &lo );
 		if ( labelScale >= mainD.scale &&
 			 !OFF_MAIND( lo, hi ) ) {
-			DrawCompoundDescription( trk, &tempD, GetTrkColor(trk,&tempD) );
+			DrawCompoundDescription( trk, &tempD, wDrawColorWhite );
 		}
 		/*sprintf( message, "%s\t%s\t%s", manufS, nameS, partnoS );*/
 		if (xx->title) MyFree(xx->title);
@@ -680,7 +680,7 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 			 break;
 		for (int i=0;i<compoundData.epCnt;i++) {
 			if (i==ep) continue;
-			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL );
+			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL, TRUE );
 		}
 		if ( compoundData.length > minLength )
 			compoundData.grade = fabs( (compoundData.elev[0]-compoundData.elev[1])/compoundData.length )*100.0;
@@ -859,7 +859,7 @@ void DescribeCompound(
 				compoundDesc[C0+(E1-E0)*i].mode = DESC_IGNORE;
 				compoundDesc[R0+(E1-E0)*i].mode = DESC_IGNORE;
 			}
-			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL );
+			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL, FALSE );
 			compoundDesc[Z0+(E1-E0)*i].mode = (EndPtIsDefinedElev(trk,i)?0:DESC_RO)|DESC_NOREDRAW;
 		}
 		compoundDesc[GR].mode = DESC_RO;

@@ -305,7 +305,7 @@ static void UpdateBezier( track_p trk, int inx, descData_p descUpd, BOOL_T final
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), bezData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &bezData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &bezData.elev[1-ep], NULL, TRUE );
 		if ( bezData.length > minLength )
 			bezData.grade = fabs( (bezData.elev[0]-bezData.elev[1])/bezData.length )*100.0;
 		else
@@ -398,8 +398,8 @@ static void DescribeBezier( track_p trk, char * str, CSIZE_T len )
     bezData.center[1] = params.arcP;
 
     if (GetTrkType(trk) == T_BEZIER) {
-		ComputeElev( trk, 0, FALSE, &bezData.elev[0], NULL );
-		ComputeElev( trk, 1, FALSE, &bezData.elev[1], NULL );
+		ComputeElev( trk, 0, FALSE, &bezData.elev[0], NULL, FALSE );
+		ComputeElev( trk, 1, FALSE, &bezData.elev[1], NULL, FALSE );
 	
 		if ( bezData.length > minLength )
 			bezData.grade = fabs( (bezData.elev[0]-bezData.elev[1])/bezData.length )*100.0;
@@ -831,6 +831,9 @@ static BOOL_T MergeBezier(
 	}
 	DrawNewTrack( trk0 );
 
+	MainRedraw();
+	MapRedraw();
+
 
 	return TRUE;
 }
@@ -899,6 +902,8 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 
 static BOOL_T TrimBezier( track_p trk, EPINX_T ep, DIST_T dist ) {
 	DeleteTrack(trk, TRUE);
+	MainRedraw();
+	MapRedraw();
 	return TRUE;
 }
 
@@ -1066,6 +1071,8 @@ BOOL_T MoveBezierEndPt ( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 ) {
 		if (trk2) DeleteTrack(trk2,TRUE);
 		xx = GetTrkExtraData(*trk);
 		SetTrkEndPoint( *trk, *ep, *ep?xx->bezierData.pos[3]:xx->bezierData.pos[0], *ep?xx->bezierData.a1:xx->bezierData.a0 );
+		MainRedraw();
+		MapRedraw();
 		return TRUE;
 	}
 	return FALSE;
