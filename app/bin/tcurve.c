@@ -1168,7 +1168,8 @@ static DIST_T GetLengthCurve( track_p trk )
 		a1 = 360.0;
 	else
 		GetCurveAngles( &a0, &a1, trk );
-	dist = (rad+GetTrkGauge(trk)/2.0)*a1*2.0*M_PI/360.0;
+	//dist = (rad+GetTrkGauge(trk)/2.0)*a1*2.0*M_PI/360.0;
+	dist = (rad)*a1*2.0*M_PI/360.0;   //Don't bulk up for outer track
 	if (xx->helixTurns>0)
 		dist += (xx->helixTurns-(xx->circle?1:0)) * xx->radius * 2.0 * M_PI;
 	return dist;

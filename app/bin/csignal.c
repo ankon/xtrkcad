@@ -81,23 +81,158 @@ static char signalName[STR_SHORT_SIZE];
 static int  signalHeadCount;
 #endif
 
+
+
+/*
+ * A Signaling System is a set of elements that can be used to send instructions to drivers
+ * It has a set of HeadTypes which show indications and a set of MastTypes that integrate those Heads into a SignalMast.
+ * There can be several Systems active on one layout - reflecting different heritages or vintages.
+ * Each HeadType and mastType is qualified by its system.
+ */
+typedef struct signalSystem_t {
+	char * systemName;					//Name of System
+	char * notes;						//Explanation
+	dynArr_t headTypes;					//Types of Heads - Heads to add to Signals
+	dynArr_t mastTypes;					//Types of Masts - Cloneable signals
+	dynArr_t aspectTypes;				//Types of Aspects - Names only
+} signalSystem_t, *signalSystem_p;
+
+static dynArr_t signalSystems;
+#define signalSystem(N) DYNARR_N( signalSystem_t, signalSystems, N )
+
+
+
+/*
+ * An AspectType maps an AspectName to a Speed
+ */
+typedef struct aspectType_t {
+	char * aspectName;
+	int speed;
+} aspectType_t, *aspectType_p;
+
+
+/* These are the normal Aspect Names that JMRI will recognize they are used in XTrackCAD if no Aspects are defined */
+typedef enum baseAspects {Danger, Proceed, PreliminaryCaution, Caution, FlashPreliminaryCaution, FlashCaution, Off, On, CallOn, Shunt, Warning};
+const char *baseAspectsNames[] = { "Danger", "Proceed", "Preliminary Caution", "Flash Preliminary Caution", "Caution", "Flash Caution", "Off", "On", "Call-On", "Shunt", "Warning" };
+
+static aspectType_t defaultAspectsSpeedMap[] = {
+		{Proceed,100},
+		{Caution, 40},
+		{FlashCaution, 40},
+		{PreliminaryCaution,75},
+		{FlashPreliminaryCaution, 50},
+		{Danger, 0},
+		{CallOn, 15},
+		{Shunt, 15},
+		{Warning, 15},
+		{Off, 15},
+		{On, 0},
+};
+
+/*
+ * A Map from the Aspects from this Signal to all the Heads and the Indications that they show
+ */
+typedef struct headAspectMap_t {
+	char * aspectMapHeadName;					//Head Name
+	int * aspectMapHeadNumber;					//Which Head is that on this Signal
+	char * aspectMapHeadIndication;				//Indication name
+	int * aspectMapHeadIndicationNumber;		//Which indication is that on the head
+} headAspectMap_t, *headAspectMap_p;
+
+
+/*
+ * An Aspect is an indication by a Signal Mast to a driver of what he is allowed to do. It may be shown by using one or more Heads.
+ * The Aspect in JMRI communicates a max speed to the "driver" - this is achieved.
+ */
 typedef struct signalAspect_t {
-    char * aspectName;
+    char * aspectName;					//Aspect
     char * aspectScript;
+    dynArr_t headMap;					//Array of all Head settings for this Aspect
+    aspectType_p baseAspect;
 } signalAspect_t, *signalAspect_p;
 
-static dynArr_t signalAspect_da;
+#define headaspect(N) DYNARR_N( headAspectMap_t, headMap, N )
+
+/*
+ * An Indication is a unique display by one Head
+ */
+typedef struct Indication_t {
+	char * indicationName;				//Indication name
+	dynArr_t indicationSegs; 			//How to Draw it
+} Indication_t, *Indication_p;
+
+typedef enum baseIndicators {Diagram, UnLit, Red, Green, Yellow, Lunar, FlashRed, FlashGreen, FlashYellow, FlashLunar, On, Off, Lit}; //Eight predefined Indications
+
+/*
+ * A HeadType is a parameter definition from which shows all the Indications of a Head
+ */
+typedef struct headType_t {
+	char * headName;
+	dynArr_t headSegs;                  //Draw Segments that don't change for head (background, lamp body, etc)
+	dynArr_t headIndications;	 		//All things the head can show
+} headType_t, *headType_p;
+
+static dynArr_t headTypes_da;			//Array of headTypes of all signals in use in the layout
+#define signalHeadType(N) DYNARR_N( headType_t, headTypes_da, N )
+
+/*
+ * A Head is the smallest controllable unit. It could be as small as one light or arm, or as complex as a matrix display
+ * The head is found by its ordinal position on the post.
+ */
+typedef struct signalHead_t {
+	char * headName;					//Often includes Lever #
+	coOrd headPos;						//Relative to Post
+	char * headTypeName;				//Type Name
+	headType_p headType;				//Pointer to common HeadType definition
+	int currentHeadIndication;			//Index of indication within HeadType.Indications
+} signalHead_t, *signalHead_p;
+
+static dynArr_t signalHead_da;          //Array of active heads
+#define signalHead(N) DYNARR_N( signalHead_t, signalHead_da, N )
+
+static dynArr_t signalAspect_da;		//Array of signals Aspects
 #define signalAspect(N) DYNARR_N( signalAspect_t, signalAspect_da, N )
 
+/*
+ * A Map from the Aspects from this Signal to all the Heads and the Indications that they show
+ */
+typedef struct headAspectMap_t {
+	char * aspectMapHeadName;					//Head Name
+	int * aspectMapHeadNumber;					//Which Head is on this Signal
+	char * aspectMapHeadIndication;				//Indication name
+	int * aspectMapHeadIndicationNumber;		//Which indication is needed for that Head
+} headAspectMap_t, *headAspectMap_p;
+
+/*
+ * A Real Signal (Mast). This will contain an arbitrary number of Heads.
+ *
+ * For display, the signal segs are first,
+ * all the Heads ->segs are drawn,
+ * the Active Aspect -> HeadAspectMap entries -> Indications -> segs for each Head by Indication
+ */
 typedef struct signalData_t {
-    coOrd orig;
-    ANGLE_T angle;
-    char * name;
-    wIndex_t numHeads;
+    coOrd orig;							//Relative to a track/structure or to the origin
+    ANGLE_T angle;						//Relative to a track/structure or to the origin
+    track_p track;						//Track/Structure for Signal to align to or NULL
+    char * signalName;					//Unique Name of Signal
+    char * plate;						//Identification of Signal - often includes lever #
+    dynArr_t signalHeads;				//Array of all the heads
     BOOL_T IsHilite;
-    wIndex_t numAspects;
-    signalAspect_t aspectList;
+    dynArr_t signalAspects;					//Array of all the Aspects for the Signal
+    dynArr_t staticSignalSegs;			//Static draw elements for the signal (like dolls/posts)
+    dynArr_t currSegs;					//The current set of Segs to draw
+    int currentAspect;					//Current Aspect index within Aspects
 } signalData_t, *signalData_p;
+
+#define head(N) DYNARR_N( signalHead_t, signalHead, N )
+#define aspect(N) DYNARR_N( signalAspect_t, signalAspects, N )
+
+typedef struct signalMastType_t {
+	char * mastTypeName;				//Type of Mast
+	dynArr_t staticSegs;				//Static segs (like dolls or posts)
+	dynArr_t signalHeads;				//Array of Heads on this type of Mast
+	dynArr_t Aspects;					//Array of Aspects these can show
+} signalMastType_t, *signalMastType_p;
 
 static signalData_p GetsignalData ( track_p trk )
 {
@@ -119,7 +254,9 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
                         wIndex_t numHeads, DIST_T scaleRatio, 
                         wDrawColor color )
 {
-    coOrd p1, p2;
+
+
+	coOrd p1, p2;
     ANGLE_T x_angle, y_angle;
     DIST_T hoffset;
     wIndex_t ihead;
@@ -150,70 +287,60 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
 static void DrawSignal (track_p t, drawCmd_p d, wDrawColor color )
 {
     signalData_p xx = GetsignalData(t);
-    DDrawSignal(d,xx->orig, xx->angle, xx->numHeads, GetScaleRatio(GetTrkScale(t)),color);
-}
+    /* Draw Base */
+    DrawSegsO(d,t,xx->orig,xx->angle,(trkSeg_p)xx->signalSegs.ptr,xx->signalSegs.cnt,GetTrkGauge(t),color,0);
+	for (int i=0;i<xx->signalHeads.cnt;i++) {
+		signalHead_t h = signalHead(i);
+		coOrd orig;
+		Translate(&orig,xx->orig,h.headPos,xx->angle);
+		headType_t ht = h.headType;
+		if (!ht) continue;
+		/*Draw fixed HeadSegs */
+		DrawSegsO(d,t,orig,xx->angle,ht.headSegs,ht.headSegs.cnt,GetTrkGauge(t),color,0);
+		if (programMode == MODE_TRAIN) {
+			if (h.currentHeadIndication < 0 || (h.currentHeadIndication > ht.headIndications.cnt-1)) continue;
+			Indication_t si = ht.headIndications.ptr[h.currentHeadIndication];
+			DrawSegsO(d,t,orig,xx->angle,si.indicationSegs,si.indicationSegs.cnt,GetTrkGauge(t),color,0);
+		} else {
+			Indication_t si = ht.headIndications.ptr[0];  /* Base state is always appearance 0 */
+			DrawSegsO(d,t,orig,xx->angle,si.indicationSegs,si.indicationSegs.cnt,GetTrkGauge(t),color,0);
+		}
+	}
 
-static void SignalBoundingBox (coOrd orig, ANGLE_T angle,wIndex_t numHeads, 
-                               DIST_T scaleRatio, coOrd *hi, coOrd *lo)
-{
-    coOrd p1, p2, headp1, headp2;
-    ANGLE_T x_angle, y_angle;
-    DIST_T hoffset,delta;
-    wIndex_t ihead;
-    
-    x_angle = 90-(360-angle);
-    if (x_angle < 0) x_angle += 360;
-    y_angle = -(360-angle);
-    if (y_angle < 0) y_angle += 360;
-    
-    Translate (&p1, orig, x_angle, (-BASEX) * signal_SF / scaleRatio);
-    Translate (&p1, p1,   y_angle, BASEY * signal_SF / scaleRatio);
-    Translate (&p2, orig, x_angle, BASEX * signal_SF / scaleRatio);
-    Translate (&p2, p2,   y_angle, BASEY * signal_SF / scaleRatio);
-    *hi = p1; *lo = p1;
-    if (p2.x > hi->x) hi->x = p2.x;
-    if (p2.x < lo->x) lo->x = p2.x;
-    if (p2.y > hi->y) hi->y = p2.y;
-    if (p2.y < lo->y) lo->y = p2.y;
-    p1 = orig;
-    Translate (&p2, orig, x_angle, MASTX * signal_SF / scaleRatio);
-    Translate (&p2, p2,   y_angle, MASTY * signal_SF / scaleRatio);
-    if (p1.x > hi->x) hi->x = p1.x;
-    if (p1.x < lo->x) lo->x = p1.x;
-    if (p1.y > hi->y) hi->y = p1.y;
-    if (p1.y < lo->y) lo->y = p1.y;
-    if (p2.x > hi->x) hi->x = p2.x;
-    if (p2.x < lo->x) lo->x = p2.x;
-    if (p2.y > hi->y) hi->y = p2.y;
-    if (p2.y < lo->y) lo->y = p2.y;
-    hoffset = MASTY;
-    for (ihead = 0; ihead < numHeads; ihead++) {
-        Translate (&p1, orig, x_angle, MASTX * signal_SF / scaleRatio);
-        Translate (&p1, p1,   y_angle, (hoffset+HEADR) * signal_SF / scaleRatio);
-        delta = HEADR * signal_SF / scaleRatio;
-        headp1.x = p1.x - delta;
-        headp1.y = p1.y - delta;
-        headp2.x = p1.x + delta;
-        headp2.y = p1.y + delta;
-        if (headp1.x > hi->x) hi->x = headp1.x;
-        if (headp1.x < lo->x) lo->x = headp1.x;
-        if (headp1.y > hi->y) hi->y = headp1.y;
-        if (headp1.y < lo->y) lo->y = headp1.y;
-        if (headp2.x > hi->x) hi->x = headp2.x;
-        if (headp2.x < lo->x) lo->x = headp2.x;
-        if (headp2.y > hi->y) hi->y = headp2.y;
-        if (headp2.y < lo->y) lo->y = headp2.y;
-        hoffset += HEADR*2;
-    }
-    
 }
 
 static void ComputeSignalBoundingBox (track_p t )
 {
-    coOrd lo, hi;
+    coOrd lo, hi, lo2, hi2;
     signalData_p xx = GetsignalData(t);
-    SignalBoundingBox(xx->orig, xx->angle, xx->numHeads, 
-                      GetScaleRatio(GetTrkScale(t)), &hi, &lo);
+    GetSegBounds(xx->orig,xx->angle,(trkSeg_p)xx->signalSegs.ptr,xx->signalSegs.cnt,&lo,&hi);
+    hi.x += lo.x;
+    hi.y += lo.y;
+	for (int i=0;i<xx->signalHeads.cnt;i++) {
+		signalHead_t h = signalHead(i);
+		coOrd orig;
+		Translate(&orig,xx->orig,h.headPos,xx->angle);
+		headType_t ht = h.headType;
+		if (!ht) continue;
+		/*Draw fixed HeadSegs */
+		GetSegBounds(orig,xx->angle,ht.headSegs,ht.headSegs.cnt,&lo2,hi2);
+		hi2.x +=lo2.x;
+		hi2.y +=hi2.x;
+		if (lo.x>lo2.x) lo.x = lo2.x;
+		if (lo2.y>lo2.y) lo.x = lo2.y;
+		if (hi.x<hi2.x)  hi.x = hi2.x;
+		if (hi.y<hi2.y)  hi.y = hi2.y;
+		for (int j=0;j<ht.headIndications.cnt;j++) {
+			Indication_t si = ht.headIndications.ptr[j];  /* Base state is always appearance 0 */
+			GetSegBounds(orig,xx->angle,si.indicationSegs,si.indicationSegs.cnt,&lo2,&hi2);
+			hi2.x +=lo2.x;
+			hi2.y +=hi2.x;
+			if (lo.x>lo2.x) lo.x = lo2.x;
+			if (lo2.y>lo2.y) lo.x = lo2.y;
+			if (hi.x<hi2.x)  hi.x = hi2.x;
+			if (hi.y<hi2.y)  hi.y = hi2.y;
+		}
+	}
     SetBoundingBox(t, hi, lo);
 }
 
@@ -228,14 +355,16 @@ static struct {
     coOrd pos;
     ANGLE_T orient;
     long heads;
+    char aspectName[STR_SHORT_SIZE];
 } signalProperties;
 
-typedef enum { NM, PS, OR, HD } signalDesc_e;
+typedef enum { NM, PS, OR, HD, AS } signalDesc_e;
 static descData_t signalDesc[] = {
     /* NM */ { DESC_STRING, N_("Name"),     &signalProperties.name, sizeof(signalProperties.name) },
     /* PS */ { DESC_POS,    N_("Position"), &signalProperties.pos },
     /* OR */ { DESC_ANGLE,  N_("Angle"),    &signalProperties.orient },
     /* HD */ { DESC_LONG,   N_("Number Of Heads"), &signalProperties.heads },
+	/* AS */ { DESC_STRING, N_("Aspect"),   &signalProperties.aspectName, sizeof(signalProperties.aspectName) },
     { DESC_NULL } };
 
 static void UpdateSignalProperties ( track_p trk, int inx, descData_p
@@ -254,7 +383,7 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
     case -1:
         changed = nChanged = pChanged = oChanged = FALSE;
         thename = wStringGetValue( (wString_p) signalDesc[NM].control0 );
-        if (strcmp(thename,xx->name) != 0) {
+        if (strcmp(thename,xx->signalName) != 0) {
             nChanged = changed = TRUE;
             unsigned int max_str = signalDesc[NM].max_string;
 			if (max_str && strlen(thename)>max_str) {
@@ -277,8 +406,8 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
             UndoStart( _("Change Signal"), "Change Signal" );
         UndoModify( trk );
         if (nChanged) {
-            MyFree(xx->name);
-            xx->name = newName;
+            MyFree(xx->signalName);
+            xx->signalName = newName;
         }
         if (pChanged || oChanged) {
             UndrawNewTrack( trk );
@@ -308,16 +437,17 @@ static void DescribeSignal (track_p trk, char * str, CSIZE_T len )
         *str = tolower((unsigned char)*str);
         str++;
     }
-    sprintf( str, _("(%d [%s]): Layer=%d, %d heads at %0.3f,%0.3f A%0.3f"),
+    sprintf( str, _("(%d [%s]): Layer=%d, %d heads at %0.3f,%0.3f A%0.3f, Aspect=%s"),
              GetTrkIndex(trk), 
-             xx->name,GetTrkLayer(trk)+1, xx->numHeads,
-             xx->orig.x, xx->orig.y,xx->angle );
-    strncpy(signalProperties.name,xx->name,STR_SHORT_SIZE-1);
+             xx->signalName,GetTrkLayer(trk)+1, xx->signalHeads.cnt,
+             xx->orig.x, xx->orig.y,xx->angle, ((signalAspect_t)xx->Aspects.ptr[xx->currentAspect]).aspectName);
+    strncpy(signalProperties.name,xx->signalName,STR_SHORT_SIZE-1);
     signalProperties.name[STR_SHORT_SIZE-1] = '\0';
     signalProperties.pos = xx->orig;
     signalProperties.orient = xx->angle;
-    signalProperties.heads = xx->numHeads;
+    signalProperties.heads = xx->signalHeads.cnt;
     signalDesc[HD].mode = DESC_RO;
+    signalDesc[AS].mode = DESC_RO;
     signalDesc[NM].mode = DESC_NOREDRAW;
     DoDescribe( _("Signal"), trk, signalDesc, UpdateSignalProperties );
 }
@@ -326,29 +456,107 @@ static void DeleteSignal ( track_p trk )
 {
     wIndex_t ia;
     signalData_p xx = GetsignalData(trk);
-    MyFree(xx->name); xx->name = NULL;
-    for (ia = 0; ia < xx->numAspects; ia++) {
-        MyFree((&(xx->aspectList))[ia].aspectName);
-        MyFree((&(xx->aspectList))[ia].aspectScript);
+    MyFree(xx->signalName); xx->signalName = NULL;
+    for (ia = 0; ia < xx->Aspects.cnt; ia++) {
+    	MyFree(DYNARR_N(signalAspect_t,xx->Aspects,ia).aspectName);
+        MyFree(DYNARR_N(signalAspect_t,xx->Aspects,ia).aspectScript);
+        signalAspect_t sa = DYNARR_N(signalAspect_t,xx->Aspects,ia);
+        for (int hm = 0; hm < sa.headMap.cnt; hm++) {
+        	headAspectMap_t headm = DYNARR_N(headAspectMap_t,sa.headMap,hm);
+        	MyFree(headm.aspectMapHeadIndication);
+        	MyFree(headm.aspectMapHeadName);
+        }
+        MyFree(sa.headMap.ptr);
     }
+    MyFree(xx->Aspects.ptr); xx->Aspects.ptr = NULL;
+    for (int h = 0; h <xx->signalHeads.cnt; h++) {
+    	MyFree(DYNARR_N(signalHead_t,xx->signalHeads,h).headName);
+    	MyFree(DYNARR_N(signalHead_t,xx->signalHeads,h).headTypeName);
+    }
+    MyFree(xx->signalHeads.ptr); xx->signalHeads.ptr = NULL;
 }
 
 static BOOL_T WriteSignal ( track_p t, FILE * f )
 {
     BOOL_T rc = TRUE;
-    wIndex_t ia;
+    wIndex_t ia,ih,im;
     signalData_p xx = GetsignalData(t);
     rc &= fprintf(f, "SIGNAL %d %d %s %d %0.6f %0.6f %0.6f %d \"%s\"\n",
                   GetTrkIndex(t), GetTrkLayer(t), GetTrkScaleName(t), 
                   GetTrkVisible(t), xx->orig.x, xx->orig.y, xx->angle, 
-                  xx->numHeads, xx->name)>0;
-    for (ia = 0; ia < xx->numAspects; ia++) {
+                  xx->signalHeads.cnt, xx->signalName)>0;
+    rc &= WriteSegs(f,xx->signalSegs.cnt,xx->signalSegs.ptr);
+    for (ih = 0; ih < xx->signalHeads.cnt; ih++) {
+    	signalHead_t sh = DYNARR_N(signalHead_t,xx->signalHeads,ih);
+    	rc &= fprintf(f, "\tHEAD %d %0.6f %0.6f \"%s\" \"%s\"\n",
+    			ih,
+				(sh.headPos.x),
+				(sh.headPos.y),
+    			(sh.headName),
+				(sh.headTypeName))>0;
+    }
+    for (ia = 0; ia < xx->Aspects.cnt; ia++) {
+    	signalAspect_t sa = DYNARR_N(signalAspect_t,xx->Aspects,ia);
         rc &= fprintf(f, "\tASPECT \"%s\" \"%s\"\n",
-                      (&(xx->aspectList))[ia].aspectName,
-                      (&(xx->aspectList))[ia].aspectScript)>0;
+			  (sa.aspectName),
+			  (sa.aspectScript))>0;
+        for (im = 0; im < sa.headMap.cnt; im++) {
+			rc &= fprintf(f, "\tASPECTMAP \"%s\" \"%s\"\n",
+			  (DYNARR_N(headAspectMap_t,sa.headMap,im).aspectMapHeadName),
+			  (DYNARR_N(headAspectMap_t,sa.headMap,im).aspectMapHeadIndication))>0;
+        }
     }
     rc &= fprintf( f, "\tEND\n" )>0;
     return rc;
+}
+
+static void ReadHeadType ( char * line) {
+	char * typename;
+	char * cp = NULL;
+	if (!GetArgs(line+6,"q",&typename)) {
+	        return;
+	}
+	DYNARR_APPEND(headType_p *, headTypes_da,10);
+	headType_p ht = signalHeadType(headTypes_da.cnt-1);
+	ht->headName = typename;
+	while ( (cp = GetNextLine()) != NULL ) {
+		while (isspace((unsigned char)*cp)) cp++;
+		if ( strncmp( cp, "END", 3 ) == 0 ) {
+			break;
+		}
+		if ( *cp == '\n' || *cp == '#' ) {
+			continue;
+		}
+		if ( strncmp( cp, "SEGS", 4) == 0 ) {
+			CleanSegs(&tempSegs_da);
+			ReadSegs();
+			AppendSegs(signalHeadType(headTypes_da.cnt-1).headSegs,tempSegs_da);
+			continue;
+		}
+		char * indname;
+		if ( strncmp( cp, "INDICATION", 10 ) == 0 ) {
+			if (!GetArgs(cp+10,"q",&indname)) continue;
+			DYNARR_APPEND( Indication_p *, ht->headIndications, 1 );
+			Indication_p ind = DYNARR_N(Indication_t,ht->headIndications,ht->headIndications.cnt-1);
+			ind->indicationName = indname;
+			while ( (cp = GetNextLine()) != NULL ) {
+				while (isspace((unsigned char)*cp)) cp++;
+				if ( strncmp( cp, "END", 3 ) == 0 ) {
+					break;
+				}
+				if ( *cp == '\n' || *cp == '#' ) {
+					continue;
+				}
+				if ( strncmp( cp, "SEGS", 4) == 0 ) {
+					CleanSegs(&tempSegs_da);
+					ReadSegs();
+					AppendSegs(ind->indicationSegs,tempSegs_da);
+					continue;
+				}
+			}
+		}
+	}
+
 }
 
 static void ReadSignal ( char * line )
@@ -372,6 +580,7 @@ static void ReadSignal ( char * line )
         return;
     }
     DYNARR_RESET( signalAspect_p, signalAspect_da );
+    DYNARR_RESET( signalHead_t, xx->signalHeads);
     while ( (cp = GetNextLine()) != NULL ) {
         while (isspace((unsigned char)*cp)) cp++;
         if ( strncmp( cp, "END", 3 ) == 0 ) {
@@ -381,25 +590,54 @@ static void ReadSignal ( char * line )
             continue;
         }
         if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
-            if (!GetArgs(cp+4,"qq",&aspname,&aspscript)) return;
-            DYNARR_APPEND( signalAspect_p *, signalAspect_da, 10 );
-            signalAspect(signalAspect_da.cnt-1).aspectName = aspname;
-            signalAspect(signalAspect_da.cnt-1).aspectScript = aspscript;
+            if (!GetArgs(cp+6,"qq",&aspname,&aspscript)) return;
+            DYNARR_APPEND( signalAspect_p *, signalAspect_da, 1 );
+            signalAspect_p sa =  signalAspect(signalAspect_da.cnt-1);
+            sa->aspectName = aspname;
+            sa->aspectScript = aspscript;
+            if ( strncmp( cp, "ASPECTHEADMAP", 13 ) == 0 ) {
+            	char * appname;
+            	int headid;
+				if (!GetArgs(cp+13,"dq",&headid,&appname)) return;
+				DYNARR_APPEND( headAspectMap_p *, sa->headMap, 1 );
+				headAspectMap_p am = DYNARR_N(headAspectMap_p *,sa->headMap,sa->headMap.cnt-1);
+				am->aspectMapHeadNumber = headid;
+				am->aspectMapHeadIndication = appname;
+			}
+        }
+        if ( strncmp (cp, "HEAD", 4) == 0) {
+        	char * headname;
+        	coOrd headPos;
+        	char * headType;
+        	if (!GetArgs(cp+4, "qpq", &headname,&headPos,&headType)) return;
+        	DYNARR_APPEND( signalHead_p *, xx->signalHeads, 1 );
+        	signalHead_p sh = signalHead(xx->signalHeads.cnt-1);
+        	sh->currentHeadIndication = 0;
+        	sh->headName = headname;
+        	sh->headPos = headPos;
+        	sh->headTypeName = headType;
+        	sh->headType = FindHeadType(headType);
         }
     }
-    trk = NewTrack(index, T_SIGNAL, 0, sizeof(signalData_t)+(sizeof(signalAspect_t)*(signalAspect_da.cnt-1))+1);
+    trk = NewTrack(index, T_SIGNAL, 0, sizeof(signalData_t)+1);
     SetTrkVisible(trk, visible);
     SetTrkScale(trk, LookupScale( scale ));
     SetTrkLayer(trk, layer);
     xx = GetsignalData ( trk );
     xx->name = name;
-    xx->numHeads = numHeads;
+    DYNARR_APPEND(headData_t,xx->signalHeads,numHeads);
+    for (int h=0; h<xx->signalHeads.cnt; h++) {
+    	(DYNARR_N(headData_t,xx->signalHeads,h)).headName = signalHead(h).headName;
+    	(DYNARR_N(headData_t,xx->signalHeads,h)).headNo = h+1;
+    	(DYNARR_N(headData_t,xx->signalHeads,h)).headPos = signalHead(h).headPos;
+    	(DYNARR_N(headData_t,xx->signalHeads,h)).headType = signalHead(h).headType;
+    }
     xx->orig = orig;
     xx->angle = angle;
-    xx->numAspects = signalAspect_da.cnt;
-    for (ia = 0; ia < xx->numAspects; ia++) {
-        (&(xx->aspectList))[ia].aspectName = signalAspect(ia).aspectName;
-        (&(xx->aspectList))[ia].aspectScript = signalAspect(ia).aspectScript;
+    DYNARR_APPEND(signalAspect_t,xx->Aspects,signalAspect_da.cnt);
+    for (ia = 0; ia < xx->Aspects.cnt; ia++) {
+        (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName = signalAspect(ia).aspectName;
+        (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript = signalAspect(ia).aspectScript;
     }
     ComputeSignalBoundingBox(trk);
 }
@@ -476,10 +714,17 @@ static char signalAspectEditName[STR_SHORT_SIZE];
 static char signalAspectEditScript[STR_LONG_SIZE];
 static long signalAspectEditIndex;
 
+static char headMapHeadName[STR_SHORT_SIZE];
+static char headMapIndicatorName[STR_SHORT_SIZE];
+static long headMapEditIndex;
+
 static paramIntegerRange_t r1_3 = {1, 3};
 static wPos_t aspectListWidths[] = { STR_SHORT_SIZE, 150 };
 static const char * aspectListTitles[] = { N_("Name"), N_("Script") };
 static paramListData_t aspectListData = {10, 400, 2, aspectListWidths, aspectListTitles};
+static wPos_t headMapListWidths[] = { STR_SHORT_SIZE, STR_SHORT_SIZE };
+static const char * headMapListTitles[] = { N_("Head Name"), N_("Indication Name") };
+static paramListData_t headMapListData = {10, 400, 2, headMapListWidths, headMapListTitles};
 
 static void AspectEdit( void * action );
 static void AspectAdd( void * action );
@@ -518,8 +763,20 @@ static paramData_t aspectEditPLs[] = {
     /*0*/ { PD_STRING, signalAspectEditName, "name", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)200,  N_("Name"), 0, 0, sizeof(signalAspectEditName)},
 #define I_ASPECTSCRIPT (1)
     /*1*/ { PD_STRING, signalAspectEditScript, "script", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Script"), 0, 0, sizeof(signalAspectEditScript)},
+
 #define I_ASPECTINDEX (2)
     /*2*/ { PD_LONG,   &signalAspectEditIndex, "index", PDO_NOPREF, &rm1_999999, N_("Aspect Index"), BO_READONLY },
+};
+
+static paramData_t headMapEditPLs[] = {
+#define I_HEADNAMES (0)
+    /*0*/ { PD_STRING, headMapHeadName, "headname", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Name"), 0, 0, sizeof(headMapEditHeadName)},
+#define I_APPEARANCELIST (1)
+#define headMapIndicatorSelL ((Wlist_p)headMapEditPls[I_APPEARANCELIST].control)
+	/*1*/ {PD_LIST, NULL, "inx", PDO_DLGRESETMARGIN|PDO_DLGRESIZE, &headMapListData, NULL, BL_MANY },
+
+#define I_HEADINDEX (2)
+    /*2*/ { PD_LONG,   &headMapEditIndex, "index", PDO_NOPREF, &rm1_999999, N_("Aspect Index"), BO_READONLY },
 };
 
 static paramGroup_t aspectEditPG = { "aspectEdit", 0, aspectEditPLs, sizeof aspectEditPLs/sizeof aspectEditPLs[0] };
@@ -541,17 +798,16 @@ static void SignalEditOk ( void * junk )
         UndoStart( _("Modify Signal"), "Modify Signal");
         trk = signalEditTrack;
         xx = GetsignalData(trk);
-        if (xx->numAspects != signalAspect_da.cnt) {
+        if (xx->Aspects.cnt != signalAspect_da.cnt) {
             /* We need to reallocate the extra data. */
-            for (ia = 0; ia < xx->numAspects; ia++) {
-                MyFree((&(xx->aspectList))[ia].aspectName);
-                MyFree((&(xx->aspectList))[ia].aspectScript);
-                (&(xx->aspectList))[ia].aspectName = NULL;
-                (&(xx->aspectList))[ia].aspectScript = NULL;
+            for (ia = 0; ia < xx->Aspects.cnt; ia++) {
+                MyFree(DYNARR_N(signalAspect_t,xx->Aspects,ia).aspectName);
+                MyFree(DYNARR_N(signalAspect_t,xx->Aspects,ia).aspectScript);
+                (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName = NULL;
+                (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript = NULL;
             }
-            newsize = sizeof(signalData_t)+(sizeof(signalAspect_t)*(signalAspect_da.cnt-1))+1;
-            trk->extraData = MyRealloc(trk->extraData,newsize);
-            trk->extraSize = newsize;
+            DYNARR_RESET(signalAspect_t,xx->Aspects);
+            DYNARR_APPEND(signalAspect_t,xx->Aspects,signalAspect_da.cnt);
             xx = GetsignalData(trk);
         }
     }
@@ -562,21 +818,21 @@ static void SignalEditOk ( void * junk )
         MyFree(xx->name);
         xx->name = MyStrdup(signalEditName);
     }
-    xx->numAspects = signalAspect_da.cnt;
-    for (ia = 0; ia < xx->numAspects; ia++) {
-        if ((&(xx->aspectList))[ia].aspectName == NULL) {
-            (&(xx->aspectList))[ia].aspectName = signalAspect(ia).aspectName;
-        } else if (strcmp((&(xx->aspectList))[ia].aspectName,signalAspect(ia).aspectName) != 0) {
-            MyFree((&(xx->aspectList))[ia].aspectName);
-            (&(xx->aspectList))[ia].aspectName = signalAspect(ia).aspectName;
+    xx->Aspects.cnt = signalAspect_da.cnt;
+    for (ia = 0; ia < xx->Aspects.cnt; ia++) {
+        if ((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName == NULL) {
+            (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName = signalAspect(ia).aspectName;
+        } else if (strcmp((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName,signalAspect(ia).aspectName) != 0) {
+            MyFree((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName);
+            (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName = signalAspect(ia).aspectName;
         } else {
             MyFree(signalAspect(ia).aspectName);
         }
-        if ((&(xx->aspectList))[ia].aspectScript == NULL) {
-            (&(xx->aspectList))[ia].aspectScript = signalAspect(ia).aspectScript;
-        } else if (strcmp((&(xx->aspectList))[ia].aspectScript,signalAspect(ia).aspectScript) != 0) {
-            MyFree((&(xx->aspectList))[ia].aspectScript);
-            (&(xx->aspectList))[ia].aspectScript = signalAspect(ia).aspectScript;
+        if ((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript == NULL) {
+            (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript = signalAspect(ia).aspectScript;
+        } else if (strcmp((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript,signalAspect(ia).aspectScript) != 0) {
+            MyFree((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript);
+            (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript = signalAspect(ia).aspectScript;
         } else {
             MyFree(signalAspect(ia).aspectScript);
         }
@@ -632,6 +888,20 @@ static void aspectEditOK ( void * junk )
     wHide( aspectEditW );
 }
 
+/*
+ * List of Heads and Selection box of Indications for Each
+ */
+static void EditMapDialog (wIndex_t inx )
+{
+	if (inx <0){
+		signalMapEditHeadName[0] = '\0';
+		signalMapEditIndicationName[0] = '\0';
+	} else {
+		strncpy(signalMapEditHeadName,((headAspectMap_t)aspectHeadMap(inx)).aspectMapHeadName,STR_SHORT_SIZE);
+		strncpy(signalMapEditIndicationName,((headAspectMap_t)aspectHeadMap(inx)).aspectMapHeadIndication,STR_SHORT_SIZE);
+	}
+}
+
 static void EditAspectDialog ( wIndex_t inx )
 {
     if (inx < 0) {
@@ -651,6 +921,19 @@ static void EditAspectDialog ( wIndex_t inx )
     }
     ParamLoadControls( &aspectEditPG );
     wShow( aspectEditW );
+}
+
+static void MapEdit (void * action) {
+	wIndex_t selcnt = wListGetSelectedCount( aspectMapL );
+	wIndex_t inx, cnt;
+
+	if (selcnt !=1 ) return;
+	cnt = wListGetCount (aspectMapL);
+	for ( inx =0;
+		  inx<cnt && wListGetItemSelected (aspectMapL, inx) != TRUE;
+		  inx++);
+	if (inx >= cnt ) return;
+	EditMapDialog(inx);
 }
 
 static void AspectEdit( void * action )
@@ -679,9 +962,18 @@ static void MoveAspectUp (wIndex_t inx)
     
     MyFree(signalAspect(inx).aspectName);
     MyFree(signalAspect(inx).aspectScript);
+    for(int i=0;i<signalAspect(inx).headMap.cnt;i++) {
+    	headAspectMap_t hm = DYNARR_N(headAspectMap_t,signalAspect(inx).headMap,i);
+    	MyFree(hm.aspectMapHeadIndication);
+    	MyFree(hm.aspectMapHeadName);
+    }
+    MyFree(signalAspect(inx).headMap.ptr);
     for (ia = inx+1; ia < cnt; ia++) {
         signalAspect(ia-1).aspectName = signalAspect(ia).aspectName;
         signalAspect(ia-1).aspectScript = signalAspect(ia).aspectScript;
+        signalAspect(ia-1).headMap.cnt = signalAspect(ia).headMap.cnt;
+        signalAspect(ia-1).headMap.max = signalAspect(ia).headMap.max;
+        signalAspect(ia-1).headMap.ptr = signalAspect(ia).headMap.ptr;
     }
     DYNARR_SET(signalAspect_t,signalAspect_da,cnt-1);
 }
@@ -726,19 +1018,19 @@ static void EditSignalDialog()
         DYNARR_RESET( signalAspect_p, signalAspect_da );
     } else {
         xx = GetsignalData ( signalEditTrack );
-        strncpy(signalEditName,xx->name,STR_SHORT_SIZE);
-        signalEditHeadCount = xx->numHeads;
+        strncpy(signalEditName,xx->signalName,STR_SHORT_SIZE);
+        signalEditHeadCount = xx->signalHeads.cnt;
         signalEditOrig = xx->orig;
         signalEditAngle = xx->angle;
         wListClear( aspectSelL );
         DYNARR_RESET( signalAspect_p, signalAspect_da );
-        for (ia = 0; ia < xx->numAspects; ia++) {
-            snprintf(message,sizeof(message),"%s\t%s",(&(xx->aspectList))[ia].aspectName,
-                    (&(xx->aspectList))[ia].aspectScript);
+        for (ia = 0; ia < xx->Aspects.cnt; ia++) {
+            snprintf(message,sizeof(message),"%s\t%s",(DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName,
+                    (DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript);
             wListAddValue( aspectSelL, message, NULL, NULL );
             DYNARR_APPEND( signalAspect_p *, signalAspect_da, 10 );
-            signalAspect(signalAspect_da.cnt-1).aspectName = MyStrdup((&(xx->aspectList))[ia].aspectName);
-            signalAspect(signalAspect_da.cnt-1).aspectScript = MyStrdup((&(xx->aspectList))[ia].aspectScript);
+            signalAspect(signalAspect_da.cnt-1).aspectName = MyStrdup((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectName);
+            signalAspect(signalAspect_da.cnt-1).aspectScript = MyStrdup((DYNARR_N(signalAspect_t,xx->Aspects,ia)).aspectScript);
         }
     }
     ParamLoadControls( &signalEditPG );
@@ -863,7 +1155,7 @@ static int SignalMgmProc ( int cmd, void * data )
         }
         break;
     case CONTMGM_GET_TITLE:
-        sprintf(message,"\t%s\t",xx->name);
+        sprintf(message,"\t%s\t",xx->signalName);
         break;
     }
     return FALSE;
@@ -896,6 +1188,6 @@ EXPORT void InitCmdSignal ( wMenu_p menu )
 
 EXPORT void InitTrkSignal ( void )
 {
-    T_SIGNAL = InitObject ( &signalCmds );
     log_signal = LogFindIndex ( "signal" );
+    AddParam( "SIGNALHEAD", ReadHeadType );
 }

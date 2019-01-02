@@ -215,7 +215,11 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 	pb.x = 0.0; pb.y = prof.minE;
 	pt = points(0);
 	DrawLine( D, pb, pt, lw, borderColor );
-	sprintf( message, "%0.1f", PutDim(profElem(0).elev) );
+	if (units==UNITS_ENGLISH) {
+		sprintf( message, "%0.1f\"", PutDim(profElem(0).elev)+0.05 );
+	} else {
+		sprintf( message, "%0.1fmm", PutDim(profElem(0).elev)+0.05 );
+	}
 	if (printVert) {
 		pl.x = pt.x + LABELH/2.0/prof.scaleX*D->scale;
 		pl.y = pt.y + 2.0/mainD.dpi/prof.scaleY*D->scale;
@@ -239,7 +243,7 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 		if (profElem(inx).dist > 0.1) {
 			grade = fabs(profElem(inx).elev-profElem(inx-1).elev)/
 				(profElem(inx).dist-profElem(inx-1).dist);
-			sprintf( message, "%0.1f%%", grade*100.0 );
+			sprintf( message, "%0.2f%%", (grade*100.0 + 0.005));
 			DrawTextSize( &mainD, message, fp, fontSize, FALSE, &textsize );
 			pl.x = (points(inx).x+points(inx-1).x)/2.0;
 			pl.y = (points(inx).y+points(inx-1).y)/2.0;
@@ -255,22 +259,30 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 		}
 		if (units==UNITS_ENGLISH) {
 			if (prof.totalD > 240)
-				sprintf( message, "%d'", ((int)floor(profElem(inx).dist)+6)/12 );
-			else
+				sprintf( message, "%d'", ((int)floor(profElem(inx).dist+6.0))/12 );
+			else if (prof.totalD > 12)
 				sprintf( message, "%d'%d\"", ((int)floor(profElem(inx).dist+0.5))/12, ((int)floor(profElem(inx).dist+0.5))%12 );
+			else
+				sprintf( message, "%0.0f\"", (floor(profElem(inx).dist+0.05)));
 		} else {
 			if (PutDim(prof.totalD) > 10000)
-				sprintf( message, "%0.0fm", (PutDim(profElem(inx).dist)+50)/100.0 );
+				sprintf( message, "%0.0fm", (PutDim(profElem(inx).dist)+50.0)/100.0 );
+			else if (PutDim(prof.totalD) > 1000)
+				sprintf( message, "%0.1fm", (PutDim(profElem(inx).dist)+5.0)/100.0 );
 			else if (PutDim(prof.totalD) > 100)
-				sprintf( message, "%0.1fm", (PutDim(profElem(inx).dist)+5)/100.0 );
-			else
 				sprintf( message, "%0.2fm", (PutDim(profElem(inx).dist)+0.5)/100.0 );
+			else
+				sprintf( message, "%0.3fm", (PutDim(profElem(inx).dist)+0.05)/100.0 );
 		}
 		DrawTextSize( &mainD, message, fp, fontSize, FALSE, &textsize );
 		pl.x = pb.x-(textsize.x/2)/prof.scaleX*D->scale;
 		pl.y = prof.minE-(LABELH+3.0/mainD.dpi)/prof.scaleY*D->scale;
 		DrawString( D, pl, 0.0, message, fp, fontSize*D->scale, borderColor );
-		sprintf( message, "%0.1f", PutDim(profElem(inx).elev) );
+		if (units==UNITS_ENGLISH) {
+			sprintf( message, "%0.1f\"", PutDim(profElem(inx).elev) );
+		} else {
+			sprintf( message, "%0.1fmm", PutDim(profElem(inx).elev) );
+		}
 		if (printVert) {
 			pl.x = pt.x + LABELH/2.0/prof.scaleX*D->scale;
 			pl.y = pt.y + 2.0/mainD.dpi/prof.scaleY*D->scale;
@@ -1274,7 +1286,7 @@ static STATUS_T CmdProfile( wAction_t action, coOrd pos )
 			profileColorDefinedProfile = drawColorBlue;
 			profileColorUndefinedProfile = drawColorRed;
 			profileColorFill = drawColorAqua;
-			DrawTextSize( &mainD, "999", wStandardFont( F_HELV, FALSE, FALSE ), screenProfileFontSize, FALSE, &textsize );
+			DrawTextSize( &mainD, "999.9", wStandardFont( F_HELV, FALSE, FALSE ), screenProfileFontSize, FALSE, &textsize );
 			labelH = textsize.y;
 			profileW = ParamCreateDialog( &profilePG, MakeWindowTitle(_("Profile")), _("Done"), DoProfileDone, (paramActionCancelProc)Reset, TRUE, NULL, F_RESIZE, NULL );
 		}

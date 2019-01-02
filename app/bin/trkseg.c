@@ -2032,6 +2032,31 @@ EXPORT void CleanSegs(dynArr_t * seg_p) {
 	seg_p->max = 0;
 }
 
+
+/*
+/* Copy Segs from one array to another
+ */
+EXPORT void AppendSegs(dynArr_t * seg_to, dynArr_t * seg_from) {
+	if (seg_from->cnt ==0) return;
+	int j = 0;
+	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
+	for (int i=0; i<seg_from->cnt;i++,j++) {
+		trkSeg_t from_t = DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_t to_t = DYNARR_N(trkSeg_t, * seg_to,i);
+		memcpy(to_t,from_t,sizeof( trkSeg_t));
+		if (from_t.type == SEG_BEZLIN || from_t.type == SEG_BEZTRK) {
+			if (from_t.bezSegs.ptr) {
+				to_t.bezSegs.ptr = memdup(from_t.bezSegs.ptr,from_t.bezSegs.cnt*sizeof(trkSeg_t));
+			}
+		}
+		if (from_t.type == SEG_POLY || from_t.type == SEG_FILPOLY) {
+			if (from_t.u.p.pts) {
+				to_t.u.p.pts = memdup(from_t.u.p.pts*sizeof(coOrd));
+			}
+		}
+	}
+}
+
 EXPORT void CopyPoly(trkSeg_p p, wIndex_t segCnt) {
 	coOrd * newPts;
 	for (int i=0;i<segCnt;i++,p++) {
