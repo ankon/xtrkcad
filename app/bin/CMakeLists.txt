@@ -1,3 +1,5 @@
+include( CheckSymbolExists )
+
 ADD_EXECUTABLE(cnvdsgn cnvdsgn.c utility.c)
 IF(NOT WIN32)
 	TARGET_LINK_LIBRARIES(cnvdsgn m)
@@ -41,8 +43,8 @@ SET(LIN_SOURCES
 
 ADD_CUSTOM_COMMAND(
        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bllnhlp.c
-       DEPENDS genhelp ${help_SOURCE_DIR}/genhelp.in
-       COMMAND genhelp ${GENHELP_OPTS} ${help_SOURCE_DIR}/genhelp.in ${CMAKE_CURRENT_BINARY_DIR}/bllnhlp.c
+       DEPENDS genhelp ${help_SOURCE_DIR}/genhelp.json
+       COMMAND genhelp ${GENHELP_OPTS} ${help_SOURCE_DIR}/genhelp.json ${CMAKE_CURRENT_BINARY_DIR}/bllnhlp.c
        )
 
 SET(SOURCES
@@ -106,11 +108,16 @@ SET(SOURCES
 	fileio.c
 	i18n.c
 	layout.c
+	linknoteui.c
 	lprintf.c
 	macro.c
 	manifest.c
 	misc2.c
 	param.c
+	paramfile.c
+	paramfile.h
+	paramfilelist.c
+	paramfilelist.h
 	paths.c
 	shrtpath.c
 	smalldlg.c
@@ -118,7 +125,9 @@ SET(SOURCES
 	tcornu.c
 	tcurve.c
 	tease.c
+	textnoteui.c
 	track.c
+	trknote.c
 	trkseg.c
 	tstraigh.c
 	utility.c
@@ -127,6 +136,16 @@ SET(SOURCES
 	directory.h
 	manifest.h
 	)
+
+check_symbol_exists(strlcpy string.h HAVE_STRLCPY )
+
+if( NOT HAVE_STRLCPY )
+	set (SOURCES
+		 ${SOURCES}
+		 strlcpy.c)
+	message( STATUS "Add own version of strlcpy")	 
+endif( NOT HAVE_STRLCPY )
+
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${XTrkCAD_BINARY_DIR})

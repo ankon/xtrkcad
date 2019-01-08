@@ -384,7 +384,7 @@ static void UpdateCornu( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), cornData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &cornData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &cornData.elev[1-ep], NULL, TRUE );
 		if ( cornData.length > minLength )
 			cornData.grade = fabs( (cornData.elev[0]-cornData.elev[1])/cornData.length )*100.0;
 		else
@@ -454,8 +454,8 @@ static void DescribeCornu( track_p trk, char * str, CSIZE_T len )
     cornData.radius[0] = xx->cornuData.r[0];
     cornData.radius[1] = xx->cornuData.r[1];
     if (GetTrkType(trk) == T_CORNU) {
-		ComputeElev( trk, 0, FALSE, &cornData.elev[0], NULL );
-		ComputeElev( trk, 1, FALSE, &cornData.elev[1], NULL );
+		ComputeElev( trk, 0, FALSE, &cornData.elev[0], NULL, FALSE );
+		ComputeElev( trk, 1, FALSE, &cornData.elev[1], NULL, FALSE );
 
 		if ( cornData.length > minLength )
 			cornData.grade = fabs( (cornData.elev[0]-cornData.elev[1])/cornData.length )*100.0;
@@ -928,7 +928,8 @@ static BOOL_T EnumerateCornu( track_p trk )
 	if (trk != NULL) {
 		struct extraData *xx = GetTrkExtraData(trk);
 		DIST_T d;
-		d = xx->cornuData.length;
+		d = max(CornuOffsetLength(xx->cornuData.arcSegs,-GetTrkGauge(trk)/2.0),
+				CornuOffsetLength(xx->cornuData.arcSegs,GetTrkGauge(trk)/2.0));
 		ScaleLengthIncrement( GetTrkScale(trk), d );
 	}
 	return TRUE;

@@ -710,11 +710,14 @@ EXPORT void DrawMultiLineTextSize(
 			blocksize.x = lineW;
 		lastline->x = textsize.x;
 		if (*text =='\n') {
+			blocksize.y += lineH;
 			lastline->y -= lineH;
 			lastline->x = 0;
 		}
-		if (*text == '\0')
+		if (*text == '\0') {
+			blocksize.y += textsize.y;
 			break;
+		}
 		text++;
 	}
 	size->x = blocksize.x;
@@ -2333,6 +2336,7 @@ static void DoMouse( wAction_t action, coOrd pos )
 		case C_UP:
 		case C_RMOVE:
 		case C_RUP:
+		case C_LDOUBLE:
 			InfoPos( pos );
 			/*DrawTempTrack();*/
 			break;

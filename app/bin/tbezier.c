@@ -305,7 +305,7 @@ static void UpdateBezier( track_p trk, int inx, descData_p descUpd, BOOL_T final
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), bezData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &bezData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &bezData.elev[1-ep], NULL, TRUE );
 		if ( bezData.length > minLength )
 			bezData.grade = fabs( (bezData.elev[0]-bezData.elev[1])/bezData.length )*100.0;
 		else
@@ -398,8 +398,8 @@ static void DescribeBezier( track_p trk, char * str, CSIZE_T len )
     bezData.center[1] = params.arcP;
 
     if (GetTrkType(trk) == T_BEZIER) {
-		ComputeElev( trk, 0, FALSE, &bezData.elev[0], NULL );
-		ComputeElev( trk, 1, FALSE, &bezData.elev[1], NULL );
+		ComputeElev( trk, 0, FALSE, &bezData.elev[0], NULL, FALSE );
+		ComputeElev( trk, 1, FALSE, &bezData.elev[1], NULL, FALSE );
 	
 		if ( bezData.length > minLength )
 			bezData.grade = fabs( (bezData.elev[0]-bezData.elev[1])/bezData.length )*100.0;
@@ -845,7 +845,8 @@ static BOOL_T EnumerateBezier( track_p trk )
 	if (trk != NULL) {
 		DIST_T d;
 		struct extraData *xx = GetTrkExtraData(trk);
-		d = xx->bezierData.length;
+		d = max(BezierOffsetLength(xx->bezierData.arcSegs,-GetTrkGauge(trk)/2.0),
+				BezierOffsetLength(xx->bezierData.arcSegs,GetTrkGauge(trk)/2.0));
 		ScaleLengthIncrement( GetTrkScale(trk), d );
 	}
 	return TRUE;
@@ -896,6 +897,7 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 	}
 	if (params->ep>=0)
 		params->angle = GetTrkEndAngle(trk, params->ep);
+
 	return TRUE;
 
 }

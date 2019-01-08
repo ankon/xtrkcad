@@ -34,10 +34,8 @@
   !undef Index
 
 ; Remove shortcuts, if any
-; SetShellVarContext all
+SetShellVarContext all
 
 !insertmacro MUI_STARTMENU_GETFOLDER Application $MUI_TEMP
-
-Delete "$SMPROGRAMS\$MUI_TEMP\XTrackCAD Help.lnk"
-Delete "$SMPROGRAMS\$MUI_TEMP\XTrackCAD ReadMe.lnk"
-Delete "$SMPROGRAMS\$MUI_TEMP\XTrackCAD CHANGELOG.lnk"
+RMDir /r "$SMPROGRAMS\$MUI_TEMP"
+Delete "$desktop\XTrackCAD.lnk"

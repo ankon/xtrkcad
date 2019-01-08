@@ -60,14 +60,14 @@ static struct {
         BOOL_T boxed;
 		} Dt;
 
-static char * boxLabels[] = { N_(""), NULL };
+static char * boxLabels[] = { "", NULL };
 static paramData_t textPLs[] = {
 #define textPD (textPLs[0])
 		{ PD_DROPLIST, &Dt.fontSizeInx, "Fontsize", 0, NULL, N_("Font Size"), BL_EDITABLE },
 #define colorPD (textPLs[1])
         { PD_COLORLIST, &Dt.color, "Color", PDO_NORECORD, NULL, N_("Color") },
 #define boxPD (textPLs[2])
-		{ PD_TOGGLE, &Dt.boxed, "Boxed", 0, boxLabels, NULL, 0 }
+		{ PD_TOGGLE, &Dt.boxed, "Boxed", 0, boxLabels, N_("Boxed"), 0 }
         };
 static paramGroup_t textPG = { "text", 0, textPLs, sizeof textPLs/sizeof textPLs[0] };
 

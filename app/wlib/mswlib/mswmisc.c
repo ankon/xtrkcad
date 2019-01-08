@@ -22,6 +22,7 @@
 
 #define _WIN32_WINNT 0x0500
 #include <windows.h>
+#include <shellapi.h>
 #include <string.h>
 #include <malloc.h>
 #include <stdlib.h>
@@ -32,6 +33,7 @@
 #include <htmlhelp.h>
 #include "mswint.h"
 #include "i18n.h"
+#include "FreeImage.h"
 
 #if _MSC_VER > 1300
 #define stricmp _stricmp
@@ -47,6 +49,8 @@ char * mswStrdup(const char *);
 #define ALARM_TIMER		(902)
 #define BALLOONHELP_TIMER		(903)
 #define TRIGGER_TIMER	(904)
+#define CONTROLHILITEWIDTH (2)
+#define CONTROLHILITECOLOR (RGB(0x3a,0x5f,0xcd))
 
 #define WANT_LITTLE_LABEL_FONT
 
@@ -179,7 +183,20 @@ static int dumpControls;
 
 extern char *userLocale;
 
-char * filterImageFiles = "Image Files\0*.gif;*.jpg;*.jpeg;*.png\0All Files\0*\0";
+// list of supported fileformats for image files
+char * filterImageFiles[] = { N_("All image files"),
+							"*.gif;*.jpg;*.jpeg;*.png;*.tif;*.tiff",
+							N_("GIF files (*.gif)"),
+							"*.gif",
+							N_("JPEG files (*.jpeg,*.jpg)"),
+							"*.jpg;*.jpeg",
+							N_("PNG files (*.png)"),
+							"*.png",
+							N_("TIFF files (*.tiff, *.tif)"),
+							"*.tif;*.tiff",
+							N_("All files (*)"),
+							"*",
+							};
 
 /*
  *****************************************************************************
@@ -1763,8 +1780,6 @@ void wControlSetContext(
     b->data = context;
 }
 
-static int controlHiliteWidth = 5;
-static int controlHiliteWidth2 = 3;
 void wControlHilite(
     wControl_p b,
     wBool_t hilite)
@@ -1772,12 +1787,13 @@ void wControlHilite(
     HDC hDc;
     HPEN oldPen, newPen;
     int oldMode;
+	LOGBRUSH logBrush = { BS_SOLID, CONTROLHILITECOLOR, (ULONG_PTR)NULL };
 
     if (b == NULL) {
         return;
     }
 
-    if (!IsWindowVisible(b->parent->hWnd)) {
+    if (!IsWindowVisible(b->parent->hWnd)) {	
         return;
     }
 
@@ -1786,14 +1802,18 @@ void wControlHilite(
     }
 
     hDc = GetDC(b->parent->hWnd);
-    newPen = CreatePen(PS_SOLID, controlHiliteWidth, RGB(0,0,0));
+	newPen = ExtCreatePen(PS_GEOMETRIC | PS_SOLID | PS_ENDCAP_ROUND | PS_JOIN_BEVEL,
+						  CONTROLHILITEWIDTH,
+						  &logBrush,
+						  0,
+						  NULL);
     oldPen = SelectObject(hDc, newPen);
     oldMode = SetROP2(hDc, R2_NOTXORPEN);
-    MoveTo(hDc, b->x-controlHiliteWidth2, b->y-controlHiliteWidth2);
-    LineTo(hDc, b->x+b->w+controlHiliteWidth2, b->y-controlHiliteWidth2);
-    LineTo(hDc, b->x+b->w+controlHiliteWidth2, b->y+b->h+controlHiliteWidth2);
-    LineTo(hDc, b->x-controlHiliteWidth2, b->y+b->h+controlHiliteWidth2);
-    LineTo(hDc, b->x-controlHiliteWidth2, b->y-controlHiliteWidth2);
+	Rectangle(hDc,
+		b->x - CONTROLHILITEWIDTH - 1,
+		b->y - CONTROLHILITEWIDTH - 1,
+		b->x + b->w + CONTROLHILITEWIDTH + 1,
+		b->y + b->h + CONTROLHILITEWIDTH + 1);
     SetROP2(hDc, oldMode);
     SelectObject(hDc, oldPen);
     DeleteObject(newPen);
@@ -1836,6 +1856,26 @@ void wMessage(
     ReleaseDC(w->hWnd, hDc);
 }
 
+/**
+ * Open a document using an external application
+ * 
+ * \param file
+ * \return TRUE on success, FALSE on error
+ * 
+ */
+unsigned wOpenFileExternal(char *file)
+{
+	HINSTANCE res;
+
+	res = ShellExecute(mswHWnd, "open", file, NULL, NULL, SW_SHOW);
+
+	if ((int)res <= 32) {
+		wNoticeEx(NT_ERROR, "Error when opening file!", "Cancel", NULL);
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
 
 void wExit(int rc)
 {
@@ -2396,6 +2436,24 @@ struct wFilSel_t {
 
 #define SELECTEDFILENAME_BUFFERSIZE	(8*1024)	/**<estimated size in case all param files are selected */
 
+char *
+GetImageFileFormats(void)
+{
+	char *filter = malloc(2048);
+	char *current = filter;
+	char *message;
+
+	for (int i = 0; i < sizeof(filterImageFiles) / sizeof(filterImageFiles[0]); i += 2) {
+		message = gettext(filterImageFiles[i]);
+		strcpy(current, message);
+		current += strlen(message) + 1;
+		strcpy(current, filterImageFiles[i + 1]);
+		current += strlen(current) + 1;
+	}
+	*current = '\0';
+	return(filter);
+}
+
 /**
  * Run the file selector. After the selector is finished an array of filenames is
  * created. Each filename will be fully qualified. The array and the number of
@@ -2426,12 +2484,11 @@ int wFilSelect(
             strcmp(dirName, ".") == 0) {
         dirName = wGetUserHomeDir();
     }
-
     memset(&ofn, 0, sizeof ofn);
     ofn.lStructSize = sizeof ofn;
     ofn.hwndOwner = mswHWnd;
 	if (fs->option == FS_PICTURES) {
-		ofn.lpstrFilter = _(filterImageFiles);
+		ofn.lpstrFilter = GetImageFileFormats();
 	}
 	else {
 		ofn.lpstrFilter = fs->extList;
@@ -3304,7 +3361,7 @@ static BOOL InitApplication(HINSTANCE hinstCurrent)
         return FALSE;
     }
 
-    wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
+    wc.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC | CS_DBLCLKS;
     wc.lpfnWndProc = mswDrawPush;
     wc.lpszClassName = mswDrawWindowClassName;
     wc.cbWndExtra = 4;

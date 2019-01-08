@@ -53,7 +53,6 @@
 #define product "xtrkcad"
 #define PRODUCT "XTRKCAD"
 #define Version VERSION
-#define KEYCODE "x"
 #define PARAMKEY		(0)
 
 
@@ -71,7 +70,7 @@ char * sCustomF = product ".cus";
 char * sCheckPointF = product ".ckp";
 char * sCheckPoint1F = product ".ck1";
 char * sClipboardF = product ".clp";
-char * sParamQF = product "." KEYCODE "tq";
+char * sParamQF = product ".xtq";
 char * sUndoF = product ".und";
 char * sAuditF = product ".aud";
 char * sTipF = product ".tip";
@@ -139,13 +138,14 @@ BOOL_T Initialize( void )
 	InitTrkStruct();
 	InitTrkText();
 	InitTrkDraw();
-	InitTrkNote();
+	
 	InitTrkBlock();
         InitTrkSwitchMotor();
         InitTrkSignal();
         InitTrkControl();
         InitTrkSensor();
 	InitCarDlg();
+	InitCmdNote();
 
 	memset( message, 0, sizeof message );
 	
@@ -198,7 +198,7 @@ void InitCustom( void )
 	}
 	if (sImportFilePattern == NULL)
 	{
-		sprintf(buf, _("%s Import Files|*.%sti"), Product, KEYCODE);
+		sprintf(buf, _("%s Import Files|*.xti"), Product );
 		sImportFilePattern = strdup(buf);
 	}
 	if (sDXFFilePattern == NULL)
@@ -207,7 +207,7 @@ void InitCustom( void )
 	}
 	if (sRecordFilePattern == NULL)
 	{
-		sprintf(buf, _("%s Record Files|*.%str"), Product, KEYCODE);
+		sprintf(buf, _("%s Record Files|*.xtr"), Product);
 		sRecordFilePattern = strdup(buf);
 	}
 	if (sNoteFilePattern == NULL)

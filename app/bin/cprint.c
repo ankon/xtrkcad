@@ -27,6 +27,7 @@
 #include <math.h>
 
 #include "custom.h"
+#include "dynstring.h"
 #include "fileio.h"
 #include "i18n.h"
 #include "layout.h"
@@ -98,6 +99,7 @@ static void DoResetGrid( void );
 static void DoPrintSetup( void );
 static void PrintClear( void );
 static void PrintMaxPageSize( void );
+static void SelectAllPages(void);
 
 static char * printFormatLabels[] = { N_("Portrait"), N_("Landscape"), NULL };
 static char * printOrderLabels[] = { N_("Normal"), N_("Reverse"), NULL };
@@ -122,7 +124,6 @@ static paramData_t printPLs[] = {
 /*4*/ { PD_BUTTON, (void*)PrintSnapShot, "snapshot", PDO_DLGHORZ, NULL, N_("Snap Shot") },
 /*5*/ { PD_RADIO, &printFormat, "format", 0, printFormatLabels, N_("Page Format"), BC_HORZ|BC_NOBORDER, (void*)1 },
 /*6*/ { PD_RADIO, &printOrder, "order", PDO_DLGBOXEND, printOrderLabels, N_("Print Order"), BC_HORZ|BC_NOBORDER },
-
 /*7*/ { PD_TOGGLE, &printGaudy, "style", PDO_DLGNOLABELALIGN, printGaudyLabels, NULL, BC_HORZ|BC_NOBORDER, (void*)1 },
 /*8*/ { PD_TOGGLE, &printPhysSize, "physsize", PDO_DLGNOLABELALIGN, printPhysSizeLabels, NULL, BC_HORZ|BC_NOBORDER, (void*)1 },
 #define I_REGMARKS		(9)
@@ -142,10 +143,11 @@ static paramData_t printPLs[] = {
 /*17*/ { PD_BUTTON, (void*)DoResetGrid, "reset", PDO_DLGHORZ, NULL, N_("Reset") },
 /*18*/ { PD_FLOAT, &newPrintGrid.angle, "origa", PDO_ANGLE|PDO_DLGBOXEND, &r0_360, N_("Angle"), 0, (void*)2 },
 /*19*/ { PD_BUTTON, (void*)DoPrintSetup, "setup", PDO_DLGCMDBUTTON, NULL, N_("Setup") },
-/*20*/ { PD_BUTTON, (void*)PrintClear, "clear", 0, NULL, N_("Clear") },
-#define I_PAGECNT		(21)
-/*21*/ { PD_MESSAGE, N_("0 pages"), NULL, 0, (void*)80 },
-/*22*/ { PD_MESSAGE, N_("selected"), NULL, 0, (void*)80 }
+/*20*/ { PD_BUTTON, (void*)SelectAllPages, "selall", 0, NULL, N_("Select All") },
+/*21*/ { PD_BUTTON, (void*)PrintClear, "clear", 0, NULL, N_("Clear") },
+#define I_PAGECNT		(22)
+/*22*/ { PD_MESSAGE, N_("0 pages"), NULL, 0, (void*)80 },
+/*23*/ { PD_MESSAGE, N_("selected"), NULL, 0, (void*)80 }
 };
 
 static paramGroup_t printPG = { "print", PGO_PREFMISCGROUP, printPLs, sizeof printPLs/sizeof printPLs[0] };
@@ -157,6 +159,23 @@ static paramGroup_t printPG = { "print", PGO_PREFMISCGROUP, printPLs, sizeof pri
  *
  */
 
+/**
+ * Update the dialog with the current number of selected pages.
+ * 
+ */
+
+static void 
+UpdatePageCount()
+{
+	DynString msg;
+	DynStringMalloc(&msg, 0);
+
+	DynStringPrintf(&msg, (pageCount == 1?_("%d page"):_("%d pages")), pageCount);
+	ParamLoadMessage(&printPG, I_PAGECNT, DynStringToCStr(&msg));
+	ParamDialogOkActive(&printPG, pageCount != 0);
+	
+	DynStringFree(&msg);
+}
 
 static void ChangeDim( void )
 {
@@ -208,9 +227,7 @@ static void ChangeDim( void )
 	bm.orig = currPrintGrid.orig;
 	bm.size = currPrintGrid.size;
 	bm.angle = currPrintGrid.angle;
-	sprintf( message, _("%d pages"), pageCount );
-	ParamLoadMessage( &printPG, I_PAGECNT, message );
-	ParamDialogOkActive( &printPG, pageCount!=0 );
+	UpdatePageCount();
 }
 
 
@@ -257,9 +274,7 @@ static void SelectPage( coOrd pos )
 	pageCount += (selected?-1:1);
 	BITMAP( bm, x, y ) = !selected;
 	MarkPage( x, y );
-	sprintf( message, _("%d pages"), pageCount );
-	ParamLoadMessage( &printPG, I_PAGECNT, message );
-	ParamDialogOkActive( &printPG, pageCount!=0 );
+	UpdatePageCount();
 }
 
 
@@ -355,7 +370,7 @@ static void PrintGaudyBox(
 	p01.y = 1.0;
 	p00.x = 0.05; p00.y = 0.5+0.05;
 	fp = wStandardFont( F_TIMES, TRUE, TRUE );
-	DrawString( &page_d, p00, 0.0, sProdName, fp, 30.0, wDrawColorBlack );
+	DrawString( &page_d, p00, 0.0, sProdName, fp, 22.0, wDrawColorBlack );
 
 	p00.y = 0.5; p01.y = 1.0;
 	p00.x = p01.x = (157.0/72.0)+0.1;
@@ -365,17 +380,17 @@ static void PrintGaudyBox(
 
 	fp = wStandardFont( F_TIMES, FALSE, FALSE );
 	p00.x = pageW-((157.0/72.0)+0.05); p00.y = 0.5+0.25+0.05;
-	DrawString( &page_d, p00, 0.0, dat, fp, 16.0, wDrawColorBlack );
+	DrawString( &page_d, p00, 0.0, dat, fp, 14.0, wDrawColorBlack );
 	p00.y = 0.5+0.05;
 
-	DrawTextSize( &mainD, GetLayoutTitle(), fp, 16.0, FALSE, &textsize );
+	DrawTextSize( &mainD, GetLayoutTitle(), fp, 14.0, FALSE, &textsize );
 	p00.x = (pageW/2.0)-(textsize.x/2.0);
 	p00.y = 0.75+0.05;
-	DrawString( &page_d, p00, 0.0, GetLayoutTitle(), fp, 16.0, wDrawColorBlack );
-	DrawTextSize( &mainD, GetLayoutSubtitle(), fp, 16.0, FALSE, &textsize );
+	DrawString( &page_d, p00, 0.0, GetLayoutTitle(), fp, 14.0, wDrawColorBlack );
+	DrawTextSize( &mainD, GetLayoutSubtitle(), fp, 14.0, FALSE, &textsize );
 	p00.x = (pageW/2.0)-(textsize.x/2.0);
 	p00.y = 0.50+0.05;
-	DrawString( &page_d, p00, 0.0, GetLayoutSubtitle(), fp, 16.0, wDrawColorBlack );
+	DrawString( &page_d, p00, 0.0, GetLayoutSubtitle(), fp, 12.0, wDrawColorBlack );
 
 	sprintf( dat, _("PrintScale 1:%ld   Room %s x %s   Model Scale %s   File %s"),
 		(long)printScale, 
@@ -383,7 +398,7 @@ static void PrintGaudyBox(
 		FormatDistance( roomSize.y ),
 		curScaleName, GetLayoutFilename() );
 	p00.x = 0.05; p00.y = 0.25+0.05;
-	DrawString( &page_d, p00, 0.0, dat, fp, 16.0, wDrawColorBlack );
+	DrawString( &page_d, p00, 0.0, dat, fp, 14.0, wDrawColorBlack );
 }
 
 
@@ -419,6 +434,14 @@ static void PrintPlainBox(
 	p00.x = pageW/2.0 - 20.0/72.0;
 	p00.y = pageH - 10.0/72.0;
 	DrawString( &page_d, p00, 0.0, tmp, fp, 4.0, wDrawColorBlack );
+	p00.y = 10.0/72.0;
+	DrawString( &page_d, p00, 0.0, tmp, fp, 4.0, wDrawColorBlack );
+	p00.y = pageH/2 + 10.0/72.0;
+	p00.x = pageW - 20.0/72.0;
+	DrawString( &page_d, p00, 0.0, tmp, fp, 4.0, wDrawColorBlack );
+	p00.x = 10.0/72.0;
+	DrawString( &page_d, p00, 0.0, tmp, fp, 4.0, wDrawColorBlack );
+
 
 	sprintf( tmp, "[%0.2f,%0.2f]", corners[0].x, corners[0].y );
 	p00.x = 4.0/72.0;
@@ -534,6 +557,23 @@ static void SetPageSize( BOOL_T doScale )
 	}
 }
 
+/**
+ * Select all pages for printing.
+ * 
+ */
+
+static void SelectAllPages(void)
+{
+	DrawPrintGrid();
+	for (int y = bm.y0; y < bm.y1; y++) {
+		for (int x = bm.x0; x < bm.x1; x++) {
+			BITMAP(bm, x, y) = TRUE;
+		}
+	}
+	DrawPrintGrid();
+	pageCount = (bm.x1 - bm.x0) * (bm.y1 - bm.y0);
+	UpdatePageCount();
+}
 
 static void PrintMaxPageSize( void )
 /*
@@ -585,8 +625,7 @@ static void PrintClear( void )
 				MarkPage( x, y );
 			}
 	pageCount = 0;
-	ParamLoadMessage( &printPG, I_PAGECNT, _("0 pages") );
-	ParamDialogOkActive( &printPG, FALSE );
+	UpdatePageCount();
 }
 
 
@@ -666,8 +705,7 @@ static void PrintSnapShot( void )
 	pageCount = 1;
 	BITMAP(bm,0,0) = TRUE;
 	DrawPrintGrid();
-	ParamLoadMessage( &printPG, I_PAGECNT, _("1 page") );
-	ParamDialogOkActive( &printPG, TRUE );
+	UpdatePageCount();
 	PrintEnableControls();
 	wShow( printWin );
 }
@@ -734,7 +772,7 @@ static BOOL_T PrintPage(
 		int x,
 		int y )
 {
-	coOrd orig, p[4], minP, maxP;
+	coOrd orig, p[4], psave[4], minP, maxP;
 	int i;
 	coOrd clipOrig, clipSize;
 	wFont_p fp;
@@ -773,6 +811,9 @@ static BOOL_T PrintPage(
 				if ( printGaudy ) {
 					Translate( &print_d.orig, orig, currPrintGrid.angle+180.0, printScale );
 					print_d.size.y += printScale;
+				}
+				for (int i=1;i<4;i++) {
+					psave[i] = p[i];
 				}
 				if (printRotate) {
 					rotateCW = (printFormat != PORTRAIT);
@@ -814,8 +855,7 @@ static BOOL_T PrintPage(
 					if (printRotate && rotateCW) {
 						print_d.size.x += printScale;
 					}
-				} else if (printRegistrationMarks)
-					PrintPlainBox( x, y, p );
+				}
 				if (printRotate) {
 					wPrintClip( (wPos_t)(clipOrig.y*print_d.dpi), (wPos_t)(clipOrig.x*print_d.dpi),
 							(wPos_t)(clipSize.y*print_d.dpi), (wPos_t)(clipSize.x*print_d.dpi) );
@@ -892,6 +932,8 @@ static BOOL_T PrintPage(
 				DrawTracks( &print_d, print_d.scale, minP, maxP );
 				if (printRegistrationMarks && printScale == 1)
 					DrawRegistrationMarks( &print_d );
+				if (printRegistrationMarks)
+					PrintPlainBox( x, y, psave );
 				if ( !wPrintPageEnd( print_d.d ) )
 					return FALSE;
 				/*BITMAP(bm,x,y) = 0;*/
@@ -1052,11 +1094,9 @@ static STATUS_T CmdPrint(
 		ParamLoadControls( &printPG );
 		DrawPrintGrid();
 		pageCount = 0;
+		UpdatePageCount();
 LOG( log_print, 2, ( "Page size = %0.3f %0.3f\n", currPrintGrid.size.x, currPrintGrid.size.y ) )
 		PrintChange( CHANGE_MAP|CHANGE_UNITS );
-		ParamGroupRecord( &printPG );
-		ParamLoadMessage( &printPG, I_PAGECNT, "0 pages" );
-		ParamDialogOkActive( &printPG, FALSE );
 		ChangeDim();
 		InfoMessage( _("Select pages to print, or drag to move print grid") );
 		downShift = FALSE;

@@ -73,6 +73,13 @@ wMenuList_p fileList_ml;
 #define CUSTOMPATHKEY "custom"
 #define ARCHIVEPATHKEY "archive"
 
+typedef struct {
+	char * name;
+	readParam_t proc;
+} paramProc_t;
+dynArr_t paramProc_da;
+#define paramProc(N) DYNARR_N( paramProc_t, paramProc_da, N )
+
 void Stripcr( char * );
 char * GetNextLine( void );
 
@@ -91,13 +98,11 @@ FILE * OpenCustom( char * );
 
 void SetWindowTitle( void );
 char * PutTitle( char * cp );
-wBool_t IsParamValid( int );
-char * GetParamFileName( int );
-void RememberParamFiles( void );
-int LoadParamFile( int files, char **fileName, void *data );
-void ReadParamFiles( void );
+
+void ParamFileListLoad(int paramFileCnt, dynArr_t *paramFiles);
+void DoParamFiles(void * junk);
+
 int LoadTracks( int cnt, char **fileName, void *data );
-BOOL_T ReadParams( long, const char *, const char * );
 
 typedef void (*doSaveCallBack_p)( void );
 void DoSave( doSaveCallBack_p );
@@ -128,7 +133,7 @@ void ReadKey( void );
 void PopupRegister( void * );
 
 void FileInit( void );
-BOOL_T ParamFileInit( void );
+
 BOOL_T MacroInit( void );
 
 char *SaveLocale( char *newLocale );

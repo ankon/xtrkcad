@@ -37,6 +37,7 @@
 #include "layout.h"
 #include "messages.h"
 #include "param.h"
+#include "paramfile.h"
 #include "track.h"
 #include "utility.h"
 
@@ -155,6 +156,62 @@ EXPORT turnoutInfo_t * CreateNewTurnout(
 	return to;
 }
 
+/** 
+ * Check to find out to what extent the contents of the parameter file can be used with 
+ * the current layout scale / gauge. 
+ * 
+ * If parameter scale == layout and parameter gauge == layout we have an exact fit.
+ * If parameter gauge == layout we have compatible track. 
+ * OO scale is special cased. If the layout is in OO scale track in HO is considered 
+ * an exact fit in spite of scale differences.
+ * 
+ * \param paramFileIndex
+ * \param scaleIndex
+ * \return 
+ */
+
+enum paramFileState 
+GetTrackCompatibility(int paramFileIndex, SCALEINX_T scaleIndex)
+{
+	int i;
+	enum paramFileState ret = PARAMFILE_NOTUSABLE;
+	DIST_T gauge = GetScaleTrackGauge(scaleIndex);
+
+	if (!IsParamValid(paramFileIndex)) {
+		return(PARAMFILE_UNLOADED);
+	}
+
+	// loop over all parameter entries or until a exact fit is found
+	for (i = 0; i < turnoutInfo_da.cnt && ret < PARAMFILE_FIT; i++) {
+		turnoutInfo_t *to = turnoutInfo( i );
+		if (to->paramFileIndex == paramFileIndex ) {
+			if (to->scaleInx == scaleIndex ) {
+				ret = PARAMFILE_FIT;
+				break;
+			} else {
+				if (GetScaleTrackGauge(to->scaleInx) == gauge &&
+					ret < PARAMFILE_COMPATIBLE) {
+					ret = PARAMFILE_COMPATIBLE;
+					// handle special cases
+					// if layout is OO scale, HO scale track is considered exact
+					char *layoutScaleName = GetScaleName(scaleIndex);
+					char *paramScaleName = GetScaleName(to->scaleInx);
+					if (!strcmp(layoutScaleName, "OO") &&
+						!strcmp(paramScaleName, "HO")) {
+						ret = PARAMFILE_FIT;
+					}
+					//if layout is in Japanese or British N scale, N scale is exact
+					if ((!strcmp(layoutScaleName, "N(UK)") ||
+						!strcmp(layoutScaleName, "N(JP)")) &&
+						!strcmp(paramScaleName, "N")) {
+						ret = PARAMFILE_FIT;
+					}
+				}
+			}
+		}
+	}
+	return(ret);
+}
 
 
 EXPORT wIndex_t CheckPaths(
@@ -1375,9 +1432,61 @@ static STATUS_T ModifyTurnout( track_p trk, wAction_t action, coOrd pos )
 
 static BOOL_T GetParamsTurnout( int inx, track_p trk, coOrd pos, trackParams_t * params )
 {
-
+	struct extraData *xx =	GetTrkExtraData(trk);
 
 	params->type = curveTypeStraight;	//TODO should check if last segment is actually straight
+	if (inx == PARAMS_TURNOUT) {
+		params->len = 0.0;
+		int epCnt = GetTrkEndPtCnt(trk);
+		if (epCnt < 3) {
+			double d = 10000.0;
+			params->centroid = zero;
+			//calculate path length from endPt (either to end or to other end)
+			segProcData_t segProcData;
+			trkSeg_p seg;
+			int segInx;
+			int segEP;
+			trkSeg_p segPtr;
+			PATHPTR_T path,pathCurr;
+			//Find starting seg on path (nearest to end Pt)
+			for ( path = xx->pathCurr+strlen((char*)xx->pathCurr)+1; path[0] || path[1]; path++ ) {
+				if ( path[0] == 0 )
+					continue;
+				GetSegInxEP( path[0], &segInx, &segEP );
+				segPtr = xx->segs+segInx;
+				segProcData.distance.pos1 = pos;
+				SegProc( SEGPROC_DISTANCE, segPtr, &segProcData );
+				if ( segProcData.distance.dd < d ) {
+					d = segProcData.distance.dd;
+					pathCurr = path;
+				}
+			}
+			GetSegInxEP( pathCurr[0], &segInx, &segEP );
+			seg = xx->segs+segInx;
+			d = 0.0;
+			//Loop through segs on path from endPt adding
+			while (pathCurr[0]) {
+				GetSegInxEP( pathCurr[0], &segInx, &segEP );
+				seg = xx->segs+segInx;
+				SegProc(SEGPROC_LENGTH, seg, &segProcData );
+				d += segProcData.length.length;
+				pathCurr += segEP?1:-1;
+			}
+			params->len = d;
+		} else {
+			double x, y;
+			x = 0; y = 0;
+			for (int i=0;i<=epCnt; i++) {
+				coOrd cpos = GetTrkEndPos(trk,i);
+				x += cpos.x;
+				y += cpos.y;
+			}
+			params->centroid.x = x/epCnt;
+			params->centroid.y = y/epCnt;
+			params->len = FindDistance(params->centroid,pos)*2;  //Times two because it will be halved by track.c
+		}
+		return TRUE;
+	}
 	if (inx == PARAMS_CORNU  || inx == PARAMS_BEZIER) {
 		params->arcR = 0.0;
 		params->arcP = zero;

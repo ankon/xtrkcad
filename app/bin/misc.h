@@ -136,6 +136,7 @@ extern long programMode;
 #define C_TEXT			wActionText
 #define C_WUP			wActionWheelUp
 #define C_WDOWN			wActionWheelDown
+#define C_LDOUBLE       wActionLDownDouble
 #define C_INIT			(wActionLast+1)
 #define C_START			(wActionLast+2)
 #define C_REDRAW		(wActionLast+3)
@@ -343,7 +344,10 @@ void EnumerateEnd(void);
 
 /* cnote.c */
 void DoNote( void );
+char * ReadMultilineText(size_t textLength);
 BOOL_T WriteMainNote( FILE * );
+
+void ReadMainNote(char * line);
 
 /* dbench.c */
 long GetBenchData( long, long );
