@@ -1641,6 +1641,13 @@ STATUS_T CmdMoveDescription(
 				ep = -1;
 				mode = 4;
 			}
+			d = BlockDescriptionDistance(pos, trk1);
+			if ( d < dd ) {
+				dd = d;
+				trk = trk1;
+				ep = -1;
+				mode = 5;
+			}
 		}
 		if (trk != NULL) {
 			UndoStart( _("Move Label"), "Modedesc( T%d )", GetTrkIndex(trk) );
@@ -1664,6 +1671,8 @@ STATUS_T CmdMoveDescription(
 				return CornuDescriptionMove( trk, action, pos );
 			case 4:
 				return BezierDescriptionMove( trk, action, pos );
+			case 5:
+				return BlockDescriptionMove( trk, action, pos);
 			}
 		}
 		break;

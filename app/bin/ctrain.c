@@ -515,6 +515,8 @@ static BOOL_T QueryCar(track_p trk, int query)
     switch (query) {
     case Q_NODRAWENDPT:
         return TRUE;
+    case Q_ISTRAIN:
+    	return TRUE;
 
     default:
         return FALSE;
@@ -2529,7 +2531,7 @@ static STATUS_T CmdTrain(wAction_t action, coOrd pos)
                 LocoListChangeEntry(NULL, currCar);
             }
 
-            if ((trk0 = OnTrack(&pos0, FALSE, TRUE))) {
+            if ((trk0 = OnTrackIgnore(&pos0, FALSE, TRUE, TRUE, currCar))) {
                 xx->trvTrk.angle = GetAngleAtPoint(trk0, pos0, &ep0, &ep1);
 
                 if (NormalizeAngle(FindAngle(pos, pos0) - xx->trvTrk.angle) > 180.0) {
@@ -2591,7 +2593,7 @@ static STATUS_T CmdTrain(wAction_t action, coOrd pos)
         pos0 = pos;
         /*DrawCars( &tempD, currCar, FALSE );*/
         xx = GetTrkExtraData(currCar);
-        trk0 = OnTrack(&pos0, FALSE, TRUE);
+        trk0 = OnTrackIgnore(&pos0, FALSE, TRUE, TRUE, currCar);  //Same Gauge Please!!
 
         if (/*currCarItemPtr != NULL &&*/ trk0) {
             angle1 = GetAngleAtPoint(trk0, pos0, &ep0, &ep1);

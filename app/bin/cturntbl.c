@@ -184,6 +184,11 @@ static void DrawTurntable( track_p t, drawCmd_p d, wDrawColor color )
 	EPINX_T ep;
 	long widthOptions = DTS_TIES;
 
+	if (d->options&DC_BLOCK_LEFT)
+		widthOptions = DTS_BLOCK_LEFT;
+	if (d->options&DC_BLOCK_RIGHT)
+		widthOptions = DTS_BLOCK_RIGHT;
+
 	if ( !ValidateTurntablePosition(t) ) {
 		p0.y = p1.y = xx->pos.y;
 		p0.x = xx->pos.x-xx->radius;
@@ -199,6 +204,7 @@ static void DrawTurntable( track_p t, drawCmd_p d, wDrawColor color )
 		return;
 	if ( (d->options&DC_QUICK) == 0 ) {
 		DrawStraightTrack( d, p0, p1, FindAngle(p0,p1), t, GetTrkGauge(t), color, widthOptions );
+		if (d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT) != 0) return;
 		for ( ep=0; ep<GetTrkEndPtCnt(t); ep++ ) {
 			if (GetTrkEndTrk(t,ep) != NULL )
 				DrawEndPt( d, t, ep, color );

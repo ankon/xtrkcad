@@ -640,6 +640,9 @@ static STATUS_T CmdPull(
 						InfoMessage( _("Same Track! - please select another") );
 						return C_CONTINUE;
 					}
+					if (GetTrkGauge(trk2) != GetTrkGauge(trk1)) {
+						InfoMessage(_("Different Scale/Gauge Track - please select another") );
+					}
 					if ((ep2 = PickUnconnectedEndPoint( pos, trk2 )) >= 0 ) {
 						PullTracks( trk1, ep1, trk2, ep2 );
 						trk1 = NULL;
@@ -689,8 +692,10 @@ static STATUS_T CmdPull(
 							trk2 = NULL;
 							while (!found && TrackIterate(&trk2) ) {
 								if (trk1 == trk2) continue;
+								if (GetTrkScale(trk1) != GetTrkScale(trk2)) continue; //Reject mismatched Tracks
 								for (ep2=0; ep2<GetTrkEndPtCnt(trk2); ep2++) {
 									if (GetTrkEndTrk( trk2, ep2 )) continue;
+
 									d = FindDistance(GetTrkEndPos(trk1,ep1),GetTrkEndPos(trk2,ep2));
 									a = NormalizeAngle( 180+GetTrkEndAngle( trk1, ep1 ) - GetTrkEndAngle( trk2, ep2 )+(connectAngle/2.0));
 									// Take two passes. In round one favor closer connections. In round two try anything.

@@ -1958,6 +1958,7 @@ EXPORT void DrawSegsO(
 				free(tempPts);
 				break;
 			} /* else fall thru */
+			/* no break */
 		case SEG_POLY:
 			if ( (d->options&DC_GROUP) ) {
 				DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
@@ -2054,6 +2055,32 @@ EXPORT void AppendSegs(dynArr_t * seg_to, dynArr_t * seg_from) {
 				to_t.u.p.pts = memdup(from_t.u.p.pts*sizeof(coOrd));
 			}
 		}
+	}
+}
+
+EXPORT void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd orig, coOrd rotateOrig, ANGLE_T angle) {
+	if (seg_from->cnt ==0) return;
+	int j = 0;
+	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
+	for (int i=0; i<seg_from->cnt;i++,j++) {
+		trkSeg_t from_t = DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_t to_t = DYNARR_N(trkSeg_t, * seg_to,i);
+		memcpy(to_t,from_t,sizeof( trkSeg_t));
+		if (from_t.type == SEG_BEZLIN || from_t.type == SEG_BEZTRK) {
+			if (from_t.bezSegs.ptr) {
+				to_t.bezSegs.ptr = memdup(from_t.bezSegs.ptr,from_t.bezSegs.cnt*sizeof(trkSeg_t));
+			}
+		}
+		if (from_t.type == SEG_POLY || from_t.type == SEG_FILPOLY) {
+			if (from_t.u.p.pts) {
+				to_t.u.p.pts = memdup(from_t.u.p.pts*sizeof(coOrd));
+			}
+		}
+		RotateSegs(1,&to_t,rotateOrig,angle);
+		coOrd move;
+		move.x = orig.x - rotateOrig.x;
+		move.y = orig.y - rotateOrig.y;
+		MoveSegs(1,&to_t,move);
 	}
 }
 

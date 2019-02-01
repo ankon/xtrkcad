@@ -189,7 +189,7 @@ You cannot select a \f{Turntable} as the second track in \f{Join} command. If yo
 Refer to \k{cmdJoin} for detail.
 END
 
- ccornu.c
+# ccornu.c
 MESSAGE MSG_JOIN_CORNU_SAME
 Cannot Join; Selected endpoints are on same track.
 HELP
@@ -205,6 +205,13 @@ HELP
 You are trying to \f{Join} a section of track with itself. Different tracks must selected when using the \f{Join} command.
 
 Refer to \k{cmdJoin} for detail.
+END
+
+#cjoin.c 
+MESSAGE MSG_JOIN_GAUGE
+Cannot Join; Selected tracks are different scale and gauge.
+HELP
+You are trying to \f{Join} two tracks that are different gauges.
 END
 
 # cjoin.c
@@ -1342,9 +1349,33 @@ Moved beyond the end of the track
 END
 
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_HEADTYPE
+The specified HeadType %s definition is missing for Signal %s
+HELP
+Either change to use an existing HeadType or add a new Headtype
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_HEAD
+The Head %s definition is missing in Signal %s
+HELP
+Either change to use another Head or add a new Head
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_APPEARANCE
+The Appearance %s definition is missing for Head %s in Signal %s
+HELP
+Either change to use an existing Appearance in the HeadType or a new HeadType with this Appearance
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_DUPLICATE_APPEARANCE
+The Appearance %s already exists for Head Type %s
+HELP
+Fix the Head Type definition
+END
 
 ############################################################
 # Message Archive

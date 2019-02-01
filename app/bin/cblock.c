@@ -60,6 +60,7 @@
 #include "track.h"
 #include "trackx.h"
 #include "utility.h"
+#include "condition.h"
 
 EXPORT TRKTYP_T T_BLOCK = -1;
 
@@ -140,6 +141,8 @@ typedef struct blockData_t {
     track_p next_block;
     wIndex_t numTracks;
     btrackinfo_t trackList;
+    coOrd description_offset;
+    char * state;
 } blockData_t, *blockData_p;
 
 static blockData_p GetblockData ( track_p trk )
@@ -147,8 +150,122 @@ static blockData_p GetblockData ( track_p trk )
 	return (blockData_p) GetTrkExtraData(trk);
 }
 
+static BOOL_T blockSide = FALSE;
+
+
+void DrawBlockDescription(
+		track_p trk,
+		drawCmd_p d,
+		wDrawColor color )
+{
+	blockData_p b = GetblockData(trk);
+	if (!drawBlocksMode) return;
+	coOrd p1,p2;
+	coOrd endPos[2];
+	wFont_p fp;
+	if ( GetTrkType( trk ) != T_BLOCK || ( GetTrkBits( trk ) & TB_HIDEDESC ) != 0 )
+		return;
+	int i=0;
+	EPINX_T ep1 = 0, ep0 = 1;
+	if (b->numTracks >1) {
+		ep0 = GetEndPtConnectedToMe( (&(b->trackList))[0].t, (&(b->trackList))[1].t);
+		ep1 = GetEndPtConnectedToMe( (&(b->trackList))[b->numTracks-2].t, (&(b->trackList))[b->numTracks-1].t);
+	}
+	endPos[0] = GetTrkEndPos((&(b->trackList))[0].t,ep0);
+	endPos[1] = GetTrkEndPos((&(b->trackList))[1].t,ep1);
+	p1.x = (endPos[1].x - endPos[0].x)/2;
+	p1.y = (endPos[1].y - endPos[0].y)/2;
+	p2.x = p1.x + b->description_offset.x+endPos[0].x;
+	p2.y = p1.y + b->description_offset.y+endPos[0].y;
+	DrawLine(d,p1,p2,0,color);
+	fp = wStandardFont( F_TIMES, FALSE, FALSE );
+	DrawBoxedString( BOX_BOX, d, p2, b->name, fp, (wFontSize_t)descriptionFontSize, color, 0.0 );
+
+}
+
+DIST_T BlockDescriptionDistance(coOrd pos,
+		track_p trk )
+{
+	blockData_p b = GetblockData(trk);
+	if (!drawBlocksMode) return 10000;
+	if (GetTrkType(trk) != T_BLOCK )
+		return 100000;
+	if ( (GetTrkBits( trk ) & TB_HIDEDESC) != 0 )
+		return 100000;
+	EPINX_T ep0,ep1;
+	coOrd p0,p1,p2;
+	if (b->numTracks >1) {
+		ep0 = GetEndPtConnectedToMe( (&(b->trackList))[0].t, (&(b->trackList))[1].t);
+		ep1 = GetEndPtConnectedToMe( (&(b->trackList))[b->numTracks-2].t, (&(b->trackList))[b->numTracks-1].t);
+	}
+	p0 = GetTrkEndPos((&(b->trackList))[0].t,ep0);
+	p1 = GetTrkEndPos((&(b->trackList))[1].t,ep1);
+	p0.x += (p1.x - p0.x)/2;
+	p0.y += (p1.y - p0.y)/2;
+	p2.x = p0.x + b->description_offset.x;
+	p2.y = p0.y + b->description_offset.y;
+	return FindDistance( p2, pos );
+}
+
+STATUS_T BlockDescriptionMove(
+		track_p trk,
+		wAction_t action,
+		coOrd pos )
+{
+	blockData_p b = GetblockData(trk);
+	if (!drawBlocksMode) return C_CONTINUE;
+	static coOrd p0, p1, p2;
+	static BOOL_T editMode;
+	wDrawColor color;
+
+	switch (action) {
+	case C_DOWN:
+		editMode = TRUE;
+		EPINX_T ep1 = 0, ep0 = 1;
+		if (b->numTracks >1) {
+			ep0 = GetEndPtConnectedToMe((&(b->trackList))[0].t, (&(b->trackList))[1].t);
+			ep1 = GetEndPtConnectedToMe((&(b->trackList))[b->numTracks-2].t, (&(b->trackList))[b->numTracks-1].t);
+		}
+		p0 = GetTrkEndPos((&(b->trackList))[0].t,ep0);
+		p1 = GetTrkEndPos((&(b->trackList))[1].t,ep1);
+		p0.x += (p1.x - p0.x)/2;
+		p0.y += (p1.y - p0.y)/2;
+		p2.x = p0.x + b->description_offset.x;
+		p2.y = p0.y + b->description_offset.y;
+		/* no break */
+	case C_MOVE:
+	case C_UP:
+		mainD.options = DTS_BLOCK_RIGHT;
+		color = GetTrkColor( trk, &mainD );
+		b->description_offset.x = (pos.x-p0.x);
+		b->description_offset.y = (pos.y-p0.y);
+		p2 = pos;
+		if (action == C_UP) {
+			editMode = FALSE;
+		}
+		MainRedraw();
+		MapRedraw();
+		return action==C_UP?C_TERMINATE:C_CONTINUE;
+		break;
+	case C_REDRAW:
+		if (editMode) {
+			DrawLine( &tempD, p0, p2, 0, wDrawColorBlack );
+		}
+	}
+	return C_CONTINUE;
+}
+
 static void DrawBlock (track_p t, drawCmd_p d, wDrawColor color )
 {
+	if (!drawBlocksMode) return;
+	blockSide = !blockSide;
+	if (blockSide) d->options |= DC_BLOCK_LEFT;
+	else d->options |= DC_BLOCK_RIGHT;
+	blockData_p b = GetblockData(t);
+	for (int i=0;i<b->numTracks;i++) {
+		DrawTrack((&(b->trackList))[i].t,d,wDrawColorWhite);
+	}
+	DrawBlockDescription(t,d,color);
 }
 
 static struct {
@@ -377,14 +494,83 @@ static void DeleteBlock ( track_p t )
 
 }
 
+/*
+ * Do Pub/Sub work
+ *
+ * The Events are Active and
+ * The Actions are OCCUPIED or UNOCCUPIED
+ *
+ * The Name is the blockName
+ *
+ */
+static int pubSubBlock(track_p trk, pubSubParmList_p parm) {
+	blockData_p b = GetblockData(trk);
+	ParmName_p n;
+	switch(parm->command) {
+	case GET_STATE:
+		DYNARR_RESET(char *,parm->actions);
+		parm->type = TYPE_BLOCK;
+		if (strncmp(b->name,parm->name,50) == 0) {
+			parm->state = b->state;
+		}
+		break;
+	case FIRE_ACTION:
+		if (parm->type != TYPE_BLOCK) return 4;
+		if (strncmp(b->name,parm->name,50) == 0) {
+			if (strncmp(parm->action, "OCCUPIED",8) ==0 ) {
+				b->state = "OCCUPIED";
+				publishEvent(b->name,TYPE_TURNOUT,b->state);
+			}
+			if (strncmp(parm->action, "UNOCCUPIED",10) ==0 ) {
+				b->state = "UNOCCUPIED";
+				publishEvent(b->name,TYPE_TURNOUT,b->state);
+			}
+		}
+		break;
+	case DESCRIBE_NAMES:
+		DYNARR_RESET(ParmName_t,parm->names);
+		DYNARR_APPEND(ParmName_t,parm->names,1);
+		n = &DYNARR_LAST(ParmName_t,parm->names);
+		parm->type = TYPE_BLOCK;
+		n->name = b->name;
+		break;
+	case DESCRIBE_STATES:
+		if (parm->type != TYPE_BLOCK) return 4;
+		DYNARR_RESET(StateName_t,parm->states);
+		if (strncmp(b->name,parm->name,50) == 0) {
+			DYNARR_APPEND(ParmName_t,parm->states,1);
+			n = &DYNARR_LAST(ParmName_t,parm->states);
+			n->name = "OCCUPIED";
+			DYNARR_APPEND(ParmName_t,parm->states,1);
+			n = &DYNARR_LAST(ParmName_t,parm->states);
+			n->name = "UNOCCUPIED";
+		}
+		break;
+	case DESCRIBE_ACTIONS:
+		if (parm->type != TYPE_BLOCK) return 4;
+		DYNARR_RESET(ParmName_t,parm->actions);
+		if (strncmp(b->name,parm->name,50) == 0) {
+			DYNARR_APPEND(ParmName_t,parm->actions,1);
+			n = &DYNARR_LAST(ParmName_t,parm->actions);
+			n->name = "OCCUPIED";
+			DYNARR_APPEND(ParmName_t,parm->actions,1);
+			n = &DYNARR_LAST(ParmName_t,parm->actions);
+			n->name = "UNOCCUPIED";
+		}
+		break;
+	}
+	return 0;
+}
+
+
 static BOOL_T WriteBlock ( track_p t, FILE * f )
 {
 	BOOL_T rc = TRUE;
 	wIndex_t iTrack;
 	blockData_p xx = GetblockData(t);
 
-	rc &= fprintf(f, "BLOCK %d \"%s\" \"%s\"\n",
-		GetTrkIndex(t), xx->name, xx->script)>0;
+	rc &= fprintf(f, "BLOCK %d \"%s\" \"%s\" %0.6f %0.6f\n",
+		GetTrkIndex(t), xx->name, xx->script, xx->description_offset.x, xx->description_offset.y)>0;
 	for (iTrack = 0; iTrack < xx->numTracks && rc; iTrack++) {
                 if ((&(xx->trackList))[iTrack].t == NULL) continue;
 		rc &= fprintf(f, "\tTRK %d\n",
@@ -405,10 +591,18 @@ static void ReadBlock ( char * line )
 	EPINX_T ep;
 	trkEndPt_p endPtP;
 	char *name, *script;
+	coOrd offset;
 
 	LOG( log_block, 1, ("*** ReadBlock: line is '%s'\n",line))
-	if (!GetArgs(line+6,"dqq",&index,&name,&script)) {
-		return;
+	if (line[5] >= '6') {
+		if (!GetArgs(line+6,"dqqc",&index,&name,&script,&cp)) return;
+	} else {
+		if (!GetArgs(line+6,"dqq",&index,&name,&script)) return;
+	}
+
+	xx->description_offset.x = xx->description_offset.y = 0.0;
+	if (cp) {
+		GetArgs( cp, "p", &xx->description_offset );
 	}
 	DYNARR_RESET( btrackinfo_p , blockTrk_da );
 	while ( (cp = GetNextLine()) != NULL ) {
@@ -507,7 +701,12 @@ static trackCmd_t blockCmds = {
 	NULL, /* advancePositionIndicator */
 	NULL, /* checkTraverse */
 	NULL, /* makeParallel */
-	NULL  /* drawDesc */
+	NULL, /* drawDesc */
+	NULL, /*rebuild*/
+	NULL, /*store*/
+	NULL, /*replay*/
+	NULL, /*activate*/
+	pubSubBlock  /* pubSub */
 };
 
 

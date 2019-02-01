@@ -54,6 +54,7 @@ extern wDrawColor exceptionColor;
 #define TIEDRAWMODE_OUTLINE		(1)
 #define TIEDRAWMODE_SOLID		(2)
 extern long tieDrawMode;
+extern long drawBlocksMode;
 extern wDrawColor tieColor;
 
 
@@ -122,6 +123,7 @@ typedef struct {
 #define Q_CAN_ADD_ENDPOINTS             (22)    // Is T_TURNTABLE
 #define Q_HAS_VARIABLE_ENDPOINTS        (23)    // Is Helix or Circle
 #define Q_CORNU_CAN_MODIFY				(24)	// can be modified by CORNU MODIFY
+#define Q_ISTRAIN                       (25)
 
 typedef struct {
 		track_p trk;							// IN Current Track OUT Next Track
@@ -131,6 +133,28 @@ typedef struct {
 		ANGLE_T angle;							// IN/OUT - angle now
 		} traverseTrack_t, *traverseTrack_p;
 
+typedef enum {GET_STATE, FIRE_ACTION, DESCRIBE_NAMES, DESCRIBE_STATES, DESCRIBE_ACTIONS} pubSubCommand_e;
+
+typedef enum {TYPE_UNKNOWN =-1, TYPE_SIGNAL, TYPE_TURNOUT, TYPE_BLOCK, TYPE_SENSOR, TYPE_CONTROL} typeControl_e;
+#define NUM_OF_TESTABLE_TYPES           (5)
+
+typedef struct ConditionGroup_t *ConditionGroup_p;
+
+typedef struct {
+	char * name;			// Name Array for PubSub
+} ParmName_t, *ParmName_p;
+
+typedef struct {
+	pubSubCommand_e command;// IN CommandType
+	typeControl_e type;    	// IN/OUT Type of Object (For sub-setting)
+	char * name;    		// IN Get_State, Describe_States, Fire_Action, Describe_Actions
+	char * action;			// IN Fire_Action
+	BOOL_T suppressPublish;	// IN Fire_Action
+	char * state;			// OUT Get_State
+	dynArr_t names;       	// OUT Describe_Names Note - A Signal may have several names (Mast plus Heads)
+	dynArr_t actions; 		// OUT Describe_Actions
+	dynArr_t states;  		// OUT Desctibe_States
+} pubSubParmList_t, * pubSubParmList_p;
 
 typedef struct {
 		char * name;
@@ -167,6 +191,7 @@ typedef struct {
 		BOOL_T (*replayData)(track_p, void *,long );
 		BOOL_T (*storeData)(track_p, void **,long *);
 		void  (*activate)(track_p);
+		BOOL_T (*pubSubCommand)(track_p, pubSubParmList_t *);
 		} trackCmd_t;
 
 
@@ -293,6 +318,8 @@ coOrd GetSegEndPt(
 
 void GetTextBounds( coOrd, ANGLE_T, char *, FONTSIZE_T, coOrd *, coOrd * );
 void GetSegBounds( coOrd, ANGLE_T, wIndex_t, trkSeg_p, coOrd *, coOrd * );
+void AppendSegs(dynArr_t * seg_to, dynArr_t * seg_from);
+void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd orig, coOrd rotateOrig, ANGLE_T angle);
 void MoveSegs( wIndex_t, trkSeg_p, coOrd );
 void RotateSegs( wIndex_t, trkSeg_p, coOrd, ANGLE_T );
 void FlipSegs( wIndex_t, trkSeg_p, coOrd, ANGLE_T );
@@ -534,6 +561,8 @@ BOOL_T ComputeElev( track_p, EPINX_T, BOOL_T, DIST_T *, DIST_T * );
 #define DTS_THICK3		(1<<3)
 #define DTS_TIES		(1<<4)
 #define DTS_NOCENTER	(1<<5)
+#define DTS_BLOCK_LEFT  (1<<6)
+#define DTS_BLOCK_RIGHT (1<<7)
 
 void DrawCurvedTies( drawCmd_p, track_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, wDrawColor );
 void DrawCurvedTrack( drawCmd_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, coOrd, coOrd, track_p, DIST_T, wDrawColor, long );
@@ -543,8 +572,8 @@ void DrawStraightTrack( drawCmd_p, coOrd, coOrd, ANGLE_T, track_p, DIST_T, wDraw
 ANGLE_T GetAngleAtPoint( track_p, coOrd, EPINX_T *, EPINX_T * );
 DIST_T GetTrkDistance( track_cp, coOrd *);
 track_p OnTrack( coOrd *, INT_T, BOOL_T );
-track_p OnTrackIgnore(coOrd *, INT_T, BOOL_T , track_p );
-track_p OnTrack2( coOrd *, INT_T, BOOL_T, BOOL_T, track_p );
+track_p OnTrackIgnore(coOrd *, INT_T, BOOL_T , BOOL_T, track_p );
+track_p OnTrack2( coOrd *, INT_T, BOOL_T, BOOL_T, BOOL_T, track_p );
 
 void ComputeRectBoundingBox( track_p, coOrd, coOrd );
 void ComputeBoundingBox( track_p );
@@ -601,6 +630,7 @@ BOOL_T MoveEndPt( track_p *, EPINX_T *, coOrd, DIST_T );
 BOOL_T QueryTrack( track_p, int );
 void UngroupTrack( track_p );
 BOOL_T IsTrack( track_p );
+BOOL_T IsTrain( track_p );
 char * GetTrkTypeName( track_p );
 BOOL_T RebuildTrackSegs(track_p);
 BOOL_T StoreTrackData(track_p, void **, long *);
@@ -697,6 +727,9 @@ void AddHotBarCarDesc( void );
 /* cblock.c */
 void CheckDeleteBlock( track_p t );
 void ResolveBlockTrack ( track_p trk );
+DIST_T BlockDescriptionDistance( coOrd, track_p);
+STATUS_T BlockDescriptionMove( track_p, wAction_t, coOrd);
+
 /* cswitchmotor.c */
 void CheckDeleteSwitchmotor( track_p t );
 void ResolveSwitchmotorTurnout ( track_p trk );

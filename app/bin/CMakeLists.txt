@@ -124,6 +124,7 @@ SET(SOURCES
 	trkseg.c
 	tstraigh.c
 	utility.c
+	condition.c
 	)
 
 check_symbol_exists(strlcpy string.h HAVE_STRLCPY )
