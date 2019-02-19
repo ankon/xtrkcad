@@ -27,3 +27,6 @@ void rebuildArrays(BOOL_T complain);
 
 void publishEvent(char * publishName, typeControl_e type, char * newValue );
 
+BOOL_T ReadConditionGroup( char * line);
+BOOL_T ReadHeadType( char * line);
+

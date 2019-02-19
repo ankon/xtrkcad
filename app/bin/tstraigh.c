@@ -275,10 +275,10 @@ static DIST_T DistanceStraight( track_p t, coOrd * p )
 static void DrawStraight( track_p t, drawCmd_p d, wDrawColor color )
 {
 	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
-	if (d->options & DC_BLOCK_LEFT)
-		widthOptions = DTS_BLOCK_LEFT;
-	if (d->options & DC_BLOCK_RIGHT)
-		widthOptions = DTS_BLOCK_RIGHT;
+	if ((d->options & DC_BLOCK_LEFT)!=0)
+		widthOptions = DTS_BLOCK_LEFT|DTS_NOCENTER;
+	if ((d->options & DC_BLOCK_RIGHT)!=0)
+		widthOptions = DTS_BLOCK_RIGHT|DTS_NOCENTER;
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)

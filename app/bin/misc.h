@@ -418,10 +418,13 @@ void SwitchmotorMgmLoad( void );
 /* csignal.c */
 void InitCmdSignal ( wMenu_p menu );
 void SignalMgmLoad ( void );
+BOOL_T WriteSignalSystem(FILE *);
 /* ccontrol.c */
 void ControlMgmLoad ( void );
 void InitCmdControl ( wMenu_p menu );
 /* csensor.c */
 void SensorMgmLoad ( void );
 void InitCmdSensor ( wMenu_p menu );
+/* condition.c */
+BOOL_T WriteConditions(FILE *);
 #endif

@@ -1377,6 +1377,19 @@ HELP
 Fix the Head Type definition
 END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_TRACK_HERE
+There isn't a track end point here
+HELP
+Move to a Track End Point
+END
+
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_SIGNAL
+No Signal selected to Modify
+Select a Signal
+END
+
 ############################################################
 # Message Archive
 ############################################################

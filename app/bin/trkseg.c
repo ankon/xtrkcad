@@ -2035,24 +2035,24 @@ EXPORT void CleanSegs(dynArr_t * seg_p) {
 
 
 /*
-/* Copy Segs from one array to another
+ * Copy Segs from one array to another
  */
 EXPORT void AppendSegs(dynArr_t * seg_to, dynArr_t * seg_from) {
 	if (seg_from->cnt ==0) return;
 	int j = 0;
 	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
 	for (int i=0; i<seg_from->cnt;i++,j++) {
-		trkSeg_t from_t = DYNARR_N(trkSeg_t, * seg_from,j);
-		trkSeg_t to_t = DYNARR_N(trkSeg_t, * seg_to,i);
-		memcpy(to_t,from_t,sizeof( trkSeg_t));
-		if (from_t.type == SEG_BEZLIN || from_t.type == SEG_BEZTRK) {
-			if (from_t.bezSegs.ptr) {
-				to_t.bezSegs.ptr = memdup(from_t.bezSegs.ptr,from_t.bezSegs.cnt*sizeof(trkSeg_t));
+		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_p to_p = &DYNARR_N(trkSeg_t, * seg_to,i);
+		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
+		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
+			if (from_p->bezSegs.ptr) {
+				to_p->bezSegs.ptr = memdup(from_p->bezSegs.ptr,from_p->bezSegs.cnt*sizeof(trkSeg_t));
 			}
 		}
-		if (from_t.type == SEG_POLY || from_t.type == SEG_FILPOLY) {
-			if (from_t.u.p.pts) {
-				to_t.u.p.pts = memdup(from_t.u.p.pts*sizeof(coOrd));
+		if (from_p->type == SEG_POLY || from_p->type == SEG_FILPOLY) {
+			if (from_p->u.p.pts) {
+				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(coOrd));
 			}
 		}
 	}
@@ -2063,24 +2063,24 @@ EXPORT void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd 
 	int j = 0;
 	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
 	for (int i=0; i<seg_from->cnt;i++,j++) {
-		trkSeg_t from_t = DYNARR_N(trkSeg_t, * seg_from,j);
-		trkSeg_t to_t = DYNARR_N(trkSeg_t, * seg_to,i);
-		memcpy(to_t,from_t,sizeof( trkSeg_t));
-		if (from_t.type == SEG_BEZLIN || from_t.type == SEG_BEZTRK) {
-			if (from_t.bezSegs.ptr) {
-				to_t.bezSegs.ptr = memdup(from_t.bezSegs.ptr,from_t.bezSegs.cnt*sizeof(trkSeg_t));
+		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_p to_p = &DYNARR_N(trkSeg_t, * seg_to,i);
+		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
+		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
+			if (from_p->bezSegs.ptr) {
+				to_p->bezSegs.ptr = memdup(from_p->bezSegs.ptr,from_p->bezSegs.cnt*sizeof(trkSeg_t));
 			}
 		}
-		if (from_t.type == SEG_POLY || from_t.type == SEG_FILPOLY) {
-			if (from_t.u.p.pts) {
-				to_t.u.p.pts = memdup(from_t.u.p.pts*sizeof(coOrd));
+		if (from_p->type == SEG_POLY || from_p->type == SEG_FILPOLY) {
+			if (from_p->u.p.pts) {
+				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(coOrd));
 			}
 		}
-		RotateSegs(1,&to_t,rotateOrig,angle);
+		RotateSegs(1,to_p,rotateOrig,angle);
 		coOrd move;
 		move.x = orig.x - rotateOrig.x;
 		move.y = orig.y - rotateOrig.y;
-		MoveSegs(1,&to_t,move);
+		MoveSegs(1,to_p,move);
 	}
 }
 

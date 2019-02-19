@@ -333,7 +333,8 @@ typedef struct signalData_t {
     dynArr_t signalHeads;				//Array of all the heads
     BOOL_T IsHilite;
     dynArr_t signalAspects;			    //Array of all the Aspects for the Signal
-    dynArr_t staticSignalSegs;			//Static draw elements for the signal (like dolls/posts)
+    dynArr_t staticSignalSegsElev;		//Static draw elements for the signal (like dolls/posts)
+    dynArr_t staticSignalSegsPlan;		//Static draw elements for signal Plan
     dynArr_t currSegs;					//The current set of Segs to draw
     dynArr_t signalGroups;				//Grouped Head/Appearances
     int numberHeads;					//Legacy Number of Heads
@@ -341,13 +342,14 @@ typedef struct signalData_t {
     DIST_T barscale;
     coOrd size;
     SCALEINX_T scaleInx;				// Scale of Signal Def (or SCALE_ANY)
+    int paramFileIndex;
 } signalData_t, *signalData_p;
 
 /*
  * Tracked Tracks and Appearances
  */
 typedef struct {
-	char * appearanceName;			//Name of Condition that has to be True
+	char * appearanceName;			//Name of Appearance
 	char * conditions;				//States that all have to be true to set the Appearance
 } signalGroupInstance_t,*signalGroupInstance_p;
 
@@ -356,13 +358,15 @@ typedef struct {
  * The typical use is for Matrix, Stencil or Feathers to Indicate which Route has been cleared
  */
 typedef struct signalGroup_t {
+	int headNumber;						//# Head to set
 	int trackedHeadNumber;				//# Head that has to be True
-	char * trackedAppearance;			//Name of Condition that has to be True
-	char * falseAppearanceName;			//Default Appearance if not Set
+	char * trackedAppearance;			//Name of Appearance that has to be True
+	char * falseAppearanceName;			//Default Appearance if not True
 	dynArr_t groupInstances;			//List of conditions and Appearances
 } signalGroup_t, *signalGroup_p;
 
 EXPORT signalData_t * curSignal = NULL;
+EXPORT EPINX_T curSignalEp = 0;
 
 #define head(N) DYNARR_N( signalHead_t, signalHead, N )
 #define aspect(N) DYNARR_N( signalAspect_t, signalAspects, N )
@@ -394,7 +398,7 @@ static signalData_p getSignalData ( track_p trk )
  */
 static void RebuildSignalSegs(signalData_p sp, BOOL_T diagram) {
 	CleanSegs(&sp->currSegs);
-	AppendSegs(&sp->currSegs,&sp->staticSignalSegs);
+	AppendSegs(&sp->currSegs,&sp->staticSignalSegsElev);
 	signalAspect_t aspect;
 	for (int i=0;i<sp->signalHeads.cnt-1;i++) {
 		/* All Heads */
@@ -429,7 +433,7 @@ static void DrawSignal (track_p t, drawCmd_p d, wDrawColor color )
 }
 
 static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
-                        wIndex_t numHeads, DIST_T scaleRatio,
+                        signalData_p signal, DIST_T scaleRatio,
                         wDrawColor color )
 {
 
@@ -471,7 +475,7 @@ static void ComputeSignalBoundingBox (track_p t )
 {
     coOrd lo, hi, lo2, hi2;
     signalData_p xx = getSignalData(t);
-    GetSegBounds(xx->orig,xx->angle,xx->staticSignalSegs.cnt,(trkSeg_p)xx->staticSignalSegs.ptr,&lo,&hi);
+    GetSegBounds(xx->orig,xx->angle,xx->staticSignalSegsElev.cnt,(trkSeg_p)xx->staticSignalSegsElev.ptr,&lo,&hi);
     hi.x += lo.x;
     hi.y += lo.y;
 	for (int i=0;i<xx->signalHeads.cnt;i++) {
@@ -730,7 +734,7 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
                   GetTrkIndex(t), GetTrkLayer(t), GetTrkScaleName(t), 
                   GetTrkVisible(t), xx->orig.x, xx->orig.y, xx->angle, 
                   xx->signalHeads.cnt, xx->signalName)>0;
-    rc &= WriteSegs(f,xx->staticSignalSegs.cnt,xx->staticSignalSegs.ptr);
+    rc &= WriteSegs(f,xx->staticSignalSegsElev.cnt,xx->staticSignalSegsElev.ptr);
     for (ih = 0; ih < xx->signalHeads.cnt; ih++) {
     	signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,ih);
     	rc &= fprintf(f, "\tHEAD %d %0.6f %0.6f \"%s\" \"%s\"\n",
@@ -750,6 +754,15 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
 			  (DYNARR_N(headAspectMap_t,sa->headMap,im).aspectMapHeadName),
 			  (DYNARR_N(headAspectMap_t,sa->headMap,im).aspectMapHeadAppearance))>0;
         }
+    }
+    for (int gn=0; gn< xx->signalGroups.cnt; gn++) {
+    	signalGroup_p sg = &DYNARR_N(signalGroup_t,xx->signalGroups,gn);
+    	rc &= fprintf(f, "\tGROUP %d %d \"%s\" \"%s\"\n",sg->trackedHeadNumber, sg->headNumber,
+    			sg->trackedAppearance, sg->falseAppearanceName ) >0;
+    	for (int gi=0; gi<sg->groupInstances.cnt;gi++) {
+    		signalGroupInstance_p sgi = &DYNARR_N(signalGroupInstance_t,sg->groupInstances,gi);
+    		rc &= fprintf(f, "\tINDICATE \"%s\" \"%s\"\n", sgi->appearanceName, sgi->conditions) >0;
+    	}
     }
     rc &= fprintf( f, "\tEND\n" )>0;
     return rc;
@@ -784,14 +797,15 @@ BOOL_T WriteHeadTypes(FILE * f) {
 	return rc;
 }
 
-static void ReadSignalSystem ( char * line ) {
-
-
+static BOOL_T ReadSignalSystem ( char * line ) {
+	return TRUE;
 }
 
-static void ReadSignalPost ( char * line ) {
-
+static BOOL_T ReadSignalParam ( char * line ) {
+	return TRUE;
 }
+
+
 
 /*
  * Find Appearance in Array by Name
@@ -808,11 +822,11 @@ static int FindAppearanceNum( headType_p t, char * name) {
 }
 
 
-static void ReadHeadType ( char * line) {
+BOOL_T ReadHeadType ( char * line) {
 	char * typename;
 	char * cp = NULL;
 	if (!GetArgs(line+6,"q",&typename)) {
-	        return;
+	        return FALSE;
 	}
 	headType_p ht = NULL;
 	// Find if dup and overwrite it, if so //
@@ -875,6 +889,7 @@ static void ReadHeadType ( char * line) {
 		}
 		if (cp == NULL) break;
 	}
+	return TRUE;
 }
 
 /*
@@ -1020,16 +1035,18 @@ static void ReadSignal ( char * line )
         if ( strncmp (cp, "GROUP", 5) == 0) {
 			int headId, groupHeadId;
 			char * defaultInd, * groupHeadInd;
-			if (!GetArgs(cp+5, "dqqq",&headId,&defaultInd,&groupHeadInd) ) return;
+			if (!GetArgs(cp+5, "ddqq",&groupHeadId,&headId,&groupHeadInd,&defaultInd) ) return;
 			DYNARR_APPEND(signalGroup_t, xx->signalGroups, 1 );
 			signalGroup_p sg =  &DYNARR_LAST(signalGroup_t,xx->signalGroups);
 			sg->trackedHeadNumber = headId;
+			sg->headNumber = headId;
 			while ( (cp = GetNextLine()) != NULL ) {
 				while (isspace((unsigned char)*cp)) cp++;
 				if ( *cp == '\n' || *cp == '#' ) continue;
 				if ( strncmp( cp, "END", 3) == 0 ) break;  //END of Signal or of ASPECT
 				if ( strncmp( cp, "INDICATE", 8 ) == 0 ) {
 					char * indName;
+					int headNum;
 					char * conditions;
 					if (!GetArgs(cp+8,"q",&indName)) return;
 					DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
@@ -1269,15 +1286,68 @@ static BOOL_T signalCreate_P;
 static coOrd signalEditOrig;
 static ANGLE_T signalEditAngle;
 
+static long signalEditTrackInx;
+static long signalEditTrackEP;
+static long signalDlgDispMode;
+
 static track_p signalEditTrackConnected;
 static EPINX_T signalEditEP;
 
-static char signalEditName[50];
-static char signalEditPlate[50];
-static int  signalEditLever;
+static char signalEditName[STR_SHORT_SIZE];
+static char signalEditPlate[STR_SHORT_SIZE];
+static char signalEditLever[STR_SHORT_SIZE];
 static long signalEditHeadCount;
 static wIndex_t signalEditAspectChoice;
 static char signalEditTrackInxEP[10];
+
+static void RedrawEditSignal( wDraw_p, void *, wPos_t, wPos_t );
+
+static char *dispmodeLabels[] = { N_("Aspects"), N_("Heads"), N_("Groups"), N_("Static"), NULL };
+
+void NextAspect(track_p trk) {
+	signalData_p xx;
+	xx = getSignalData(trk);
+	if (xx->currentAspect >= xx->signalAspects.cnt) {
+		xx->currentAspect = 0;
+	}
+	else {
+		xx->currentAspect++;
+	}
+	CleanSegs(&xx->currSegs);
+}
+
+void AdvanceDisplayAspect( wAction_t action, coOrd pos) {
+	track_p trk = signalEditTrack;
+	signalData_p xx;
+	xx = getSignalData(trk);
+	if (action != C_DOWN) return;
+	for (int i=0;i<xx->signalGroups.cnt;i++) {
+		signalGroup_p g = &DYNARR_N(signalGroup_t,xx->signalGroups,i);
+		signalHead_p htracked = &DYNARR_N(signalHead_t,xx->signalHeads,g->trackedHeadNumber);
+		signalHead_p head = &DYNARR_N(signalHead_t,xx->signalHeads,g->headNumber);
+		headType_p tht = htracked->headType;
+		Appearance_p tha = &DYNARR_N(Appearance_t, tht->headAppearances, htracked->currentHeadAppearance);
+		//Do we need to activate Group? -> must be in right
+		if (strcmp(g->trackedAppearance,tha->appearanceName) !=0) continue;
+		//OK This Group is active
+		for (int j=0; j<g->groupInstances.cnt;j++) {
+			signalGroupInstance_p sgi = &DYNARR_N(signalGroupInstance_t,g->groupInstances,j);
+		}
+		if (head->currentHeadAppearance > g->groupInstances.cnt-1) {
+			head->currentHeadAppearance = 0; // set head to base state - time for next aspect
+		} else {
+			head->currentHeadAppearance++;
+			CleanSegs(&xx->currSegs);		// Set so they will be rebuilt
+			return;							// Changed head - get out
+		}
+	}
+	if (xx->currentAspect >= xx->signalAspects.cnt) {
+		xx->currentAspect = 0;
+	} else {
+		xx->currentAspect++;
+	}
+	CleanSegs(&xx->currSegs);				// Set so they will be rebuilt
+}
 
 
 static wPos_t aspectListWidths[] = { 50, 150 };
@@ -1286,11 +1356,13 @@ static paramListData_t aspectListData = {10, 400, 2, aspectListWidths, aspectLis
 static wPos_t headListWidths[] = { 50, 50, 6};
 static const char * headListTitles[] = { N_("Head Name"), N_("Head Type"), N_("Head #") };
 static paramListData_t headListData = {5, 400, 3, headListWidths, headListTitles};
-static paramDrawData_t signalEditDrawData = { 490, 200, (wDrawRedrawCallBack_p)RedrawEditSignal, AdvanceAspAndApp, &signalEditD };
+static paramDrawData_t signalEditDrawData = { 490, 200, (wDrawRedrawCallBack_p)RedrawEditSignal, AdvanceDisplayAspect, &signalEditD };
 
 static void AspectEdit( void * action );
 static void AspectAdd( void * action );
 static void AspectDelete( void * action );
+
+static void HeadEdit (void * action);
 
 static paramFloatRange_t r_1000_1000    = { -1000.0, 1000.0, 80 };
 static paramFloatRange_t r0_360         = { 0.0, 360.0, 80 };
@@ -1298,29 +1370,35 @@ static paramFloatRange_t r0_360         = { 0.0, 360.0, 80 };
  * Main Signal Screen - with List of Heads and Aspects
  */
 static paramData_t signalEditPLs[] = {
-#define I_SIGNALNAME (0)
+#define A                       (0)
+#define I_SIGNALNAME (A+0)
     /*0*/ { PD_STRING, signalEditName, "signalname", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)50, N_("Name"), 0, 0, sizeof(signalEditName)},
-#define I_ORIGX (1)
-    /*1*/ { PD_FLOAT, &signalEditOrig.x, "origx", PDO_DIM, &r_1000_1000, N_("Orgin X") }, 
-#define I_ORIGY (2)
-    /*2*/ { PD_FLOAT, &signalEditOrig.y, "origy", PDO_DIM, &r_1000_1000, N_("Origin Y") },
-#define I_TRACK (3)
-    /*3*/ { PD_STRING, signalEditTrackInxEP, "trackInx", 0, 0, N_("Track Index & EP")},
-#define I_SIGNALPLATE (4)
-    /*4*/ { PD_STRING, signalEditPlate, "signalplate", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)50, N_("Plate"), 0, 0, sizeof(signalEditPlate)},
-#define I_CURRASPECT (5)
-	/*5*/ { PD_DROPLIST, signalEditAspectChoice, "aspectdefault", PDO_NOPREF|PDO_LISTINDEX, (void*)50, N_("Current Aspect") },
-#define I_SIGNALASPECTLIST (6)
+#define I_SIGNALPLATE (A+1)
+    /*1*/ { PD_STRING, signalEditPlate, "signalplate", PDO_NOPREF|PDO_STRINGLIMITLENGTH|PDO_DLGHORZ, (void*)10, N_("Plate"), 0, 0, sizeof(signalEditPlate)},
+#define I_ORIGX (A+2)
+    /*2*/ { PD_FLOAT, &signalEditOrig.x, "origx", PDO_DIM, &r_1000_1000, N_("Origin: X,Y") },
+#define I_ORIGY (A+3)
+    /*3*/ { PD_FLOAT, &signalEditOrig.y, "origy", PDO_DIM | PDO_DLGHORZ, &r_1000_1000, NULL },
+#define I_TRACK (A+4)
+    /*4*/ { PD_LONG, &signalEditTrackInx, "trackInx", 0, 0, N_("Track: Index & EP")},
+#define I_EP (A+5)
+	/*5*/ { PD_LONG, &signalEditTrackEP, "trackEP", PDO_DLGHORZ, 0, NULL},
+
+#define I_CD_DISPMODE           (A+6)
+	{ PD_RADIO, &signalDlgDispMode, "dispmode", PDO_NOPREF|PDO_DLGWIDE, dispmodeLabels, N_("Mode"), BC_HORZ|BC_NOBORDER },
+
+#define B                       (A+7)
+#define I_SIGNALASPECTLIST (B+0)
 #define aspectSelL ((wList_p)signalEditPLs[I_SIGNALASPECTLIST].control)
     /*6*/ { PD_LIST, NULL, "inxA", PDO_DLGRESETMARGIN|PDO_DLGRESIZE, &aspectListData, NULL, BL_MANY },
-#define I_SIGNALASPECTEDIT (7)
+#define I_SIGNALASPECTEDIT (B+1)
     /*7*/ { PD_BUTTON, (void*)AspectEdit, "editA", PDO_DLGCMDBUTTON, NULL, N_("Edit Aspect") },
-#define I_SIGNALASPECTADD (8)
+#define I_SIGNALASPECTADD (B+2)
     /*8*/ { PD_BUTTON, (void*)AspectAdd, "addA", PDO_DLGCMDBUTTON, NULL, N_("Add Aspect") },
-#define I_SIGNALASPECTDELETE (9)
+#define I_SIGNALASPECTDELETE (B+3)
     /*9*/ { PD_BUTTON, (void*)AspectDelete, "deleteA", 0, NULL, N_("Delete Aspect") },
 #define I_SIGNALHEADLIST (10)
-#define aspectSelL ((wList_p)signalEditPLs[I_SIGNALHEADLIST].control)
+#define headSelL ((wList_p)signalEditPLs[I_SIGNALHEADLIST].control)
 	/*10*/ { PD_LIST, NULL, "inxH", PDO_DLGRESETMARGIN|PDO_DLGRESIZE, &headListData, NULL, BL_MANY },
 #define I_SIGNALHEADEDIT (11)
     /*11*/ { PD_BUTTON, (void*)HeadEdit, "editHA", PDO_DLGCMDBUTTON, NULL, N_("Edit Head") },
@@ -1332,10 +1410,12 @@ static wWin_p signalEditW;
 
 static paramIntegerRange_t rm1_999999 = { -1, 999999 };
 
-static char signalAspectEditName[50];
+static char signalAspectEditName[STR_SHORT_SIZE];
 static char signalAspectEditScript[STR_LONG_SIZE];
 static long signalAspectEditIndex;
 static wIndex_t signalAspectEditDefaultChoice;
+
+static void HeadAppearanceEdit( void * action);
 
 
 static paramData_t aspectEditPLs[] = {
@@ -1344,9 +1424,9 @@ static paramData_t aspectEditPLs[] = {
 #define I_ASPECTSCRIPT (1)
     /*1*/ { PD_STRING, signalAspectEditScript, "aspectscript", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Script"), 0, 0, sizeof(signalAspectEditScript)},
 #define I_ASPECTDEFAULT (2)
-    /*2*/ { PD_DROPLIST, signalAspectEditDefaultChoice, "aspectdefault", PDO_NOPREF|PDO_LISTINDEX, (void*)50, N_("Equals Aspect") },
+    /*2*/ { PD_DROPLIST, &signalAspectEditDefaultChoice, "aspectdefault", PDO_NOPREF|PDO_LISTINDEX, (void*)50, N_("Equals Aspect") },
 #define I_ASPECTTOHEADLIST (3)
-#define headSelL ((wList_p)aspectEditPLs[I_ASPECTTOHEADLIST].control)
+#define headSelL2 ((wList_p)aspectEditPLs[I_ASPECTTOHEADLIST].control)
     /*3*/ { PD_LIST, NULL, "inx", PDO_DLGRESETMARGIN|PDO_DLGRESIZE, &headListData, NULL, BL_MANY },
 #define I_ASPECTHEADEDIT (4)
     /*4*/ { PD_BUTTON, (void*)HeadAppearanceEdit, "edit", PDO_DLGCMDBUTTON, NULL, N_("Edit Head Appearance") }
@@ -1363,7 +1443,7 @@ static paramData_t AppearanceEditPLs[] = {
 #define I_HEADNAME (0)
     /*0*/ { PD_STRING, AppearanceEditName, "headname", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Name"), 0, 0, sizeof(AppearanceEditName) },
 #define I_APPEARANCES (1)
-	/*1*/ { PD_LONG, AppearanceInx, "headInx", 0, 0, N_("Head Number") },
+	/*1*/ { PD_LONG, &AppearanceInx, "headInx", 0, 0, N_("Head Number") },
 #define I_APPEARANCELIST (2)
 #define AppearanceIndicatorSelL ((Wlist_p)AppearanceEditPls[I_APPEARANCELIST].control)
 	/*2*/ {PD_DROPLIST, &AppearanceEditChoice, "appearance", PDO_NOPREF|PDO_LISTINDEX, (void*)50, N_("Appearance")  }
@@ -1373,16 +1453,16 @@ static paramGroup_t AppearanceEditPG = { "headAppearanceEdit", 0, AppearanceEdit
 static wWin_p AppearanceEditW;
 
 static long headEditInx;
-static char headEditName[50];
-static char headEditType[50];
+static char headEditName[STR_SHORT_SIZE];
+static char headEditType[STR_SHORT_SIZE];
 
 static paramData_t headEditPLs[] = {
 #define I_HEADNAMES (0)
     /*0*/ { PD_STRING, headEditName, "headname", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Name"), 0, 0, sizeof(headEditName)},
-#define I_HEADNAMES (0)
-    /*1*/ { PD_STRING, headEditType, "headtype", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Head Type"), 0, 0, sizeof(headTypeName)},
-#define I_HEADNAMES (1)
-	/*1*/ { PD_LONG, headEditInx, "headInx", 0, 0, N_("Head Number") }
+#define I_HEADTYPES (1)
+    /*1*/ { PD_STRING, headEditType, "headtype", PDO_NOPREF|PDO_STRINGLIMITLENGTH, (void*)350, N_("Head Type"), 0, 0, sizeof(headEditType)},
+#define I_HEADNUM (2)
+	/*1*/ { PD_LONG, &headEditInx, "headInx", 0, 0, N_("Head Number") }
 };
 
 static paramGroup_t headEditPG = { "aspectEdit", 0, headEditPLs, sizeof headEditPLs/sizeof headEditPLs[0] };
@@ -1493,19 +1573,32 @@ static void aspectEditOK ( void * junk )
 }
 
 /*
- * List of Heads and Selection box of Appearances for Each
+ * List of Heads and Selection box of Types for Each
  */
 static void EditMapDialog (wIndex_t inx )
 {
-	if (inx <0 ){
-		headMapEditName[0] = '\0';
-		headMapAppearanceEditName[0] = '\0';
+
+/*	if (inx <0 ){
+		headEditName[0] = '\0';
+		headEditType[0] = '\0';
 	} else {
 		signalData_p sd = getSignalData(signalEditTrack);
 		signalAspect_p a = &DYNARR_N(signalAspect_t,sd->signalAspects,inx);
-		strncpy(headMapEditName,DYNARR_N(headAspectMap_t,a->signalHeadaspectHeadMap,inx).aspectMapHeadName,STR_SHORT_SIZE);
-		strncpy(headMapAppearanceEditName,((headAspectMap_t)aspectHeadMap(inx)).aspectMapHeadAppearance,STR_SHORT_SIZE);
+		strncpy(headEditName,DYNARR_N(headAspectMap_t,a->headMap,inx).aspectMapHeadName,STR_SHORT_SIZE);
+		strncpy(headEditType,((headAspectMap_t)aspectHeadMap(inx)).aspectMapHeadAppearance,STR_SHORT_SIZE);
 	}
+	signalHeadEditIndex = inx;
+	if ( !headEditW ) {
+		ParamRegister( &headEditPG );
+		headEditW = ParamCreateDialog (&headEditPG,
+										 MakeWindowTitle(_("Edit aspect")),
+										 _("Ok"), headEditOK,
+										 wHide, TRUE, NULL,F_BLOCK,NULL);
+	}
+	ParamLoadControls( &headEditPG );
+	wShow( headEditW );
+*/
+
 }
 
 static void EditAspectDialog ( wIndex_t inx )
@@ -1515,7 +1608,7 @@ static void EditAspectDialog ( wIndex_t inx )
         signalAspectEditScript[0] = '\0';
     } else {
         strncpy(signalAspectEditName,signalAspect(inx).aspectName,STR_SHORT_SIZE);
-        strncpy(signalAspectEditScript,signalAspect(inx).aspectScript,STR_LONG_SIZE);
+        strncpy(signalAspectEditScript,signalAspect(inx).aspectScript,STR_SHORT_SIZE);
     }
     signalAspectEditIndex = inx;
     if ( !aspectEditW ) {
@@ -1603,12 +1696,20 @@ static void AspectDelete( void * action )
     DoChangeNotification( CHANGE_PARAMS );
 }
 
-EXPORT turnoutInfo_t * SignalAdd( long mode, SCALEINX_T scale, wList_p list, coOrd * maxDim, EPINX_T epCnt )
+static void HeadEdit (void * action) {
+
+}
+
+static void HeadAppearanceEdit (void * action) {
+
+}
+
+EXPORT signalData_t * SignalAdd( long mode, SCALEINX_T scale, wList_p list, coOrd * maxDim, EPINX_T epCnt )
 {
 	wIndex_t inx;
 	signalData_t * sd, * sd1 = NULL;
 	for ( inx = 0; inx < signalData_da.cnt; inx++ ) {
-		sd = DYNARR_N(signalData_t,signalData_da,inx);
+		sd = &DYNARR_N(signalData_t,signalData_da,inx);
 		if ( IsParamValid(sd->paramFileIndex) &&
 			 sd->signalHeads.cnt > 0 &&
 			 CompatibleScale( TRUE, sd->scaleInx, scale )) {
@@ -1649,6 +1750,29 @@ static void RescaleTurnout( void )
 	return;
 }
 
+static void RedrawSignal()
+{
+	coOrd p, s;
+	RescaleTurnout();
+LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") ) )
+
+	wDrawClear( signalD.d );
+	if (curSignal == NULL) {
+		return;
+	}
+	signalD.orig.x = curSignal->orig.x+trackGauge;
+	signalD.orig.y = (curSignal->size.y + curSignal->orig.y) - signalD.size.y+trackGauge;
+	DrawSegs( &signalD, zero, 0.0, curSignal->staticSignalSegsElev.ptr, curSignal->staticSignalSegsElev.cnt,
+					 trackGauge, wDrawColorBlack );
+	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
+		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
+		DrawSegs (&signalD, sh->headPos, 0.0, sh->headType->headSegs.ptr, sh->headType->headSegs.cnt, trackGauge, wDrawColorBlack);
+		Appearance_p a = &DYNARR_N(Appearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
+		DrawSegs (&signalD, sh->headPos, 0.0, a->appearanceSegs.ptr, a->appearanceSegs.cnt, trackGauge, wDrawColorBlack);
+	}
+}
+
+
 static void SignalChange( long changes )
 {
 	static char * lastScaleName = NULL;
@@ -1660,8 +1784,8 @@ static void SignalChange( long changes )
 		  (changes&CHANGE_PARAMS) == 0 ) )
 		return;
 	lastScaleName = curScaleName;
-	curTurnout = NULL;
-	curTurnoutEp = 0;
+	curSignal = NULL;
+	curSignalEp = 0;
 	wControlShow( (wControl_p)signalListL, FALSE );
 	wListClear( signalListL );
 	maxSignalDim.x = maxSignalDim.y = 0.0;
@@ -1679,32 +1803,11 @@ static void SignalChange( long changes )
 	maxSignalDim.x += 2*trackGauge;
 	maxSignalDim.y += 2*trackGauge;
 	/*RescaleTurnout();*/
-	RedrawTurnout();
+	RedrawSignal();
 	return;
 }
 
 
-static void RedrawSignal()
-{
-	coOrd p, s;
-	RescaleTurnout();
-LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") ) )
-
-	wDrawClear( signalD.d );
-	if (curSignal == NULL) {
-		return;
-	}
-	signalD.orig.x = curSignal->orig.x+trackGauge;
-	signalD.orig.y = (curSignal->size.y + curSignal->orig.y) - signalD.size.y+trackGauge;
-	DrawSegs( &signalD, zero, 0.0, curSignal->staticSignalSegs.ptr, curSignal->staticSignalSegs.cnt,
-					 trackGauge, wDrawColorBlack );
-	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
-		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
-		DrawSegs (&signalD, sh->headPos, 0.0, sh->headType->headSegs.ptr, sh->headType->headSegs.cnt, trackGauge, wDrawColorBlack);
-		Appearance_p a = &DYNARR_N(Appearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
-		DrawSegs (&signalD, sh->headPos, 0.0, a->appearanceSegs.ptr, a->appearanceSegs.cnt, trackGauge, wDrawColorBlack);
-	}
-}
 
 static void RedrawEditSignal()
 {
@@ -1716,7 +1819,7 @@ LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") )
 		return;
 	}
 
-	DrawSegs( &signalEditD, zero, 0.0, curSignal->staticSignalSegs.ptr, curSignal->staticSignalSegs.cnt,
+	DrawSegs( &signalEditD, zero, 0.0, curSignal->staticSignalSegsElev.ptr, curSignal->staticSignalSegsElev.cnt,
 					 trackGauge, wDrawColorBlack );
 	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
 		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
@@ -1743,7 +1846,7 @@ static void EditSignalDialog()
     }
     if (signalCreate_P) {
         signalEditName[0] = '\0';
-        signalEditLever = -1;
+        signalEditLever[0] = '\0';
         signalEditHeadCount = xx->signalHeads.cnt;
         wListClear( aspectSelL );
         wListClear( headSelL );
@@ -1798,7 +1901,7 @@ EXPORT track_p NewSignal(
 	xx->angle = angle;
 	xx->signalName = MyStrdup(name);
 	xx->title = MyStrdup( title );
-	AppendSegs(&xx->staticSignalSegs,&segs);
+	AppendSegs(&xx->staticSignalSegsElev,&segs);
 	DYNARR_APPEND(signalAspect_t,xx->signalAspects,aspects.cnt);
 	for (int i=0;i<aspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,xx->signalAspects,i);
@@ -1841,6 +1944,7 @@ EXPORT track_p NewSignal(
 			gi->conditions = strdup(gi1->conditions);
 		}
 	}
+	xx->paramFileIndex = curParamFileIndex;
 	xx->track = track;
 	xx->ep = ep;
 	xx->plate = plate;
@@ -1863,7 +1967,7 @@ static void AddSignal( void )
 	UndoStart( _("Place Signal"), "newSignal" );
 	titleLen = strlen( curSignal->title );
 	trk = NewSignal(0, signalEditOrig, signalEditAngle, curSignal->title, signalEditName, signalEditLever, signalEditTrackConnected, signalEditEP,
-			curSignal->staticSignalSegs, curSignal->signalHeads, curSignal->signalAspects, curSignal->signalGroups);
+			curSignal->staticSignalSegsElev, curSignal->signalHeads, curSignal->signalAspects, curSignal->signalGroups);
 	xx = GetTrkExtraData(trk);
 
 	SetTrkVisible( trk, TRUE );
@@ -1881,7 +1985,7 @@ static void AddSignal( void )
 	signalEditAngle = 0.0;
 	signalEditEP = -1;
 	signalEditName[0] = '\0';
-	signalEditLever = -1;
+	signalEditLever[0] = '\0';
 	signalEditTrackConnected = NULL;
 }
 
@@ -1926,6 +2030,52 @@ static void CreateNewSignal (coOrd orig, ANGLE_T angle, track_p track, EPINX_T e
 
 static coOrd pos0,pos1;
 static ANGLE_T orient;
+
+static STATUS_T CmdSignalAction ( wAction_t action, coOrd pos )
+{
+    static track_p trk;
+    switch (action) {
+    case C_START:
+        InfoMessage(_("Place base of signal on Track"));
+        trk = NULL;
+        return C_CONTINUE;
+    case C_DOWN:
+    	pos0 = pos;
+        trk = OnTrack(&pos,FALSE,TRUE);
+        if (!trk) {
+        	NoticeMessage2( 0, MSG_SIGNAL_NO_TRACK_HERE, _("Ok"), NULL );
+        	return C_TERMINATE;
+        }
+        EPINX_T ep = PickEndPoint(pos,trk);
+        pos1 = GetTrkEndPos(trk,ep);
+        orient = NormalizeAngle(GetTrkEndAngle(trk,ep)-180.0);
+        ANGLE_T a = DifferenceBetweenAngles(FindAngle(pos1,pos0),orient);
+        Translate(&pos,pos,a<180?orient+90:orient-90,GetTrkWidth(trk));  //Start one Track Width away
+        pos1 = pos;
+        InfoMessage(_("Drag to re-position signal"));
+        return C_CONTINUE;
+    case C_MOVE:
+    	if (!trk) return C_CONTINUE;
+    	coOrd diff;
+    	diff.x = pos.x-pos0.x;
+    	diff.y = pos.y-pos0.y;
+    	pos1.x +=diff.x;
+    	pos1.y +=diff.y;
+        DDrawSignal( &tempD, pos1, orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+        return C_CONTINUE;
+    case C_UP:
+    	if (!trk) return C_CONTINUE;
+        CreateNewSignal(pos1,orient,trk,ep);
+        return C_TERMINATE;
+    case C_REDRAW:
+    case C_CANCEL:
+        DDrawSignal( &tempD, pos1, orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+        return C_CONTINUE;
+    default:
+        return C_CONTINUE;
+    }
+}
+
 
 static STATUS_T CmdSignal (wAction_t action, coOrd pos) {
 	wIndex_t signalIndex;
@@ -1973,9 +2123,9 @@ static STATUS_T CmdSignal (wAction_t action, coOrd pos) {
 		InfoMessage( _("Left drag to move, right drag to rotate, press Space or Return to fix Signal in place or Esc to cancel") );
 		return CmdSignalAction( action, pos );
 	case C_LCLICK:
-		HilightEndPt();
+		//HilightEndPt();
 		CmdSignalAction( action, pos );
-		HilightEndPt();
+		//HilightEndPt();
 		return C_CONTINUE;
 	case C_CANCEL:
 		wHide( signalW );
@@ -1994,50 +2144,6 @@ static STATUS_T CmdSignal (wAction_t action, coOrd pos) {
 	}
 }
 
-static STATUS_T CmdSignalAction ( wAction_t action, coOrd pos )
-{
-    static track_p trk;
-    switch (action) {
-    case C_START:
-        InfoMessage(_("Place base of signal on Track"));
-        trk = NULL;
-        return C_CONTINUE;
-    case C_DOWN:
-    	pos0 = pos;
-        trk = OnTrack(&pos,FALSE,TRUE);
-        if (!trk) {
-        	NoticeMessage2( 0, MSG_SIGNAL_NO_TRACK_HERE, _("Ok"), NULL );
-        	return C_TERMINATE;
-        }
-        static EPINX_T ep = PickEndPoint(pos,trk);
-        pos1 = GetTrkEndPos(trk,ep);
-        orient = NormalizeAngle(GetTrkEndAngle(trk,ep)-180.0);
-        ANGLE_T a = DifferenceBetweenAngles(FindAngle(pos1,pos0),orient);
-        Translate(&pos,pos,a<180?orient+90:orient-90,GetTrkWidth(trk));  //Start one Track Width away
-        pos1 = pos;
-        InfoMessage(_("Drag to re-position signal"));
-        return C_CONTINUE;
-    case C_MOVE:
-    	if (!trk) return C_CONTINUE;
-    	coOrd diff;
-    	diff.x = pos.x-pos0.x;
-    	diff.y = pos.y-pos0.y;
-    	pos1.x +=diff.x;
-    	pos1.y +=diff.y;
-        DDrawSignal( &tempD, pos1, orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
-        return C_CONTINUE;
-    case C_UP:
-    	if (!trk) return C_CONTINUE;
-        CreateNewSignal(pos1,orient,trk,ep);
-        return C_TERMINATE;
-    case C_REDRAW:
-    case C_CANCEL:
-        DDrawSignal( &tempD, pos1, orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
-        return C_CONTINUE;
-    default:
-        return C_CONTINUE;
-    }
-}
 
 static coOrd sighiliteOrig, sighiliteSize;
 static POS_T sighiliteBorder;
@@ -2243,6 +2349,11 @@ static char * CmdSignalHotBarProc(
 		return NULL;
 	}
 	return NULL;
+
+}
+
+EXPORT BOOL_T WriteSignalSystem(FILE * f) {
+	return TRUE;
 }
 
 #define ACCL_SIGNAL 0
@@ -2253,6 +2364,9 @@ EXPORT void AddHotBarSignals( void )
 	signalData_p sd;
 	for ( inx=0; inx < signalData_da.cnt; inx ++ ) {
 		sd = &DYNARR_N(signalData_t,signalData_da,inx);
+		if (!( IsParamValid(sd->paramFileIndex)  &&
+			CompatibleScale( TRUE, sd->scaleInx, GetLayoutCurScale())))
+			continue;
 		AddHotBarElement( sd->signalName, sd->size, sd->orig, FALSE, sd->barscale, sd, CmdSignalHotBarProc );
 	}
 }
@@ -2268,4 +2382,5 @@ EXPORT void InitTrkSignal ( void )
     log_signal = LogFindIndex ( "signal" );
     AddParam( "HEADTYPE", ReadHeadType );
     AddParam( "SIGNALSYSTEM", ReadSignalSystem);
+    AddParam( "SIGNAL",ReadSignalParam);
 }

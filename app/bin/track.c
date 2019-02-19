@@ -43,6 +43,7 @@
 #include "paths.h"
 #include "track.h"
 #include "utility.h"
+#include "condition.h"
 
 #ifndef TRACKDEP
 #ifndef FASTTRACK
@@ -78,10 +79,12 @@ EXPORT wIndex_t trackCount;
 EXPORT long drawEndPtV = 2;
 EXPORT long drawUnconnectedEndPt = 0;		/**< How do we draw Unconnected EndPts */
 
+EXPORT long drawBlocksMode = FALSE;			/**< How do we draw Blocks */
+
 EXPORT long centerDrawMode = FALSE;			/**< flag to control drawing of circle centers */
 EXPORT long printCenterLines = FALSE; 		/**< flag to control drawing of centerline in Print */
 
-EXPORT wColor BlockColor;
+EXPORT wDrawColor BlockColor;
 
 static BOOL_T exportingTracks = FALSE;
 
@@ -124,6 +127,13 @@ EXPORT void ActivateTrack( track_cp trk) {
 	if (trackCmds( inx )->activate != NULL)
 		trackCmds( inx )->activate (trk);
 
+}
+
+EXPORT BOOL_T PubSubTrack( track_cp trk, pubSubParmList_p parmlist ) {
+	int inx = GetTrkType(trk);
+	if (trackCmds( inx )->pubSubCommand != NULL)
+		return trackCmds( inx )->pubSubCommand(trk, parmlist);
+	return FALSE;
 }
 
 
@@ -2344,9 +2354,9 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) R%0.3f A%0.3f..%0.3f)\n",
 	if (color == wDrawColorBlack)
 		color = normalColor;
 	if ( d->scale >= scale2rail ) {
-		DrawArc( d, p, r, a0, a1, ((d->scale<32) && centerDrawMode && !(options&DTS_NOCENTER)) ? 1 : 0, width, options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)?BlockColor:color );
+		DrawArc( d, p, r, a0, a1, ((d->scale<32) && centerDrawMode && !(options&DTS_NOCENTER)) ? 1 : 0, width, color );
 	} else if (d->options & DC_QUICK) {
-		DrawArc( d, p, r, a0, a1, ((d->scale<32) && centerDrawMode && !(options&DTS_NOCENTER)) ? 1 : 0, 0, options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)?BlockColor:color );
+		DrawArc( d, p, r, a0, a1, ((d->scale<32) && centerDrawMode && !(options&DTS_NOCENTER)) ? 1 : 0, 0, color );
 	} else {
 		if ( (d->scale <= 1 && (d->options&DC_SIMPLE)==0) || (d->options&DC_CENTERLINE)!=0
 				|| (d->scale <= scale2rail/2 && (d->options&DC_PRINT) && printCenterLines)) {  // if printing two rails respect print CenterLine option
@@ -2355,15 +2365,22 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) R%0.3f A%0.3f..%0.3f)\n",
 			DrawArc( d, p, r, a0, a1, 0, 0, color );
 			d->options = options;
 		}
-		DrawArc( d, p, r+trackGauge/2.0, a0, a1, 0, width, color );
-		DrawArc( d, p, r-trackGauge/2.0, a0, a1, (centerDrawMode && !(options&DTS_NOCENTER) ? 1: 0), width, color );
+		if (options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)) {
+			if (options&DTS_BLOCK_LEFT)
+				DrawArc( d, p, r+1.5*trackGauge/2.0, a0, a1, 0, 3, blockColor );
+			else
+				DrawArc( d, p, r-1.5*trackGauge/2.0, a0, a1, 0, 3, blockColor );
+		} else {
+			DrawArc( d, p, r+trackGauge/2.0, a0, a1, 0, width, color );
+			DrawArc( d, p, r-trackGauge/2.0, a0, a1, (centerDrawMode && !(options&DTS_NOCENTER) ? 1: 0), width, color );
+		}
 		if ( (d->options&DC_PRINT) && roadbedWidth > trackGauge && d->scale <= scale2rail/2 ) {
 			 wDrawWidth rbw = (wDrawWidth)floor(roadbedLineWidth*(d->dpi/d->scale)+0.5);
-			 if ( options&(DTS_RIGHT|DTS_BLOCK_RIGHT)) {
-				DrawArc( d, p, r+roadbedWidth/2.0, a0, a1, 0, rbw, options&DTS_BLOCK_LEFT?BlockColor:color );
+			 if ( options&(DTS_RIGHT)) {
+				DrawArc( d, p, r+roadbedWidth/2.0, a0, a1, 0, rbw, color );
 			 }
-			 if ( options&(DTS_LEFT|DTS_BLOCK_RIGHT)) {
-				DrawArc( d, p, r-roadbedWidth/2.0, a0, a1, 0, rbw, options&DTS_BLOCK_RIGHT?BlockColor:color );
+			 if ( options&(DTS_LEFT)) {
+				DrawArc( d, p, r-roadbedWidth/2.0, a0, a1, 0, rbw, color );
 			 }
 		}
 	}
@@ -2462,9 +2479,9 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 	if (color == wDrawColorBlack)
 		color = normalColor;
 	if ( d->scale >= scale2rail ) {
-		DrawLine( d, p0, p1, width, options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)?BlockColor:color );
+		DrawLine( d, p0, p1, width, color );
 	} else if (d->options&DC_QUICK) {
-		DrawLine( d, p0, p1, 0, options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)?BlockColor:color );
+		DrawLine( d, p0, p1, 0, color );
 	} else {
 		if ( (d->scale <= 1 && (d->options&DC_SIMPLE)==0) || (d->options&DC_CENTERLINE)!=0
 				|| (d->scale <= scale2rail/2 && (d->options&DC_PRINT) && printCenterLines)) {  // if printing two rails respect print CenterLine option
@@ -2473,24 +2490,40 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 			DrawLine( d, p0, p1, 0, color );
 			d->options = options;
 		}
-		Translate( &pp0, p0, angle+90, trackGauge/2.0 );
-		Translate( &pp1, p1, angle+90, trackGauge/2.0 );
-		DrawLine( d, pp0, pp1, width, color );
-		Translate( &pp0, p0, angle-90, trackGauge/2.0 );
-		Translate( &pp1, p1, angle-90, trackGauge/2.0 );
-		DrawLine( d, pp0, pp1, width, color );
+		if ( options&(DTS_BLOCK_RIGHT|DTS_BLOCK_LEFT)) {
+			if (options&(DTS_BLOCK_RIGHT)) {
+				Translate( &pp0, p0, angle+90, 1.5*trackGauge/2.0 );
+				Translate( &pp1, p1, angle+90, 1.5*trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, 3, blockColor );
+			} else {
+				Translate( &pp0, p0, angle-90, 1.5*trackGauge/2.0 );
+				Translate( &pp1, p1, angle-90, 1.5*trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, 3, blockColor );
+			}
+		} else {
+			if ( options&(DTS_RIGHT)) {
+				Translate( &pp0, p0, angle+90, trackGauge/2.0 );
+				Translate( &pp1, p1, angle+90, trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, width, color );
+			}
+			if ( options&(DTS_LEFT)) {
+				Translate( &pp0, p0, angle-90, trackGauge/2.0 );
+				Translate( &pp1, p1, angle-90, trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, width, color );
+			}
+		}
 		if ( (d->options&DC_PRINT) && roadbedWidth > trackGauge && d->scale <= scale2rail/2.0) {
 			 wDrawWidth rbw = (wDrawWidth)floor(roadbedLineWidth*(d->dpi/d->scale)+0.5);
-			 if ( options&(DTS_RIGHT|DTS_BLOCK_RIGHT)) {
+			if (options&(DTS_RIGHT)) {
 				Translate( &pp0, p0, angle+90, roadbedWidth/2.0 );
 				Translate( &pp1, p1, angle+90, roadbedWidth/2.0 );
-				DrawLine( d, pp0, pp1, rbw, options&DTS_BLOCK_RIGHT?BlockColor:color);
-			 }
-			 if ( options&(DTS_LEFT|DTS_BLOCK_LEFT) ) {
+				DrawLine( d, pp0, pp1, rbw, color);
+			}
+			if (options&(DTS_LEFT)) {
 				Translate( &pp0, p0, angle-90, roadbedWidth/2.0 );
 				Translate( &pp1, p1, angle-90, roadbedWidth/2.0 );
-				DrawLine( d, pp0, pp1, rbw, options&DTS_BLOCK_LEFT?BlockColor:color);
-			 }
+				DrawLine( d, pp0, pp1, rbw, color);
+			}
 		}
 	}
 }

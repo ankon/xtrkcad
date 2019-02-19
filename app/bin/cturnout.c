@@ -39,6 +39,7 @@
 #include "param.h"
 #include "track.h"
 #include "utility.h"
+#include "condition.h"
 
 EXPORT TRKTYP_T T_TURNOUT = -1;
 
@@ -635,7 +636,7 @@ static void DrawTurnout(
 		DrawSegsO( d, trk, xx->orig, xx->angle, xx->segs, xx->segCnt, GetTrkGauge(trk), color, widthOptions|DTS_TIES );
 	DrawSegsO( d, trk, xx->orig, xx->angle, xx->segs, xx->segCnt, GetTrkGauge(trk), color, widthOptions | DTS_NOCENTER );  // no curve center for turnouts
 
-	if (d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)!=0) return;
+	if ((d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT))!=0) return;
 
 	for (i=0; i<GetTrkEndPtCnt(trk); i++) {
 		DrawEndPt( d, trk, i, color );
@@ -1502,13 +1503,20 @@ static void DrawTurnoutPositionIndicator(
 EXPORT void SetTurnoutPositionIndicator(
 		track_p trk,
 		BOOL_T thrown,
-		char * )
+		char * pathName)
 {
 	struct extraData * xx = GetTrkExtraData(trk);
 	PATHPTR_T path;
 	if ( GetTrkType(trk) != T_TURNOUT ) return;
-
-
+	path = xx->paths;
+	if (strcmp((char *)path,pathName) == 0) {
+		xx->pathCurr = path;
+		return;
+	}
+	path += strlen((char *)path)+1;
+	while ( path[0] || path[1] )
+		path++;
+	path += 2;
 }
 
 
@@ -1538,7 +1546,7 @@ EXPORT void AdvanceTurnoutPositionIndicator(
 		path = xx->paths;
 	xx->pathCurr = path;
 
-	publishEvent(xx->title,TYPE_TURNOUT,xx->pathCurr);  			//Publish Change for Condition
+	publishEvent(xx->title,TYPE_TURNOUT,(char *)xx->pathCurr);  			//Publish Change for Condition
 
 	DrawTurnoutPositionIndicator( trk, selectedColor );
 	if ( angleR == NULL || posR == NULL )
@@ -1566,7 +1574,7 @@ EXPORT void AdvanceTurnoutPositionIndicator(
  * The Names are the turnoutName
  *
  */
-static void pubSubTurnout(track_p trk, pubSubParmList_p parm) {
+static BOOL_T pubSubTurnout(track_p trk, pubSubParmList_p parm) {
 	struct extraData * xx = GetTrkExtraData(trk);
 
 	switch(parm->command) {
@@ -1574,17 +1582,17 @@ static void pubSubTurnout(track_p trk, pubSubParmList_p parm) {
 		DYNARR_RESET(char *,parm->actions);
 		parm->type = TYPE_TURNOUT;
 		if (strncmp(xx->title,parm->name,50) == 0) {
-			parm->state = xx->pathCurr;
+			parm->state = (char *)xx->pathCurr;
 		}
 		break;
 	case FIRE_ACTION:
-		if (parm->type != TYPE_TURNOUT) return;
+		if (parm->type != TYPE_TURNOUT) return FALSE;
 		if (strncmp(xx->title,parm->name,50) == 0) {
-			char * path = xx->paths;
+			signed char * path = xx->paths;
 			while (*path != 0) {
-				if (strncmp(path,parm->action,50) == 0) {
+				if (strncmp((char *)path,parm->action,50) == 0) {
 					xx->pathCurr = path;
-					publishEvent(xx->title,TYPE_TURNOUT,path);
+					publishEvent(xx->title,TYPE_TURNOUT,(char *)path);
 				}
 				path += strlen((char *)path)+1;
 				while ( path[0] || path[1] ) path++;
@@ -1600,14 +1608,14 @@ static void pubSubTurnout(track_p trk, pubSubParmList_p parm) {
 		*name = xx->title;
 		break;
 	case DESCRIBE_STATES:
-		if (parm->type != TYPE_TURNOUT) return;
+		if (parm->type != TYPE_TURNOUT) return FALSE;
 		DYNARR_RESET(char *,parm->states);
 		if (strncmp(xx->title,parm->name,50) == 0) {
-			char * path = xx->paths;
+			signed char * path = xx->paths;
 			while (*path != 0) {
 				DYNARR_APPEND(char *,parm->states,1);
 				char ** name = &DYNARR_LAST(char *,parm->states);
-				*name = path;
+				*name = (char *)path;
 				path += strlen((char *)path)+1;
 				while ( path[0] || path[1] ) path++;
 				path += 2;
@@ -1615,14 +1623,14 @@ static void pubSubTurnout(track_p trk, pubSubParmList_p parm) {
 		}
 		break;
 	case DESCRIBE_ACTIONS:
-		if (parm->type != TYPE_TURNOUT) return;
+		if (parm->type != TYPE_TURNOUT) return FALSE;
 		DYNARR_RESET(char *,parm->states);
 		if (strncmp(xx->title,parm->name,50) == 0) {
-			char * path = xx->paths;
+			signed char * path = xx->paths;
 			while (*path != 0) {
 				DYNARR_APPEND(char *,parm->states,1);
 				char ** name = &DYNARR_LAST(char *,parm->states);
-				*name = path;
+				*name = (char *)path;
 				path += strlen((char *)path)+1;
 				while ( path[0] || path[1] ) path++;
 				path += 2;
@@ -1630,6 +1638,7 @@ static void pubSubTurnout(track_p trk, pubSubParmList_p parm) {
 		}
 		break;
 	}
+	return TRUE;
 }
 
 /**
@@ -1971,7 +1980,7 @@ static void PlaceTurnoutTrial(
 			 (trk1=GetTrkEndTrk(trk,ep0)) &&
 			 GetTrkType(trk1) == T_TURNOUT) &&
 		 ! GetLayerFrozen(GetTrkLayer(trk)) &&
-		   (GetTrkScale(trk) == GetTrkScale(curTurnout))  // Reject different scale/gauge tracks
+		   (GetTrkScale(trk) == curTurnout->scaleInx)  // Reject different scale/gauge tracks
 		 ) {
 		epPos = GetTrkEndPos( trk, ep0 );
 		d = FindDistance( pos, epPos );
@@ -2155,7 +2164,7 @@ static void AddTurnout( void )
 		if ((trk = OnTrack(&epPos, FALSE, TRUE)) != NULL &&
 			(!GetLayerFrozen(GetTrkLayer(trk))) &&
 			(!QueryTrack(trk,Q_CANNOT_PLACE_TURNOUT)) &&
-			 (GetTrkScale(trk) == GetTrkScale(curTurnout))  // Reject mismatched Scale/Gauge
+			 (GetTrkScale(trk) == curTurnout->scaleInx)  // Reject mismatched Scale/Gauge
 			 ) {
 LOG( log_turnout, 1, ( "ep[%d] on T%d @(%0.3f %0.3f)\n",
 					i, GetTrkIndex(trk), epPos.x, epPos.y ) )

@@ -38,6 +38,7 @@ extern long drawTunnel;
 extern long drawEndPtV;
 extern long drawUnconnectedEndPt;
 extern long centerDrawMode;
+extern long drawBlocksMode;
 extern wDrawColor selectedColor;
 extern wDrawColor normalColor;
 extern BOOL_T useCurrentLayer;
@@ -56,6 +57,7 @@ extern wDrawColor exceptionColor;
 extern long tieDrawMode;
 extern long drawBlocksMode;
 extern wDrawColor tieColor;
+extern wDrawColor blockColor;
 
 
 extern TRKINX_T max_index;
@@ -137,8 +139,6 @@ typedef enum {GET_STATE, FIRE_ACTION, DESCRIBE_NAMES, DESCRIBE_STATES, DESCRIBE_
 
 typedef enum {TYPE_UNKNOWN =-1, TYPE_SIGNAL, TYPE_TURNOUT, TYPE_BLOCK, TYPE_SENSOR, TYPE_CONTROL} typeControl_e;
 #define NUM_OF_TESTABLE_TYPES           (5)
-
-typedef struct ConditionGroup_t *ConditionGroup_p;
 
 typedef struct {
 	char * name;			// Name Array for PubSub
@@ -536,6 +536,7 @@ void CheckTrackLength( track_cp );
 track_p NewTrack( wIndex_t, TRKTYP_T, EPINX_T, CSIZE_T );
 void DescribeTrack( track_cp, char *, CSIZE_T );
 void ActivateTrack( track_cp );
+BOOL_T PubSubTrack( track_cp, pubSubParmList_p );
 EPINX_T GetEndPtConnectedToMe( track_p, track_p );
 EPINX_T GetNearestEndPtConnectedToMe( track_p, track_p, coOrd);
 void SetEndPts( track_p, EPINX_T );
@@ -726,7 +727,7 @@ void AddHotBarCarDesc( void );
 
 /* cblock.c */
 void CheckDeleteBlock( track_p t );
-void ResolveBlockTrack ( track_p trk );
+BOOL_T ResolveBlockTrack ( track_p trk );
 DIST_T BlockDescriptionDistance( coOrd, track_p);
 STATUS_T BlockDescriptionMove( track_p, wAction_t, coOrd);
 

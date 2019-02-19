@@ -204,7 +204,7 @@ static void DrawTurntable( track_p t, drawCmd_p d, wDrawColor color )
 		return;
 	if ( (d->options&DC_QUICK) == 0 ) {
 		DrawStraightTrack( d, p0, p1, FindAngle(p0,p1), t, GetTrkGauge(t), color, widthOptions );
-		if (d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT) != 0) return;
+		if ((d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) != 0) return;
 		for ( ep=0; ep<GetTrkEndPtCnt(t); ep++ ) {
 			if (GetTrkEndTrk(t,ep) != NULL )
 				DrawEndPt( d, t, ep, color );
@@ -582,7 +582,16 @@ static STATUS_T ModifyTurntable( track_p trk, wAction_t action, coOrd pos )
 	case C_UP:
 		if (!valid)
 			return C_TERMINATE;
-		ep = NewTurntableEndPt( trk, angle );
+		//Look for empty slot
+		BOOL_T found = FALSE;
+
+		for (ep=0; ep<GetTrkEndPtCnt(trk); ep=ep+1) {
+			if ( (GetTrkEndTrk(trk,ep)) == NULL )
+				found = TRUE;
+				break;
+		}
+
+		if (!found)	ep = NewTurntableEndPt( trk, angle );
 		trk1 = NewStraightTrack( tempSegs(0).u.l.pos[0], tempSegs(0).u.l.pos[1] );
 		CopyAttributes( trk, trk1 );
 		ConnectTracks( trk, ep, trk1, 0 );
@@ -613,7 +622,15 @@ EXPORT BOOL_T ConnectTurntableTracks(
 			UndoStart( _("Connect Turntable Tracks"), "TurnTracks(T%d[%d] T%d[%d] D%0.3f A%0.3F )",
 					GetTrkIndex(trk1), ep1, GetTrkIndex(trk2), ep2, dist, angle );
 			UndoModify(trk1);
-			EPINX_T ep = NewTurntableEndPt(trk1,angle);
+			//Look for empty slot
+			BOOL_T found = FALSE;
+			EPINX_T ep;
+			for (ep=0; ep<GetTrkEndPtCnt(trk1); ep=ep+1) {
+				if ( (GetTrkEndTrk(trk1,ep)) == NULL )
+					found = TRUE;
+					break;
+			}
+			if (!found)	ep = NewTurntableEndPt(trk1,angle);
 			if (ConnectTracks( trk1, ep, trk2, ep2 )) {
 				UndoUndo();
 				return FALSE;
@@ -679,8 +696,7 @@ static BOOL_T MoveEndPtTurntable( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d
 			found = TRUE;
 			break;
 	}
-	if (!found)
-		*ep = NewTurntableEndPt(*trk,angle0);
+	if (!found) *ep = NewTurntableEndPt(*trk,angle0);
 	else {
 		struct extraData *xx = GetTrkExtraData(*trk);
 		coOrd pos1;

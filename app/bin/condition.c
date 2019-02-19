@@ -37,7 +37,7 @@
  *
  ****************************************************************************/
 
-#include "condition.h"
+#include "common.h"
 #include "cundo.h"
 #include "custom.h"
 #include "fileio.h"
@@ -46,17 +46,31 @@
 #include "param.h"
 #include "track.h"
 #include "trackx.h"
+#include "condition.h"
 #include "utility.h"
 #include "messages.h"
-#include "common.h"
+#include "string.h"
+#include "ctype.h"
+
 
 typedef enum ConditionType_e {COND_NONE = -1, COND_NOT, COND_AND, COND_OR, COND_NOTAND, COND_NOTOR, COND_MIXED} ConditionType_e;
 
 typedef enum ActionFireType_e {FIRE_UNKNOWN = -1, FIRE_CHANGESTOTRUE, FIRE_CHANGESTOFALSE, FIRE_CHANGES } ActionFireType_e;
 
-typedef struct Condition_t Condition_t;
-
 typedef enum stateValues_e {STATE_UNKNOWN, STATE_TRUE, STATE_FALSE} stateValues_e;
+
+/*
+ * A Condition is the result of a set of Tests - it can have Actions associated with it
+ */
+typedef struct {
+	char * conditionName;
+	char * precedentString;
+	dynArr_t precedents;           //Other sub-conditions
+	ConditionType_e conditionType;
+	dynArr_t tests;
+	dynArr_t actions;
+	stateValues_e lastStateTest;
+} Condition_t, *Condition_p;
 
 /*
  * A Test is a named logical comparison - it is part of a condition
@@ -82,8 +96,6 @@ typedef struct {
 	ActionFireType_e actionFireType;
 } Action_t, *Action_p;
 
-typedef Precedent_t;
-
 /*
  * A Precedent stack is a postfix parsing of the infix Precedence string
  */
@@ -93,33 +105,21 @@ typedef struct {
 	ConditionType_e conditionType;
 } Precedent_t,*Precedent_p;
 
-/*
- * A Condition is the result of a set of Tests - it can have Actions associated with it
- */
-typedef struct {
-	char * conditionName;
-	char * precedentString;
-	dynArr_t precedents;           //Other sub-conditions
-	ConditionType_e conditionType;
-	dynArr_t tests;
-	dynArr_t actions;
-	stateValues_e lastStateTest;
-} Condition_t, *Condition_p;
-
+typedef struct ConditionGroup_t ConditionGroup_t, *ConditionGroup_p;
 /*
  * A ConditionGroup represents a set of Conditions
  */
-typedef struct {
+struct ConditionGroup_t {
 	char * groupName;
 	dynArr_t conditions;
-	struct ConditionGroup_t *next;
-} ConditionGroup_t, *ConditionGroup_p;
+	ConditionGroup_t * next;
+};
 
 /*
  * An Event Watcher is a set of Tests that listen for a particular EventName and Type
  */
 typedef struct {
-	char eventName[50];
+	char eventName[STR_SHORT_SIZE];
 	typeControl_e watcherType;
 	dynArr_t watcherTests;
 	BOOL_T found;
@@ -129,7 +129,7 @@ typedef struct {
  * An Action performer is a set of objects that are called for a particular ActionName and Type
  */
 typedef struct {
-	char performName[50];
+	char performName[STR_SHORT_SIZE];
 	typeControl_e performType;
 	dynArr_t performTracks;
 	dynArr_t performStates;
@@ -139,19 +139,19 @@ typedef struct {
  * A StateName is a state that either an Event will give or an Action will set
  */
 typedef struct {
-	char name[50];
+	char name[STR_SHORT_SIZE];
 	BOOL_T found;
 } stateName_t, *stateName_p;
 
-static ConditionGroup_p conditionGroupsFirst = NULL;		//List of all Condition Groups
-static ConditionGroup_p conditionGroupsLast = NULL;
+static ConditionGroup_t * conditionGroupsFirst = NULL;		//List of all Condition Groups
+static ConditionGroup_t * conditionGroupsLast = NULL;
 static dynArr_t eventWatchers[NUM_OF_TESTABLE_TYPES]; 		//Arrays of Events for Tests
 static dynArr_t actionPerformers[NUM_OF_TESTABLE_TYPES];	//Arrays of Actions for Conditions
 
 /*
  * Add a Test to the Listening Events Arrays
  */
-void subscribeEvent(char name[50],typeControl_e type,Test_p t) {
+void subscribeEvent(char * name,typeControl_e type, Test_p t) {
 	for(int i=0;i<eventWatchers[type].cnt;i++) {
 		eventWatcher_p ew = &DYNARR_N(eventWatcher_t,eventWatchers[type],i);
 		if(strncmp(ew->eventName,name,50)==0) {
@@ -162,27 +162,27 @@ void subscribeEvent(char name[50],typeControl_e type,Test_p t) {
 	}
 	DYNARR_APPEND(eventWatcher_t,eventWatchers[type],1);
 	eventWatcher_p ew = &DYNARR_LAST(eventWatcher_t,eventWatchers[type]);
-	ew->eventName[49] = '\0';
-	strncpy(ew->eventName,name,49);
+	ew->eventName[STR_SHORT_SIZE-1] = '\0';
+	strncpy(ew->eventName,name,STR_SHORT_SIZE-1);
 	ew->watcherType = type;
 	ew->found = FALSE;
-	DYNARR_RESET(void*,ew->watcherTests);
-	DYNARR_APPEND(void*,ew->watcherTests,1);
-	ew->watcherTests[ew->watcherTests.cnt-1] = (void *)t;
+	DYNARR_RESET(Test_p,ew->watcherTests);
+	DYNARR_APPEND(Test_p,ew->watcherTests,1);
+	DYNARR_LAST(Test_p,ew->watcherTests) = t;
 }
 
 /*
  * Record that there is at least one Publisher for this Event and the state that is published
  */
-void registerStatePublisher(char name[50],typeControl_e type, trk, dynArr_t states) {
+void registerStatePublisher(char * name,typeControl_e type, track_p trk, dynArr_t states) {
 	for(int i;i<eventWatchers[type].cnt;i++) {
-		eventWatcher_p pw = &eventWatchers[type].ptr[i];
-		if(strncmp(pw->eventName,name,50)==0) {
+		eventWatcher_p pw = &DYNARR_N(eventWatcher_t,eventWatchers[type],i);
+		if(strncmp(pw->eventName,name,STR_SHORT_SIZE)==0) {
 			pw->found = TRUE;
 			for (int j=0;j<pw->watcherTests.cnt;j++) {
 				Test_p t = &DYNARR_N(Test_t,pw->watcherTests,j);
 				for (int k=0;k<states.cnt;k++) {
-					if (strncmp(states.ptr[k],t->valueToTest,50)==0) {
+					if (strncmp(DYNARR_N(char*,states,k),t->valueToTest,STR_SHORT_SIZE)==0) {
 						t->found = TRUE;
 					}
 				}
@@ -194,49 +194,49 @@ void registerStatePublisher(char name[50],typeControl_e type, trk, dynArr_t stat
 /*
  * Add an Action to the Action Arrays
  */
-void addAction(char name[50],typeControl_e type, char state[50]) {
+void addAction(char * name,typeControl_e type, char * state) {
 	for(int i=0;i<actionPerformers[type].cnt;i++) {
 		actionPerformer_p ap = &actionPerformers[type].ptr[i];
-		if (strncmp(ap->performName,name,50)==0) {
+		if (strncmp(ap->performName,name,STR_SHORT_SIZE)==0) {
 			for (int j=0;j<ap->performStates.cnt;j++) {
-				if (strncmp((char *)&ap->performStates.ptr[j],state,50) == 0) return;
+				if (strncmp((char *)&ap->performStates.ptr[j],state,STR_SHORT_SIZE) == 0) return;
 			}
 			DYNARR_APPEND(stateName_t,ap->performStates,1);
 			stateName_p sn = &DYNARR_LAST(stateName_t,ap->performStates);
-			sn->name[49] = '\0';
-			strcpy(sn->name,state,49);
+			sn->name[STR_SHORT_SIZE-1] = '\0';
+			strncpy(sn->name,state,STR_SHORT_SIZE-1);
 			sn->found = FALSE;
 		}
 	}
 	DYNARR_APPEND(actionPerformer_t,actionPerformers[type],1);
 	actionPerformer_p ap = &DYNARR_LAST(actionPerformer_t,actionPerformers[type]);
-	ap->performName[49] = '\0';
-	strncpy(ap->performName,name,49);
+	ap->performName[STR_SHORT_SIZE-1] = '\0';
+	strncpy(ap->performName,name,STR_SHORT_SIZE-1);
 	ap->performType = type;
 	DYNARR_APPEND(stateName_t,ap->performStates,1);
 	stateName_p sn = &DYNARR_LAST(stateName_t,ap->performStates);
-	sn->name[49] = '\0';
-	strcpy(sn->name,state,49);
+	sn->name[STR_SHORT_SIZE-1] = '\0';
+	strncpy(sn->name,state,STR_SHORT_SIZE-1);
 	sn->found = FALSE;
 }
 
 /*
  * Note that this track is a receiver for this Action and tick-off States it knows about
  */
-void subscribeAction(char name[50],typeControl_e type, track_p trk, dynArr_t actions) {
+void subscribeAction(char * name,typeControl_e type, track_p trk, dynArr_t actions) {
 	for(int i=0;i<actionPerformers[type].cnt;i++) {
 		actionPerformer_p ap = &DYNARR_N(actionPerformer_t,actionPerformers[type],i);
-		if (strncmp(ap->performName,name,50)==0) {
+		if (strncmp(ap->performName,name,STR_SHORT_SIZE)==0) {
 			BOOL_T found = FALSE;
 			for(int j=0;j<ap->performTracks.cnt;j++) {
-				if (trk == &DYNARR_N(track_p,ap->performTracks,j)) return;
+				if (trk == DYNARR_N(track_p,ap->performTracks,j)) return;
 			}
 			DYNARR_APPEND(track_p,ap->performTracks,1);
 			DYNARR_LAST(track_p,ap->performTracks) = trk;
 			for (int j=0;j<actions.cnt;j++) {
 				for (int k=0;k<ap->performStates.cnt;k++) {
 					stateName_p sn = &DYNARR_N(stateName_t,ap->performStates,k);
-					if (strncmp(sn->name,&actions.ptr[j],50)==0) {
+					if (strncmp(sn->name,&actions.ptr[j],STR_SHORT_SIZE)==0) {
 						sn->found = TRUE;
 						return;
 					}
@@ -263,17 +263,21 @@ void Complain(dynArr_t complaints,char * title, char * name, typeControl_e type,
 		typename = "Block";
 		break;
 	case TYPE_SIGNAL:
+		typename = "Signal";
+		break;
+	case TYPE_SENSOR:
 		typename = "Sensor";
 		break;
-
+	default:
+		typename = "Unknown";
 	}
 	char output[150];
-	output[149] = '\0';
+	output[STR_SHORT_SIZE-1] = '\0';
 	if (detail)
-		snprintf(output,149,"%s Type:%s Name:%s %s",title,typename,name,detail);
+		snprintf(output,STR_SHORT_SIZE-1,"%s Type:%s Name:%s %s/n",title,typename,name,detail);
 	else
-		snprintf(output,149,"%s Type:%s Name:%s",title,typename,name);
-	strdup(&complaints.ptr[complaints.cnt-1],output);
+		snprintf(output,STR_SHORT_SIZE-1,"%s Type:%s Name:%s/n",title,typename,name);
+	DYNARR_LAST(char*,complaints) = strdup(output);
 }
 
 /*
@@ -283,8 +287,8 @@ BOOL_T TestConditionsComplete(dynArr_t complaints) {
 	DYNARR_RESET((char*),complaints);
 	BOOL_T rc = TRUE;
 	for (int i=0;i<NUM_OF_TESTABLE_TYPES;i++) {
-		for (int j=0;j<actionPerformers[type].cnt;j++) {
-			actionPerformer_p ap = &actionPerformers[type].ptr[i];
+		for (int j=0;j<actionPerformers[i].cnt;j++) {
+			actionPerformer_p ap = &DYNARR_N(actionPerformer_t,actionPerformers[i],j);
 			if (ap->performTracks.cnt == 0) {
 				Complain(complaints,"No Sink of Event",ap->performName, ap->performType, NULL);
 				//Complain - no Action Performer
@@ -299,10 +303,10 @@ BOOL_T TestConditionsComplete(dynArr_t complaints) {
 				}
 			}
 		}
-		for (int j=0;j<eventWatchers[type].cnt;j++) {
-			eventWatcher_p ew = &DYNARR_N(eventWatcher_t,eventWatchers,j);
+		for (int j=0;j<eventWatchers[i].cnt;j++) {
+			eventWatcher_p ew = &DYNARR_N(eventWatcher_t,eventWatchers[i],j);
 			if (!ew->found) {
-				for (int k=0;ew->watcherTests;k++) {
+				for (int k=0;ew->watcherTests.cnt;k++) {
 					Test_p t = &DYNARR_N(Test_t,ew->watcherTests,k);
 					if (!t->found) {
 						//Complain - Producer does not produce State
@@ -319,6 +323,16 @@ BOOL_T TestConditionsComplete(dynArr_t complaints) {
 	return rc;
 }
 
+static void addActionToCondition(Condition_p c, char * performName, typeControl_e typeToAction, char * stateToAction, ActionFireType_e actionFireType) {
+	DYNARR_APPEND(Action_t,c->actions,1);
+	Action_p a = &DYNARR_LAST(Action_t,c->actions);
+	a->performName = performName;
+	a->typeToAction = typeToAction;
+	a->stateToAction = stateToAction;
+	a->actionFireType = actionFireType;
+}
+
+
 /*
  * Start over with the Arrays for Listening Events and Arrays
  * We do this every time we begin a new run or to Test for missing Conditions
@@ -332,17 +346,17 @@ void rebuildArrays(BOOL_T complain) {
 		DYNARR_RESET(eventWatcher_t,eventWatchers[i]);   		//Note don't reset sub-arrays - will be reused
 	}
 	// First register every name in the Conditions
-	ConditionGroup_p cg = conditionGroupsFirst;
+	ConditionGroup_t * cg = conditionGroupsFirst;
 	while (cg) {
 		for (int j=0;j<cg->conditions.cnt;j++) {
 			Condition_p c = &DYNARR_N(Condition_t,cg->conditions,j);
 			for (int k=0;k<c->tests.cnt;k++) {
-				Test_p t = &c->tests.ptr[k];
+				Test_p t = &DYNARR_N(Test_t,c->tests,k);
 				subscribeEvent(t->nameToTest,t->typeToTest,t);
 			}
 			for (int k=0;k<c->actions.cnt;k++) {
-				Action_p a = &c->actions.ptr[k];
-				addActionToCondition(a->performName,a->typeToAction,a->stateToAction);
+				Action_p a = &DYNARR_N(Action_t,c->actions,k);
+				addActionToCondition(c,a->performName,a->typeToAction,a->stateToAction,a->actionFireType);
 			}
 		}
 		cg = cg->next;
@@ -351,37 +365,39 @@ void rebuildArrays(BOOL_T complain) {
 	//Then find all Actions and States for all Objects and wire them to the Arrays, noting if they exist
 	TRK_ITERATE(trk) {
 		parm_list.command = DESCRIBE_NAMES;
-		if (TrackPubSub(trk,&parm_list)) {
+		if (PubSubTrack(trk,&parm_list)) {
 			for (int i=0;i<parm_list.names.cnt;i++) {
 				pubSubParmList_t sub_parm_list;
-				strncpy(sub_parm_list.action,&parm_list.names.ptr[i],50);
+				strncpy(sub_parm_list.action,DYNARR_N(char *,parm_list.names,i),STR_SHORT_SIZE);
 				sub_parm_list.command = DESCRIBE_STATES;
-				if (TrackPubSub(trk,&sub_parm_list))
-					registerStatePublisher(&parm_list.names.ptr[i],parm_list.type,sub_parm_list.states);
+				if (PubSubTrack(trk,&sub_parm_list))
+					registerStatePublisher(sub_parm_list.action,parm_list.type,trk,sub_parm_list.states);
 				sub_parm_list.command = DESCRIBE_ACTIONS;
-				if (TrackPubSub(trk,&sub_parm_list))
-					subscribeAction(&parm_list.names.ptr[i],parm_list.type, trk, sub_parm_list.actions);
+				if (PubSubTrack(trk,&sub_parm_list))
+					subscribeAction(sub_parm_list.action,parm_list.type, trk, sub_parm_list.actions);
 			}
 		}
 	}
 	dynArr_t temp_states;
 	DYNARR_APPEND(stateName_t,temp_states,1);
-	stateName_t sn = temp_states.ptr[temp_states.cnt-1];
-	sn->name = "TRUE";
+	stateName_t sn = DYNARR_LAST(stateName_t,temp_states);
+	strcpy(sn.name,"TRUE");
 	DYNARR_APPEND(stateName_t,temp_states,1);
-	sn = temp_states.ptr[temp_states.cnt-1];
-	sn.name = "FALSE";
+	sn = DYNARR_LAST(stateName_t,temp_states);
+	strcpy(sn.name,"FALSE");
 	//Register all Conditions that may be needed
-	ConditionGroup_p cg = conditionGroupsFirst;
+	cg = conditionGroupsFirst;
+	char name[STR_SHORT_SIZE];
 	while (cg) {
 		for (int j=0;j<cg->conditions.cnt;j++) {
-			Condition_p c = &cg->conditions.ptr[j];
-			snprintf(name,"$s.%s",&cg->groupName,&c->conditionName);
-			registerStatePublisher(&c->conditionName,parm_list.type,NULL,&temp_states);
+			Condition_p c = &DYNARR_N(Condition_t,cg->conditions,j);
+			snprintf(name,STR_SHORT_SIZE,"%s.%s",cg->groupName,c->conditionName);
+			registerStatePublisher(c->conditionName,parm_list.type,NULL,temp_states);
 		}
 		cg=cg->next;
 	}
-	if (complain) TestConditionsComplete();
+	dynArr_t complaints;
+	if (complain) TestConditionsComplete(complaints);
 }
 
 
@@ -392,16 +408,16 @@ void rebuildArrays(BOOL_T complain) {
 void fireAction(Action_p act_p, BOOL_T init) {
 	pubSubParmList_t parm_list;
 	parm_list.command = FIRE_ACTION;
-	parm_list.name = &act_p->performName;
-	parm_list.action = &act_p->stateToAction;
+	parm_list.name = act_p->performName;
+	parm_list.action = act_p->stateToAction;
 	parm_list.type = act_p->typeToAction;
 	parm_list.suppressPublish = init;
 	for (int i=0;i<actionPerformers[act_p->typeToAction].cnt;i++) {
-		actionPerformer_p ap = (actionPerformer_p)actionPerformers[act_p->typeToAction].ptr[i];
+		actionPerformer_p ap = &DYNARR_N(actionPerformer_t,actionPerformers[act_p->typeToAction],i);
 		if ((strncmp(ap->performName,parm_list.name,50)!=0)) continue;
 		for (int j=0;j<ap->performTracks.cnt;j++) {
-			track_p trk = (void *)ap->performTracks.ptr[j];
-			TrackPubSub(trk,&parm_list);
+			track_p trk = &DYNARR_N(track_t,ap->performTracks,j);
+			PubSubTrack(trk,&parm_list);
 		}
 	}
 }
@@ -412,7 +428,7 @@ void fireAction(Action_p act_p, BOOL_T init) {
 BOOL_T processCondition(Condition_p cond_p, BOOL_T fire) {
 	stateValues_e saveState = cond_p->lastStateTest;
 	for (int i=0;i<cond_p->tests.cnt;i++) {
-		Test_p test_p = (Test_p)cond_p->tests.ptr[i];
+		Test_p test_p = &DYNARR_N(Test_t,cond_p->tests,i);
 		if (cond_p->conditionType == COND_AND || cond_p->conditionType == COND_NOTAND ) {
 			if (test_p->lastStateTest == test_p->inverse?STATE_TRUE:STATE_FALSE) {
 				cond_p->lastStateTest = (cond_p->conditionType == COND_AND)?FALSE:TRUE;
@@ -431,8 +447,8 @@ BOOL_T processCondition(Condition_p cond_p, BOOL_T fire) {
 	}
 	if (saveState == cond_p->lastStateTest) return FALSE;  //No change
 	if (!fire) return TRUE;								   //Suppress actions and publish
-	for (int i=0; i<cond_p->actions;i++) {
-		Action_p action_p = (Action_p)cond_p->actions.ptr[i];
+	for (int i=0; i<cond_p->actions.cnt;i++) {
+		Action_p action_p = &DYNARR_N(Action_t,cond_p->actions,i);
 		if ((action_p->actionFireType == FIRE_CHANGESTOTRUE && cond_p->lastStateTest == STATE_TRUE) ||
 			(action_p->actionFireType == FIRE_CHANGESTOFALSE && cond_p->lastStateTest == STATE_FALSE) ||
 			action_p->actionFireType == FIRE_CHANGES) {
@@ -442,8 +458,14 @@ BOOL_T processCondition(Condition_p cond_p, BOOL_T fire) {
 	}
 	//Last - publish change for any Listeners
 	char * eventName;
-	snprintf(eventName,"%s.%s","Condition",cond_p->conditionName);
-	publishEvent(eventName, TYPE_CONTROL, cond_p->lastStateTest);
+	snprintf(eventName,STR_SHORT_SIZE,"%s.%s","Condition",cond_p->conditionName);
+	char * stateValue;
+	if (cond_p->lastStateTest == STATE_TRUE) {
+		stateValue = "TRUE";
+	} else {
+		stateValue = "FALSE";
+	}
+	publishEvent(eventName, TYPE_CONTROL, stateValue);
 	return TRUE;
 }
 
@@ -453,15 +475,15 @@ BOOL_T processCondition(Condition_p cond_p, BOOL_T fire) {
 BOOL_T processTest(Test_p test, char * publisherName, typeControl_e type, char * newState, BOOL_T percolate) {
 	stateValues_e save = test->lastStateTest;
 	if (type == test->typeToTest &&
-		(strncmp(test->nameToTest,publisherName,50) == 0  )) {
-		if (strncmp(test->valueToTest,newState,50) == 0 )
+		(strncmp(test->nameToTest,publisherName,STR_SHORT_SIZE) == 0  )) {
+		if (strncmp(test->valueToTest,newState,STR_SHORT_SIZE) == 0 )
 			test->lastStateTest = test->inverse?STATE_FALSE:STATE_TRUE;
 		else
 			test->lastStateTest = test->inverse?STATE_TRUE:STATE_FALSE;
 	}
 
 	if (test->fireTestOnChange && (test->lastStateTest != save) && percolate) {
-		processCondition(test->condition, TRUE);
+		processCondition(&test->condition, TRUE);
 	}
 	return (test->lastStateTest != save);
 }
@@ -474,18 +496,18 @@ BOOL_T GetState(Test_p test_p) {
 	TRK_ITERATE(trk) {
 		pubSubParmList_t parm_list;
 		parm_list.command = DESCRIBE_NAMES;
-		TrackPubSub(trk,&parm_list);
+		PubSubTrack(trk,&parm_list);
 		for( int i=0;i<parm_list.names.cnt;i++) {
 			char *s = DYNARR_N(char *,parm_list.names,i);
-			if (strncmp(s,test_p->nameToTest,50) == 0) {
+			if (strncmp(s,test_p->nameToTest,STR_SHORT_SIZE) == 0) {
 				parm_list.command = GET_STATE;
-				parm_list.name = &test_p->nameToTest;
-				TrackPubSub(trk,&parm_list);
+				parm_list.name = test_p->nameToTest;
+				PubSubTrack(trk,&parm_list);
 				return processTest(test_p,test_p->nameToTest, test_p->typeToTest, parm_list.state, FALSE);
 			}
 		}
 	}
-	return NULL;
+	return FALSE;
 }
 
 /*
@@ -495,23 +517,21 @@ void InitializeStates() {
 	ConditionGroup_p cg = conditionGroupsFirst;
 	while (cg) {
 		for (int j=0; j<cg->conditions.cnt; j++) {
-			Condition_p cond_p = (Condition_p)cg->conditions.ptr[j];
+			Condition_p cond_p = &DYNARR_N(Condition_t,cg->conditions,j);
 			for (int k=0; k<cond_p->tests.cnt; k++) {
-				Test_p test_p = (Test_p)cond_p->tests.ptr[k];
-				if (!GetState(test_p->nameToTest)) {
-
-				}
+				Test_p test_p = &DYNARR_N(Test_t,cond_p->tests,k);
+				GetState(test_p);
 			}
 			processCondition(cond_p,FALSE);  //Now do the Condition (once)
 		}
 		cg = cg->next;
 	}
-	ConditionGroup_p cg = conditionGroupsFirst;
+	cg = conditionGroupsFirst;
 	while (cg) {
 		for (int j=0; j<cg->conditions.cnt; j++) {
-			Condition_p cond_p = (Condition_p)cg->conditions.ptr[j];
-			for (int i=0; i<cond_p->actions;i++) {
-				Action_p action_p = (Action_p)cond_p->actions.ptr[i];
+			Condition_p cond_p = &DYNARR_N(Condition_t,cg->conditions,j);
+			for (int i=0; i<cond_p->actions.cnt;i++) {
+				Action_p action_p = &DYNARR_N(Action_t,cond_p->actions,i);
 				if ((action_p->actionFireType == FIRE_CHANGESTOTRUE && cond_p->lastStateTest == STATE_TRUE) ||
 					(action_p->actionFireType == FIRE_CHANGESTOFALSE && cond_p->lastStateTest == STATE_FALSE) ||
 					action_p->actionFireType == FIRE_CHANGES) {
@@ -538,10 +558,10 @@ void publishEvent(char * publisherName, typeControl_e type, char * newState) {
 		return;
 	}
 	for (int i=0;i<eventWatchers[type].cnt;i++) {
-		eventWatcher_p pw = (eventWatcher_p)eventWatchers[type].ptr[i];
-		if ((strncmp(publisherName,pw->eventName,50)==0)) {
+		eventWatcher_p pw = &DYNARR_N(eventWatcher_t,eventWatchers[type],i);
+		if ((strncmp(publisherName,pw->eventName,STR_SHORT_SIZE)==0)) {
 			for (int j=0;j<pw->watcherTests.cnt;j++) {
-				Test_p test = (Test_p)pw->watcherTests.ptr[j];
+				Test_p test = &DYNARR_N(Test_t,pw->watcherTests,j);
 				processTest(test,publisherName,type,newState, TRUE);
 			}
 		}
@@ -562,6 +582,10 @@ char * ConditionTypeToString(ConditionType_e ct) {
 		return "NOT AND";
 	case COND_NOT:
 		return "NOT";
+	case COND_MIXED:
+		return "MIXED";
+	case COND_NONE:
+		return NULL;
 	}
 	return NULL;
 }
@@ -589,6 +613,8 @@ char * ControlTypeToString(typeControl_e tc) {
 		return "CONTROL";
 	case TYPE_SENSOR:
 		return "SENSOR";
+	default:
+		break;
 	}
 	return "UNKNOWN";
 }
@@ -606,6 +632,8 @@ char * ActionFireTypeToString(ActionFireType_e f) {
 	switch(f) {
 	case FIRE_CHANGESTOTRUE: return "FIRETRUE";
 	case FIRE_CHANGESTOFALSE: return "FIREFALSE";
+	default:
+		break;
 	}
 	return "FIREALL";
 }
@@ -617,7 +645,7 @@ ActionFireType_e ConvertToActionFireType(char * type) {
 	return FIRE_UNKNOWN;
 }
 
-BOOL_T WriteConditions( Condition_p cond_p, FILE * f )
+BOOL_T WriteConditions( FILE * f )
 {
     int rc = 0;
     int i = 0;
@@ -626,19 +654,19 @@ BOOL_T WriteConditions( Condition_p cond_p, FILE * f )
 		rc &= fprintf(f, "CONDITIONGROUP %d \"%s\"\n",
 					  i, cg->groupName )>0;
 		for (int j = 0; j < cg->conditions.cnt; j++) {
-			Condition_p c = cg->conditions.ptr[j];
+			Condition_p c = &DYNARR_N(Condition_t,cg->conditions,j);
 			rc &= fprintf(f, "\tCONDITION %d %s \"%s\"\n",
 							j, ConditionTypeToString(c->conditionType), c->conditionName )>0;
 			for (int k=0; k<c->tests.cnt;k++) {
-				Test_p t = c->tests.ptr[k];
+				Test_p t = &DYNARR_N(Test_t,c->tests,k);
 				rc &= fprintf(f, "\t\tTEST R%d %s IF %s \"%s\" IS %s \"%s\"\n",
 							k, t->fireTestOnChange?"FIREONCHANGE":"NOFIRE",
 									ControlTypeToString(t->typeToTest), t->nameToTest, t->inverse?"COND_NOT":"",  t->valueToTest )>0;
 			}
 			for (int k=0; k<c->actions.cnt;k++) {
-				Action_p a = c->actions.ptr[k];
+				Action_p a = &DYNARR_N(Action_t,c->actions,k);
 				rc &= fprintf(f, "\t\tACTION %d %s SET %s \"%s\" TO \"%s\"\n",
-							k, ConvertToActionFireType(a->actionFireType),
+							k, ActionFireTypeToString(a->actionFireType),
 									ControlTypeToString(a->typeToAction), a->performName, a->stateToAction )>0;
 			}
 			rc &= fprintf(f, "\tEND \n")>0;
@@ -716,23 +744,15 @@ static void addTestToCondition(Condition_p c, char * nameToTest, typeControl_e t
 	t->inverse = inverse;
 }
 
-static void addActionToCondition(Condition_p c, char * performName, typeControl_e typeToAction, char * stateToAction, ActionFireType_e actionFireType) {
-	DYNARR_APPEND(Action_t,c->actions,1);
-	Action_p a = &DYNARR_LAST(Action_t,c->actions);
-	a->performName = performName;
-	a->typeToAction = typeToAction;
-	a->stateToAction = stateToAction;
-	a->actionFireType = actionFireType;
-}
 
-void ReadConditionGroup(char * line) {
+BOOL_T ReadConditionGroup(char * line) {
 	char * name;
 	char * cp = NULL;
 	track_p trk;
 	int index;
-	if ( strncmp ( cp, "CONDITIONGROUP",20) !=0) return;
+	if ( strncmp ( cp, "CONDITIONGROUP",20) !=0) return FALSE;
 	if (!GetArgs(line+13,"dq",&index,&name)) {
-			return;
+			return FALSE;
 	}
 	ConditionGroup_p cg = NewConditionGroup(name);
 	while ( (cp = GetNextLine()) != NULL ) {
@@ -747,7 +767,7 @@ void ReadConditionGroup(char * line) {
 			int condIndex;
 			char * conditionName;
 			char * conditionType;
-			if (!GetArgs(cp+9,"dsq",&condIndex,&conditionType,&conditionName)) return;
+			if (!GetArgs(cp+9,"dsq",&condIndex,&conditionType,&conditionName)) return FALSE;
 			Condition_p c = addConditionToGroup(cg,conditionName,ConvertToConditionType(conditionType));
 			while ( (cp = GetNextLine()) != NULL ) {
 				while (isspace((unsigned char)*cp)) cp++;
@@ -759,24 +779,25 @@ void ReadConditionGroup(char * line) {
 				}
 				if ( strncmp( cp, "TEST", 4 ) == 0 ) {
 					char *testIndex,*conditionStr,*testName,*notStr,*stateStr,*typeStr,*ifs,*is;
-					if (!GetArgs(cp+4,"ssssqssq",&testIndex,&conditionStr,&ifs,&typeStr,&testName,&is,&notStr,stateStr)) return;
+					if (!GetArgs(cp+4,"ssssqssq",&testIndex,&conditionStr,&ifs,&typeStr,&testName,&is,&notStr,stateStr)) return FALSE;
 					// Ignore index, IF and IS
 					BOOL_T fire=FALSE,inverse=FALSE;
 					if (strncmp(conditionStr,"FIREONCHANGE",12) == 0) fire = TRUE;
 					if (*notStr && strncmp(notStr,"NOT",3)==0) inverse =TRUE;
 					typeControl_e ty = ConvertToControlType(typeStr);
-					Test_p t = addTestToCondition(c,testName,ty,stateStr,fire,inverse);
+					addTestToCondition(c,testName,ty,stateStr,fire,inverse);
 				}
 				//%d %s SET %s \"%s\" TO \"%s\"\n
 				if ( strncmp( cp, "ACTION", 6 ) == 0 ) {
 					char *actionIndex,*fireStr,*typeStr,*actionName,*stateStr,*set,*to;
-					if (!GetArgs(cp+6,"dsssqsq",&actionIndex,&fireStr,&set,&typeStr,&actionName,&to,stateStr)) return;
+					if (!GetArgs(cp+6,"dsssqsq",&actionIndex,&fireStr,&set,&typeStr,&actionName,&to,stateStr)) return FALSE;
 					//Ignore index, SET and TO
-					Action_p a = addActionToCondition(c, actionName, ConvertToActionType(typeStr), stateStr, ConvertToActionFireType(fireStr));
+					addActionToCondition(c, actionName, ConvertToControlType(typeStr), stateStr, ConvertToActionFireType(fireStr));
 				}
 			}
 		}
 	}
+	return TRUE;
 }
 
 
@@ -831,14 +852,14 @@ int parseTest(dynArr_t s) {
 			x++;
 		}
 		found_test = TRUE;
-		push(s,Value,NULL,r);    				//Immediately Push Test Term
+		push(s,Value,COND_NONE,r);    				//Immediately Push Test Term
 	} else {
 		removeBlanks();
-		if ( *x == "(") {                        //Test for brackets
+		if ( *x =='(') {                        //Test for brackets
 			x++;
 			if (rc &=parseOr(s)) return rc;	    //Recurse inside from top
 			removeBlanks();
-			if (*x == ")") {
+			if (*x==')') {
 				x++;
 			} else {
 				printf("%s/n","Missing close bracket");
@@ -858,10 +879,10 @@ int parseTest(dynArr_t s) {
 int parseNot(dynArr_t s) {
 	int rc = 0;
 	removeBlanks();
-	if (strncmp(x,"COND_NOT",3) == 0 ) {
+	if (strncmp(x,"NOT",3) == 0 ) {
 		x = x+3;
 		if (rc &=parseNot(s)) return rc;		    //Get a term, could have another COND_NOT (like --1)
-		push(s,Operation,NOT,-1);					//Immediately Push COND_NOT after terms
+		push(s,Operation,COND_NOT,-1);					//Immediately Push COND_NOT after terms
 	} else {
 		if (rc &=parseTest(s)) return rc;           //Otherwise must be a term
 	}
@@ -874,20 +895,20 @@ int parseAnd(dynArr_t s) {
 	if (rc &=parseNot(s)) return rc;                //Get a term via unary term
 
 	removeBlanks();
-	while (strncmp(x,"COND_AND",3)==0 || strncmp(x,"NOT COND_AND",7)==0) {  //Keep going for ANDs
+	while (strncmp(x,"AND",3)==0 || strncmp(x,"NOT_AND",7)==0) {  //Keep going for ANDs
 		BOOL_T found = FALSE;
 		BOOL_T inverse = FALSE;
-		if (strncmp(x,"COND_AND",3) == 0) {
+		if (strncmp(x,"AND",3) == 0) {
 			x = x+3;
 			found = TRUE;
 		}
-		if (strncmp(x,"COND_NOT COND_AND",7) == 0) {
+		if (strncmp(x,"NOT_AND",7) == 0) {
 			x = x+7;
 			found = TRUE;
 			inverse = TRUE;
 		}
 		if (found) {
-			if (rc &=removeBlanks()) return rc;
+			removeBlanks();
 
 			if (rc &=parseNot(s)) return rc;                //Get another term
 
@@ -902,21 +923,21 @@ int parseOr(dynArr_t s) {
 	int rc = 0;
 	if (rc &=parseAnd(s)) return rc;                 //Get a term via higher priority
 	removeBlanks();
-	while (strncmp(x,"COND_OR",2)==0 || strncmp(x,"COND_NOT COND_OR",6)==0) {
+	while (strncmp(x,"OR",2)==0 || strncmp(x,"NOT_OR",6)==0) {
 		BOOL_T found = FALSE;
 		BOOL_T inverse = FALSE;
-		if (strncmp(x,"COND_OR",2) == 0) {
+		if (strncmp(x,"OR",2) == 0) {
 			x = x+2;
 			found = TRUE;
 		}
-		if (strncmp(x,"CONDITION_NOT COND_OR",6) == 0) {
+		if (strncmp(x,"NOT_OR",6) == 0) {
 			x = x+6;
 			found = TRUE;
 			inverse = TRUE;
 		}
 		if (found) {
-			if (rc &=parseAnd(s)) return rc;			    //Get another Term
-			push(Operation,inverse?NOTOR:COND_OR,-1);			//Push operation after two terms
+			if (rc &=parseAnd(s)) return rc;			            //Get another Term
+			push(s,Operation,inverse?COND_NOTOR:COND_OR,-1);			//Push operation after two terms
 		}
 		removeBlanks();
 	}
@@ -931,26 +952,28 @@ int parseExpression(char * string)  {
 	if (rc == 0  && !*x ) {
 		printf("%s/n","PostFix Form:");
 		for (int i=0;i<precedents.cnt;i++) {
-			Precedent_p p = DYNARR_N(Precedent_t,precedents,i);
+			Precedent_p p = &DYNARR_N(Precedent_t,precedents,i);
 			if (p->conditionType == COND_NONE) {
 				printf("%d",p->testIndex);
 			}
 			else {
 				switch(p->conditionType) {
 				case COND_AND:
-					printf("%s","COND_AND");
+					printf("%s","AND");
 					break;
 				case COND_NOTAND:
-					printf("%s","NAND");
+					printf("%s","NOT_AND");
 					break;
 				case COND_OR:
-					printf("%s","COND_OR");
+					printf("%s","OR");
 					break;
-				case NOR:
-					printf("%s","NOR");
+				case COND_NOTOR:
+					printf("%s","NOT_OR");
 					break;
 				case COND_NOT:
-					printf("%s","COND_NOT");
+					printf("%s","NOT");
+					break;
+				default:
 					break;
 				}
 			}
@@ -963,14 +986,17 @@ int parseExpression(char * string)  {
 		rc = 8;
 	}
 	char *mark;
-	strndup(mark,string,255);
+	mark = strndup(string,255);
 	int i;
 	for (i=0;i<string-x;i++) {
 		mark[i] = ' ';
 	}
 	mark[i] = '^';
 	i++;
-	while(mark[i]) mark[i] = ' ';
+	while(mark[i]) {
+		mark[i] = ' ';
+		i++;
+	}
 	printf("%s/n",string);
 	printf("%s/n",mark);
 	return rc;
