@@ -1,0 +1,118 @@
+PROJECT(doc)
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/intro.but.in ${CMAKE_CURRENT_BINARY_DIR}/intro.but)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/clean-html.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/clean-html.cmake @ONLY)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/hhc.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/hhc.cmake @ONLY)
+
+FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html)
+
+SET(HALIBUT_SOURCES
+	${CMAKE_CURRENT_BINARY_DIR}/intro.but
+	${CMAKE_CURRENT_SOURCE_DIR}/addm.but
+	${CMAKE_CURRENT_SOURCE_DIR}/changem.but
+	${CMAKE_CURRENT_SOURCE_DIR}/drawm.but
+	${CMAKE_CURRENT_SOURCE_DIR}/editm.but
+	${CMAKE_CURRENT_SOURCE_DIR}/filem.but
+	${CMAKE_CURRENT_SOURCE_DIR}/helpm.but
+	${CMAKE_CURRENT_SOURCE_DIR}/hotbar.but
+	${CMAKE_CURRENT_SOURCE_DIR}/macrom.but
+	${CMAKE_CURRENT_SOURCE_DIR}/managem.but
+	${CMAKE_CURRENT_SOURCE_DIR}/optionm.but
+	${CMAKE_CURRENT_SOURCE_DIR}/statusbar.but
+	${CMAKE_CURRENT_SOURCE_DIR}/view_winm.but
+	${CMAKE_CURRENT_SOURCE_DIR}/navigation.but
+	${CMAKE_CURRENT_SOURCE_DIR}/appendix.but
+	${help_BINARY_DIR}/messages.but
+	${CMAKE_CURRENT_SOURCE_DIR}/upgrade.but
+	${CMAKE_CURRENT_SOURCE_DIR}/warranty.but
+	)
+
+# Add a custom command for cleaning the HTML staging directory
+ADD_CUSTOM_TARGET(clean-html
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+	COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/clean-html.cmake
+	)
+
+# If we're using the GTK back-end, just generate "vanilla" HTML help files for use with gtkhtml
+IF(XTRKCAD_USE_GTK)
+
+	IF (APPLE)
+	   SET(HALIBUT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/osxconf.but ${HALIBUT_SOURCES})
+	ELSE(APPLE)
+	   SET(HALIBUT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/linconf.but ${HALIBUT_SOURCES})
+	ENDIF(APPLE)
+
+	ADD_CUSTOM_COMMAND(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html/index.html
+		DEPENDS halibut ${HALIBUT_SOURCES}
+		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+		COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/clean-html.cmake
+		COMMAND halibut ${HALIBUT_SOURCES}
+		)
+
+	ADD_CUSTOM_TARGET(help-html ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/html/index.html)
+
+	INSTALL(
+		DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+		DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}
+		)
+
+	INSTALL(
+		DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/png.d
+		DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}/html
+		)
+
+	INSTALL(
+		FILES xtrkcad_lin.css
+		DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}/html
+        )
+# Copy the help files to the Help bundle if Apple
+	IF (APPLE)
+        ADD_CUSTOM_COMMAND(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html/XTrackCAD.helpindex
+        DEPENDS help-html ${HALIBUT_SOURCES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+        COMMAND hiutil -Cf XTrackCAD.helpindex -gva -e "IndexPage.html" -e "toc.html" ${CMAKE_CURRENT_BINARY_DIR}/html
+        )
+
+        ADD_CUSTOM_TARGET(help-index ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/html/XTrackCAD.helpindex)
+
+        INSTALL(
+            DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html/
+            DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}/XTrackCAD.help/Contents/Resources/en.lproj
+        )
+        INSTALL(
+            DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/png.d
+            DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}/XTrackCAD.help/Contents/Resources/en.lproj
+        )
+	    INSTALL(
+	        FILES xtrkcad_osx.css
+		    DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}/XTrackCAD.help/Contents/Resources/en.lproj/sty
+	)
+    ENDIF(APPLE)
+
+# Otherwise, we're using the Win32 back-end, so generate a compiled HTML help file
+ELSE(XTRKCAD_USE_GTK)
+
+	SET(HALIBUT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/chmconf.but ${HALIBUT_SOURCES})
+	FILE(GLOB IMAGE_SOURCES png.d/*)
+
+	ADD_CUSTOM_COMMAND(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html/xtrkcad.chm
+		DEPENDS halibut ${HALIBUT_SOURCES} ${IMAGE_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/xtrkcad_win.css
+		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+		COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/clean-html.cmake
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/png.d ${CMAKE_CURRENT_BINARY_DIR}/html/png.d
+		COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/xtrkcad_win.css ${CMAKE_CURRENT_BINARY_DIR}/html
+		COMMAND halibut ${HALIBUT_SOURCES}
+		COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/hhc.cmake
+		)
+
+	ADD_CUSTOM_TARGET(help-chm ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/html/xtrkcad.chm)
+
+	INSTALL(
+		FILES ${CMAKE_CURRENT_BINARY_DIR}/html/xtrkcad.chm
+        DESTINATION ${XTRKCAD_SHARE_INSTALL_DIR}
+		)
+
+ENDIF(XTRKCAD_USE_GTK)
