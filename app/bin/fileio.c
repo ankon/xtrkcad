@@ -566,6 +566,7 @@ LOG1( log_paramFile, ("ReadParam( %s )\n", fileName ) )
 
 				/* Close file and reset the locale settings */
 				if (paramFile) fclose(paramFile);
+				paramFile = NULL;
 				RestoreLocale( oldLocale );
 
 				return FALSE;
@@ -605,6 +606,7 @@ LOG1( log_paramFile, ("ReadParam( %s )\n", fileName ) )
 		if ( !checkSummed || checkSum != paramCheckSum ) {
 			/* Close file and reset the locale settings */
 			if (paramFile) fclose(paramFile);
+			paramFile = NULL;
 			RestoreLocale( oldLocale );
 
 			NoticeMessage( MSG_PROG_CORRUPTED, _("Ok"), NULL, paramFileName );
@@ -615,6 +617,7 @@ LOG1( log_paramFile, ("ReadParam( %s )\n", fileName ) )
 	if (paramFile)fclose( paramFile );
 	free(paramFileName);
 	paramFileName = NULL;
+	paramFile = NULL;
 	RestoreLocale( oldLocale );
 
 	return TRUE;
@@ -834,8 +837,10 @@ static BOOL_T ReadTrackFile(
 		}
 	}
 
-	if (paramFile)
+	if (paramFile) {
 		fclose(paramFile);
+		paramFile = NULL;
+	}
 
 	if( ret ) {
 		if (!noSetCurDir)
