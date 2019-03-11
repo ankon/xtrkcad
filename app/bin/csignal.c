@@ -124,7 +124,7 @@ EXPORT dynArr_t signalData_da;       //HotBar Signals - These can be picked from
  */
 typedef struct signalSystem_t {
 	int systemsCount;					//Number of Systems installed
-	char * systemName[10];				//Names of System
+	char * systemName[10];				//Names of Systems
 	char * notes[10];					//Explanations
 	dynArr_t headTypes;					//Types of Heads - Heads to add to Signals - combined
 	dynArr_t postTypes;					//Types of Posts - Places to put Heads - combined
@@ -2380,6 +2380,7 @@ EXPORT void InitCmdSignal ( wMenu_p menu )
 EXPORT void InitTrkSignal ( void )
 {
     log_signal = LogFindIndex ( "signal" );
+    //InitSignalSystem();
     AddParam( "HEADTYPE", ReadHeadType );
     AddParam( "SIGNALSYSTEM", ReadSignalSystem);
     AddParam( "SIGNAL",ReadSignalParam);

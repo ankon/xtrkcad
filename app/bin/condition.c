@@ -647,7 +647,7 @@ ActionFireType_e ConvertToActionFireType(char * type) {
 
 BOOL_T WriteConditions( FILE * f )
 {
-    int rc = 0;
+    int rc = TRUE;
     int i = 0;
     ConditionGroup_p cg = conditionGroupsFirst;
     while (cg) {

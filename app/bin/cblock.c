@@ -273,12 +273,24 @@ static void DrawBlock (track_p t, drawCmd_p d, wDrawColor color )
 	DIST_T scale2rail = (d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale;
 	//if (d->scale < scale2rail) return;
 	blockSide = t->index%2;
-	d->options &= ~(DC_BLOCK_LEFT|DC_BLOCK_RIGHT);
-	if (blockSide) d->options |= DC_BLOCK_LEFT;
-	else d->options |= DC_BLOCK_RIGHT;
 	blockData_p b = GetblockData(t);
+	track_p trk, last_trk = NULL;
 	for (int i=0;i<b->numTracks;i++) {
-		DrawTrack((&(b->trackList))[i].t,d,blockColor);
+		trk = (&(b->trackList))[i].t;
+		d->options &= ~(DC_BLOCK_LEFT|DC_BLOCK_RIGHT);
+		EPINX_T ep;
+		/* Cope with track facing the other way around */
+		if (last_trk) {
+			EPINX_T ep = GetEndPtConnectedToMe(trk,last_trk);
+		} else {
+			/* First track */
+			if (GetTrkEndAngle(trk,0) <= 180.0) blockSide = 1-blockSide;
+			ep = 0;
+		}
+		if (!(!ep == !blockSide)) d->options |= DC_BLOCK_LEFT; //XOR
+		else d->options |= DC_BLOCK_RIGHT;
+		DrawTrack(trk,d,blockColor);
+		last_trk = trk;
 	}
 	d->options &= ~(DC_BLOCK_LEFT|DC_BLOCK_RIGHT);
 	if (d->scale <= labelScale)
