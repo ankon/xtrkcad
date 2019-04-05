@@ -26,6 +26,7 @@ cmdCurveCenter	Create curved track from center	cmdCurve
 cmdCurveChord	Create curved track from chord	cmdCurve
 cmdCurveEndPt	Create curved track from end-point	cmdCurve
 cmdBezier	Create Bezier track	cmdCurve
+cmdCornu	Create Cornu track	cmdCurve 
 cmdCurveSetCmd	Set Curve Track creation mode	cmdCurve
 cmdCurveTangent	Create curved track from tangent	cmdCurve
 cmdCustmgm	Manipulate Custom designer entries

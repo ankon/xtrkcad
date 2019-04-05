@@ -53,9 +53,11 @@ Create curved track from end-point
 Set Curve Track creation mode
 :cmdCurveTangent
 Create curved track from tangent
-:cmdCustmgm
-Create Bezier Track
 :cmdBezCurve
+Create Bezier Track
+:cmdCornuCurve
+Create Cornu Track
+:cmdCustmgm
 Manipulate Custom designer entries
 :cmdCut
 Moves selected objects to clipboard
