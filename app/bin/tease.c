@@ -749,9 +749,9 @@ static void DrawJointSegment(
 
 	widthOptions |= DTS_RIGHT|DTS_LEFT|DTS_TIES;
 	if (d->options&DC_BLOCK_LEFT)
-		widthOptions = DTS_BLOCK_LEFT;
+		widthOptions |= DTS_BLOCK_LEFT;
 	if (d->options&DC_BLOCK_RIGHT)
-		widthOptions = DTS_BLOCK_RIGHT;
+		widthOptions |= DTS_BLOCK_RIGHT;
 	GetJointPos( &p0, NULL, l0, R, L, P, A, N );
 	for (i=1; i<=cnt1; i++) {
 		a0 += a1;
