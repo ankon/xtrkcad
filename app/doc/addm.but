@@ -1,0 +1,399 @@
+\# Notes:
+\#
+\# The "\u000" command is used to format the output. These commands causes a blank line to appear between "bulleted" or "described" items.
+\#
+\# The "\u00B0" command gives proper format to the degree sign.
+
+\C{commandMenus} Command Menus
+
+\cfg{html-local-head}{<meta name="AppleTitle" content="Command Menus" />}
+
+\rule
+
+\H{addM}\i{Add Menu}
+
+\G{png.d/madd.png} 
+
+The \f{Add Menu} has all the actions related to adding track pieces to the layout. 
+
+\dd \f{Circle Track} - place a circle of track by selecting radius, tangent and or center (\K{cmdCircle}).
+
+\u000
+
+\dd \f{Curved Track} - lay curved track pieces using different modes for selecting start and endpoints and radius (\K{cmdCurve}). 
+
+\u000
+
+\dd \f{Hand-laid Turnout} - lay a turnout in place on the layout. 
+
+\u000
+
+\dd \f{Helix} - Add a helix.
+
+\u000
+
+\dd \f{Parallel} - create parallel track to existing flex-track, straight or curved.
+
+\u000
+
+\dd \f{Straight Track} - lay straight track pieces of arbitrary lengths 
+
+\u000
+
+\dd \f{Structure} - Add a predefined structure to the layout. 
+
+\u000
+
+\dd \f{Turnout} - select a turnout or a piece of fixed track and place on layout.
+
+\u000
+
+\dd \f{Turntable} - Place a turntable.
+
+\u000
+
+\dd \f{Block} - Create a block.
+
+\u000
+
+\dd \f{Switchmotor} - Create a switchmotor.
+
+\u000
+
+\dd \f{Signal} - Create a signal.
+
+\u000
+
+\dd \f{Control} - Create a control.
+
+\u000
+
+\dd \f{Sensor} - Create a sensor.
+
+\S{cmdCircle} Circle Track
+
+\G{png.d/bcircle.png}
+
+A circle track is a special form of a curved track that extends 360\u00B0 and has no endpoints.  The three methods (with their Shortcut keys) used to create a Circle Track are:
+
+\dd \G{png.d/bcircl1.png} (\c{Control-8}) Use the Fixed Radius specified on the \e{Circle Radius} control displayed on the Status Bar (\K{mainW}).  Drag the Circle track into position.
+
+\u000
+
+\dd \G{png.d/bcircl2.png} (\c{Control-9}) Drag from tangent point (Edge) of the Circle track to the Center.
+
+\u000
+
+\dd \G{png.d/bcircl3.png} (\c{Control-0}) Drag from the Center of the Circle track to the edge.
+
+A drop down menu, which allows selection of the Circle Track creation method, is invoked from the down arrow button (\G{png.d/bmenu.png}) located on the right side the Circle track button. Dependent upon previous selection, the Circle Track button will look like \G{png.d/bcircl1.png}, \G{png.d/bcircl2.png} or \G{png.d/bcircl3.png}.
+
+\dd \G{png.d/bmcircle.png}
+
+\dd \e{Circle Track Button Menu}
+
+If Snap Grid (\K{cmdGrid}) is enabled then circle centers will be constrained to the grid.
+
+Circle tracks are useful for fitting curves into corners and other tight places.  They're also handy when establishing an initial layout and finding out "what will fit".
+
+You can join to and from circles, after which they become curved tracks.
+
+\rule
+
+\S{cmdCurve} Curved Track
+
+\G{png.d/bcurve.png}
+
+Creating a curve is a two step operation.  The four methods (with their Shortcut keys) used to create a Curved Track are:
+
+\dd \G{png.d/bcurve1.png} (\c{Control-4}) Drag from one endpoint in the direction of the Curve at that point and release.  Click and Drag the red arrows to position the second endpoint. 
+If Shift is held down when the first endpoint is being placed and the cursor is on a track, the new curve end will "Snap" to the nearest open track endpoint and you can drag out the second end aligned to that track. After a track is competed, the new track will be connected to this first track.
+
+\u000
+
+\dd \G{png.d/bcurve2.png} (\c{Control-5}) Drag from one of the endpoints to the Center of the Curved track and release.  Click and Drag to position the second endpoint.
+If Shift is held down when the first endpoint is being placed and the cursor is on a track, the new curve end will "Snap" to the nearest open track endpoint and you can drag out the center at right angles aligned to that end. After a track is competed, the new track will be connected to this first track.
+
+\u000
+
+\dd \G{png.d/bcurve3.png} (\c{Control-6}) Drag from the Center of the Curved track to one of the endpoints and release.  Click and Drag to position the second endpoint.
+Shift has no effect.
+
+\u000
+
+\dd \G{png.d/bcurve4.png} (\c{Control-7}) Drag from one endpoint to the other endpoint to form the Chord of the Curve and release.  Click on the center of the track and Drag to form the Curve.
+Shift has no effect.
+
+\u000
+
+\dd \G{png.d/bezier.png} Place one endpoint and drag out the first control point and release, Place the second Endpoint and drag out the second control point and release. Once all 4 points are placed, you can pick one at a time and drag it to move it. Complete the Curve by pressing Enter, or Reject it with Esc.
+If Shift is held down when either endpoint is being placed it will "Snap" to an open track endpoint of the track underneath the cursor and you can only drag out the control point aligned to the end of the track. After the new track is competed, it will be connected to this existing track.
+
+\u000
+
+A drop down menu, which allows selection of the Curved Track creation method, is invoked from the down arrow button (\G{png.d/bmenu.png}) located on the right side the Curved track button. Dependent upon previous selection, the Curved Track button will look like \G{png.d/bcurve1.png}, \G{png.d/bcurve2.png}, \G{png.d/bcurve3.png} or \G{png.d/bcurve4.png}.
+
+\dd \G{png.d/bmcurved.png}
+
+\dd \e{Curved Track Button Menu}
+
+In all but the bezier case, two Red arrow heads will be drawn after the first step to indicate where you can Drag to complete the second step.
+
+A straight track will be created if the second endpoint is lined up with the first endpoint.
+
+If the Snap Grid (\K{cmdGrid}) is enabled then the endpoints will be constrained to the grid.
+
+Optionally, the curve center point and radius can be displayed for the Curve.  This is enabled by the Move Label (\K{cmdMoveLabel}) command.
+
+For Beziers, the active control point will be drawn in red and the available endpoints are shown with circles.  
+
+\f{Note:} You can also create Straight and Curved tracks using \k{cmdModify} by dragging out extra track from an open end-point.
+
+\rule
+
+
+\S{cmdHandLaidTurnout} Hand-laid Turnouts
+
+\G{png.d/bhndldto.png}
+
+Hand-laid turnouts are created by specifying 3 values:
+
+\b Position of \e{Frog}
+
+\b Angle of \e{Frog} (the frog number)
+
+\b Position of \e{Points}
+
+First select the position for the Frog (\K{generalTerms}) on an existing track and then \e{Drag} away to specify the angle of the \e{Frog}.  The angle in degrees and equivalent frog number is displayed on the status bar.  When you release, the line indicating the angle jumps to one side of the track to show you the center line of the new leg of the turnout.
+
+Next \e{Click} and \e{Drag} to position the Points (\K{generalTerms}) for the turnout.  As you \e{Drag}, tracks will be drawn showing the turnout.  When you release the turnout is created.
+
+You cannot place the \e{Frog} or \e{Points} on a turnout, circle or helix.  However, you can create overlapping Hand-laid Turnouts.
+
+There are constraints on where you can place the \e{Points} in relation to the \e{Frog}.  You cannot place the \e{Points} too close the \e{Frog}.  When placing Hand-laid Turnout on a curved track you may get unexpected results, especially when placing the \e{Points} a long way from the \e{Frog}.  Try changing the \e{Frog} angle to get different results.
+
+Note: the drawing is an approximation to show the location of the \e{Points} and \e{Frog}.  The piece of track considered (by \e{XTrackCAD}) to be a Hand-laid Turnout is a short section of track located at the \e{Points} and extending toward the \e{Frogs}.  Other track segments are created between the \e{Points} and \e{Frog} and a short straight segment is drawn after the \e{Frog}.  These other segments are independent of the turnout and can be removed or modified, although this is probably not a good idea.
+
+\rule
+
+
+\S{cmdHelix} Helix Track
+
+A helix track is used to change the elevation of track in a restricted space.  A helix is drawn as a circle of track, but in 3 dimensions it would resemble a cork screw or the pattern of threads on a bolt.
+
+\G{png.d/ahelix.png}
+
+A helix is defined by the number of \e{Turns} and \e{Radius}.
+
+The helix dialog allows you to calculate these values based other parameters such as the \e{Elevation Difference}, \e{Grade}, \e{Vertical Angular Separation}.  \e{Angular Separation} is the difference in degrees between tracks entering and exiting the helix. Changing any of these values effects the other values. For example, increasing the \e{Radius} decreases the \e{Grade}. Changing the number of \e{Turns} affects the \e{Vertical Separation} and either the \e{Radius} or \e{Grade}.
+
+In the case where different parameters could be affected (for instance changing \e{Elevation Difference} can affect \e{Radius} or \e{Grade}) the last parameter you changed will be preserved.  If you set the \e{Grade} and then \e{Elevation Difference} then the \e{Radius} will be adjusted.
+
+Changing \e{Vertical Separation} affects \e{Turns} which must be an integer value (no fractions), and this in turn affects the \e{Vertical Separation}.  When you set \e{Vertical Separation} you are specifying the minimum separation which is adjusted upwards to the actual value.
+
+Note: only the \e{Radius} and \e{Turns} are used when creating the helix.  After joining the helix to other tracks, you will want to establish the heights of the endpoints at each end of the helix.  You can use the Elevation (\K{cmdElev}) command to do this.
+
+A helix is placed the same way as a Circle Track (\K{cmdCircle}) with the addition that you specify the number of turns as well the as the radius of the helix.  Then the helix is dragged into position on the layout.
+
+You can join to a helix in the same way you join to a circle.  However, once joined the helix is still drawn as a circle of track.
+
+A label for the helix is drawn at it's the center.  If the elevations are set (either by a Defined Elevation point or connecting to a Defined Elevation point) for the two ends of the helix then the label contains the computed grade and vertical separation between layers as well as the number of turns and total length.  The label can be moved or turned off by the Move Label (\K{cmdMoveLabel}) command.
+
+\rule
+
+
+\S{cmdParallel} Parallel Track
+
+\G{png.d/bparalle.png}
+
+You can create a new track parallel to any straight, curved or easement track.
+
+\G{png.d/satusbarparallel.png}
+
+The \f{Parallel Separation} control (Visible in the Status Bar) displays the current separation between parallel tracks.  This value can be changed before selecting a track.  The value must be greater than 0.0.
+
+Select the track you want to parallel, and the new parallel track will appear beside it.  You control which side the new track will be on by moving the cursor from one side to the other of the selected track.
+
+This is very useful for creating sidings and yards.
+
+You cannot create tracks parallel to turnouts or sectional track.
+
+It is possible to create tracks that abut (the endpoints are very close and aligned).  These endpoints will be automatically connected.
+
+\rule
+
+
+\S{cmdStraight} Straight Track
+
+\G{png.d/bstraigh.png}
+
+Straight track is a created by selecting the first endpoint then dragging the cursor to the point where you want the second endpoint to be.
+If Shift is held down when the first endpoint is being placed and the cursor is on a track, the new straight end will "Snap" to the nearest open track endpoint and you can drag out the second end aligned to that track. After a track is competed, the new track will be connected to the existing track.
+
+If the Snap Grid (\K{cmdGrid}) is enabled then the endpoints will be constrained to the grid.
+
+\rule
+
+
+\S{cmdStructure} Structure
+
+\G{png.d/bstruct.png}
+
+The \f{Structure} command places diagrams of structures (buildings, bridges and other scenic elements) on the layout.  The operation is similar to the Turnout (\K{cmdTurnout}) command.
+
+\G{png.d/strsel.png}
+
+When you select a structure from the list, its diagram is drawn in the diagram canvas.  The dimensions are also listed on the dialog.
+
+The \f{Structure Selection} dialog will disappear while dragging on the layout if the \f{Hide} Check Box on the dialog is set.  This is useful if you have a small screen.
+
+See the Hot Bar (\K{cmdHotBar}) command for details on placing Structures on the layout.
+
+\f{Structures} are placed on the layout in same way as \f{turnouts} except that there is no \e{Active endpoint} and structures do not align with existing tracks.
+
+\rule
+
+
+\S{cmdTurnout} Turnouts
+
+\G{png.d/bturnout.png}
+
+Turnouts (and sectional track) are created by the \f{Turnout} command \I{Created by Turnout Command}.  When you select the turnout command, the \f{Turnout Selection} dialog is displayed which contains a list of available turnouts and sectional track for the current scale (\K{cmdLayout}) and a diagram of the selected turnout.
+
+You can use the Parameter File Dialog (\K{cmdPrmfile}) to control what turnouts are available.
+
+\G{png.d/turnsel.png}
+
+Select a turnout from the scrolling list.  A picture of the selected turnout is drawn in the diagram canvas.  You can pick the Active endpoint (\K{generalTerms}) by clicking on an endpoint in the diagram.  The Active endpoint (\K{generalTerms}) is indicated by a highlighted square.
+
+The \f{New} button invokes the Turnout Designer (\K{cmdTurnoutNew}) dialog.  This button displays a pop-up-menu list of various types of turnouts and sectional track.
+
+The \f{Turnout Selection} window will disappear while dragging on the layout if the \f{Hide} Check Box on the dialog is set.  This is useful if you have a small screen.
+
+See the Hot Bar (\K{cmdHotBar}) command for details on placing Turnouts on the layout.
+
+\rule
+
+
+\S{cmdTurntable} Turntables
+
+\G{png.d/bturntbl.png}
+
+Turntables of specified diameter are created with the \f{Turntable} command.
+
+\G{png.d/statusbarturntable.png}
+
+The \e{Turntable Diameter} control (Visible in the Status Bar) displays the current diameter of the turntable.  This value can be changed before dragging the turntable into position. The value must be greater than 0.0.
+
+The \f{Modify command} (\K{cmdModify}) can be used to create turntable stall tracks.  Select the turntable and drag the stall track to the proper angle and length.  You can also connect to a turntable with the \f{Join command} (\K{cmdJoin}).
+
+The \f{Turntable Angle} control on the Preferences (\K{cmdPref}) dialog controls how closely you can place tracks connected to a turntable.  If you want to create stall tracks every 7.5\u00B0, set the \f{Turntable Angle} control to 7.5 and place the track as close to each other as allowed.  \e{XTrackCAD} makes sure they will be separated by the correct angle.
+
+\rule
+
+\S{cmdBlock} Block
+
+\G{png.d/bblock.png}
+
+A block is created by first selecting the track segments in the block and then 
+selecting \f{Create Block} from either the Add menu \K{cmdAdd} or from the block menu on the 
+hotbar.  A block gets a name and a script.  The name is only used for 
+identification and the script is used by the layout control software.  The 
+script should provide whatever information is needed by the layout control 
+software to determine block occupancy.  This could be a code snippet to 
+retrieve the state of the block occupancy or it could be the address of the 
+sensor, etc. 
+
+\G{png.d/block.png}
+
+The create block dialog has spaces for two text strings. One is the name and
+the other is a block occupancy script. The name identifies the block and the
+script is information used by the layout control software to detect block
+occupancy. The script could be a code snippet or I/O device address
+information, etc. 
+
+\rule 
+
+\S{cmdSwitchmotor} Switchmotor
+
+\G{png.d/bswitchmotor.png}
+
+A switchmotor is created by selecting \f{Create SwitchMotor} from either the Add
+menu \K{cmdAdd} or from the switchmotor menu on the hotbar and then clicking on a turnout.
+A switchmotor gets a name and three scripts. The name is only used for
+identification and the three scripts are used by the layout control software.
+The three scripts are for throwing the turnout to its "normal" position,
+throwing the turnout to its "reverse" position, and a script to read a point
+position sensor. These scripts could be code snippets or they could be
+addresses of I/O devices, etc. 
+
+\G{png.d/switchmotor.png}
+
+The create switchmotor dialog has spaces for four text strings. One is the
+name and the other three are scripts for Normal, Reverse, and Point Sense. The
+name identifies the switchmotor and the scripts are information used by the
+layout control software to throw the turnout to the normal position, throw the
+turnout to the reverse position, and sense the point position. The scripts
+could be code snippets or I/O device address information, etc.
+
+\rule
+
+\S{cmdSignal} Signal
+
+\G{png.d/bsignal.png}
+
+A signal is created by selecting \f{Create Signal} from either the Add menu \K{cmdAdd} or
+from the hotbar. Use the mouse to select a location (left button) and then
+draging (left button down) the signal to set its orientation. Once the left 
+button is released, a Create/Edit Signal dialog box is displayed, and you can 
+fill in the signal's properties: name, fine tune the location and orientation, 
+number of heads, and the aspects.
+
+\G{png.d/signal.png}
+
+The create/edit signal dialog has spaces for the name of the signal, its 
+location and orientation, the number of heads (1, 2, or 3), and a list of 
+aspects.  Each aspect has a name and a script.  The name could be a rule book 
+name (Clear, Aproach, Stop, etc.) or the actual color(s) displayed (green, 
+yellow, red, etc.).  The script is just some information for the layout 
+control software to actually effect the display of the aspect -- this could be 
+the LCC event id to trigger the aspect or it could be a code snippet that 
+causes the aspect to be displayed.
+
+\rule
+
+\S{cmdControl} Control
+
+\G{png.d/bControl.png}
+
+A control is created by selecting \f{Create Control} from either the Add menu \K{cmdAdd} or 
+from the hotbar. Use the mouse to select a location (left button) and then 
+dragging (left button down) the control to where you want it.  Once the left 
+button is released, a Create/Edit Control dialog box is displayed, and you can 
+fill in the control's properties: name, fine tune the location, and the on and 
+off scripts.
+
+\G{png.d/control.png}
+
+The create/edit control dialog has entry fields for the name of the control, its
+location, and a pair of scripts, one to turn the control on and one to turn
+the control off. The scripts are just some information for the layout control
+software to actually effect the state on the control (on or off).
+
+\rule
+
+\S{cmdSensor} Sensor
+
+\G{png.d/bSensor.png}
+
+A sensor is created by selecting \f{Create Sensor} from either the Add menu \K{cmdAdd} or
+from the hotbar. Use the mouse to select a location (left button) and then
+dragging (left button down) the sensor to where you want it. Once the left
+button is released, a Create/Edit Sensor dialog box is displayed, and you can
+fill in the sensor's properties: name, fine tune the location, and the script.
+
+\G{png.d/sensor.png}
+
+The create/edit sensor dialog has spaces for the name of the sensor, its 
+location, and a script. The script is just some information for the layout 
+control software to actually return the state of the sensor (on or off).

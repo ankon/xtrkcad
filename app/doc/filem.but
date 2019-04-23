@@ -1,0 +1,366 @@
+\# Notes:
+\#
+\# The "\u000" command is used to format the output. The command causes a blank line to appear between "bulleted" or "described" items.
+\#
+\cfg{html-local-head}{<meta name="AppleTitle" content="File Menu" />}
+
+\H{fileM} \i{File Menu}
+
+
+\G{png.d/mfile.png}
+
+The \f{File Menu} shows file oriented commands for loading and saving layout files.
+\i{File Types} The main two filetypes that XTrackCAD uses are normal Layout Files (*.xtc) and Archive Files (*.xtce). The internals of both formats are described in the XtrkCAD Wiki at \W{http://www.xtrkcad.org/Wikka/FileFormats}{Wiki FileFormats}.
+
+\i{Layout File} The layout file is named with a \e{*.xtc} extenstion and is a text-based description file of all the objects used in the layout plus some information about the options currently in use.
+\i{Archive} An archive is named with a \e{*.xtce} extension, is a zipped collection of -
+
+\b a \e{manifest} JSON file that lists the contents,
+
+\b the .xtc layout file, and
+
+\b any other content listed in the manifest -> such as referenced image files. Initially the only such content is the background image which is added to the archive if it is present.
+
+\dd \f{Exit} - Exits \e{XTrackCAD}. You will be asked to confirm your choice if there are unsaved changes.
+
+\u000
+
+\dd \f{Export} - Exports the selected objects to a file in \e{XTrackCAD} (*.xti) format. The exported file can then be imported into another layout design. Refer to the Import command listed above.
+
+\u000
+
+\dd \f{Export to Bitmap} - Creates a bitmap file (\K{cmdOutputbitmap}) of the layout.
+
+\u000
+
+\dd \f{Export to DXF} - Exports the selected objects to a file in DXF format (\K{generalTerms}). The exported file can then be imported into other CAD programs.
+
+\u000
+
+\dd \f{File List} - List of the five most recently used \e{XTrackCAD} files or archives.
+
+\u000
+
+\dd \f{Import} - Displays the file selection dialog which allows selection of an existing \e{XTrackCAD} Import (\K{cmdExport}) file. This function can be used to transfer parts like a yard design from one layout design to another.
+
+\u000
+
+\dd \G{png.d/bnew.png} \f{New} - Clears the current layout.  In case there are any unsaved changes on the current plan, a warning pop-up will be displayed and you'll have the option to cancel the operation. After that the Layout Options (\K{cmdLayout}) dialog will be opened.
+
+\u000
+
+\dd \f{Notes} - Displays a simple notepad editor which you can use to enter information about the layout. Typically this could include prototype, period, theme, layout style, height, construction, type of track and turnouts used, control system and anything else of interest.  (There is also a \f{Note} command (\K{cmdNote}) which allows attaching notes to particular parts of the layout.)
+
+\u000
+
+\dd \G{png.d/bopen.png} \f{Open} - Displays the \f{File Open} dialog which allows an existing \e{XTrackCAD} file or archive to be selected and opened.  In case there are any unsaved changes on the current plan, a warning pop-up will be displayed and you'll have the option to cancel the operation.
+
+\u000
+
+\dd \f{Parameter Files} - Displays the \f{Parameter Files} dialog (\K{cmdPrmfile}) to choose parameter files.
+
+\u000
+
+\dd \f{Print Setup} - Shows the Printer Setup Dialog (\K{printSetup}).
+
+\u000
+
+\dd \f{Print} - Invokes the Print command (\K{cmdPrint}).
+
+\u000
+
+\dd \f{Revert} - Undoes all changes and returns to the last saved layout plan.
+
+\u000
+
+\dd \G{png.d/bsave.png} \f{Save} - Saves the layout under the current file name and with the same file type as was opened. If a filename has not yet been assigned then the \f{File Save} dialog is shown so you enter a file (.xtc) or archive name (.xtce).
+
+\u000
+
+\dd \f{Save As} - This command lets you make a copy of the track plan you are currently working on as an file (.xtc) or an archive (.xtce). It differs from the regular Save command. Save stores your data back into the folder (directory) it originally came from in the same filetype. "Save As" lets you give your plan a different name and/or put it in a different folder on your hard disk and chnage its filetype using the selection box at the bottom of the list of files or by hardcoding the extensions .xtc or .xtce (for an archive).
+
+\rule
+
+\S{cmdExport} \i{Export}
+
+This menu item displays a file selection dialog where a file name for exported objects can be entered.  All selected (\K{cmdSelect}) objects are exported to the file. The export file will have an \c{xti} extension.
+
+\G{png.d/exportfile.png}
+
+Using the Import command (\k{cmdImport}), an exported file can be imported into another layout design.
+
+\rule
+
+\S{cmdOutputbitmap} \i{Export to Bitmap}
+
+This menu item creates a bitmap file of the layout.
+
+\G{png.d/bitmap.png}
+
+The \f{Bitmap} dialog specifies the style and size of the bitmap.  The three check-boxes (\f{Print Titles}, \f{Print Borders} and \f{Print Centerline}) control whether the Layout Title (\K{cmdLayout}), the borders or the track centerlines are printed on the bitmap.  The size of the bitmap is smaller if these are disabled.
+
+Printing the track centerlines (also seen when zoomed in 1:1) is useful when you later print the bitmap
+full size for laying out track.
+
+If the Snap Grid (\K{cmdGrid}) is visible then it will be printed on the bitmap.
+
+The \f{DPI} (or \f{DPCM} if using metric units (\K{cmdPref})) control specifies the number of pixels per inch (or centimeter) in the bitmap.  You can enter values from 0.1 to 100.  Larger values will result in a larger bitmap file.  bitmaps must be less than 32000 pixels in height or width.
+
+The bitmap width, height and approximate file size is indicated.
+
+Note: This command can create a very large file and consume a lot of memory and time.
+
+Pressing the \f{OK} button invokes a \f{File Save} dialog so you can choose the file name for the Bitmap.
+
+The format of the file depends on the Operating System: on MS-Windows it is a Windows Bitmap (.BMP) file, on Linux it is a X11 Pixmap (.XPM) file.
+
+\rule
+
+\S{ExportDXF} \i{Export to DXF}
+
+This menu item displays a file selection dialog where a file name for exported objects can be entered.  All selected (\K{cmdSelect}) objects are exported to the file. The export file will have an \c{xti} extension.
+
+\G{png.d/exportfiledxf.png}
+
+Exported files can then be imported into other CAD programs.
+
+\rule
+
+\S{cmdImport} Import
+
+Importing displays a file selection dialog to specify the file to import.
+
+\G{png.d/import.png}
+
+After importing the objects from the file, the imported objects are in selected state and therefore are drawn in red. This allows you to easily move and rotate the imported objects to their final position.
+
+\rule
+
+\S{cmdPrmfile} \i{Parameter Files}
+
+\e{Parameter Files} contain turnout, sectional track and structure definitions.  Parameter Files are loaded and unloaded with the \f{Parameter Files} dialog.
+
+\G{png.d/dprmfile.png}
+
+The dialog contains a list of parameter files.  Each file is preceded by a color indicator. These indicators show whether a parameter file contains definitions that
+are usable in the current scale and gauge
+
+\G{png.d/greendot.png} Definitions loaded from this file are a perfect fit for the current layout options. For track this means that gauge and scale of the track elements
+are identical to the layout settings.
+
+\G{png.d/yellowdot.png} Definitions from this file can be used with this layout but do not fit perfectly. A typical example is On30 where HO scale track can be used because the
+gauge is the same. But differences in scale may make the track look out of scale.
+
+\G{png.d/reddot.png} This parameter file doesn't contain any usable definitions. You may want to change the layout options if you want to use elements from
+this file.
+
+\G{png.d/greydot.png} This file is unloaded.
+
+Loaded definition files that are marked with a yellow or a green indictor appear on the \f{Hot Bar} (\K{cmdHotBar}).  If you \e{unload} a file the definitions are removed from the selection lists and the \f{Hot Bar}.  An unloaded file may be \e{reloaded} by selecting the  \f{Reload} button (The \f{Unload} button changes to \f{Reload} when a selected file is unloaded).
+
+It is possible to change the state of several files at once. The \f{Select All} button allows you to select all parameter files for the next operation.
+
+\e{Unloaded} files are removed from the list when \e{XTrackCAD} terminates.
+
+Files can be listed by either their file name or by their contents description. This is controlled by the \f{Show File Names} check box.
+
+The \f{Browse} button allows you to load other \e{parameter files} such as provided by other users or downloaded from the Internet.
+
+When first installed, all available parameter files are loaded. You can unload parameter files you don't use to speed up \e{XTrackCAD} startup time.
+
+The order in this list controls the order of turnouts and structures on the \f{Hot Bar} (\K{cmdHotBar}). You can move a parameter file to the end of the list by \e{Unloading} it, and then loading it via the \f{Browse} button.
+
+\rule
+
+\S{cmdPrint} \i{Printing}
+
+The \f{Print} command (\f{File>Print}) is used to print all or a portion of the layout.
+
+When the \f{Print} command is selected a grid, which represents each printed page, is drawn on the layout. Pages can be selected or unselected for printing by placing the mouse over a grid section and clicking the left mouse button.
+
+\G{png.d/print.png}
+
+The \f{Print} dialog contains a number of control areas:
+
+\dt The size of each page is controlled by:
+
+\dd \f{Scale} - up to 1:1.
+
+\u000
+
+\dd \f{Width, Height} - scaled size of each page. Values for \f{Width} and \f{Height} can be manually entered, overriding the maximum values. Values larger than the page size times the \e{Scale} cannot be entered.
+
+\u000
+
+\dd \f{Max} - sets Width and Height to the maximum for the print \e{Scale}.
+
+\u000
+
+\dd \f{Snap Shot} - adjusts the \e{Scale}, \e{Origin} and \e{Angle} to produce a one-page snap shot of the layout.
+
+\u000
+
+\dd \f{Format} - Portrait or Landscape.
+
+\u000
+
+\dt Page printing order is controlled by the \f{Print Order} option.
+
+\dd Relative to the Print Grid:
+
+\lcont{
+
+\dd \f{Normal} order is Columns first, Top to Bottom, Left to Right.
+
+\u000
+
+\dd \f{Reverse} order is Rows first, Left to Right, Bottom to Top.
+
+}
+
+Whether tracks are printed with one or two lines (representing the center line and rails) depends on the \f{Print Scale}.  If this value is smaller than or equal to twice the Two Rail Scale on the Display (\K{cmdDisplay}) dialog then tracks are drawn with two lines. This corresponds to the way tracks are drawn on the main window, adjusted to account for the greater resolution of most printers. At 1:1 tracks are also drawn with a center line.
+
+\dt Other options:
+
+\dd \f{Engineering Data} - show title, user, date and other information in a box at the bottom of the printout.
+
+\u000
+
+\dd \f{Registration Marks} - at 1:1 scale, print location markers every 3" (or 10cm).  This option is only enabled at 1:1. This is useful for aligning multiple pages printed at different angles.
+
+\u000
+
+\dd \f{Page Numbers} - to help positioning the individual pages the page number is printed in the center of the page in the format (x/y). x is the position from left to right, y in from bottom to top, So (1/1) is the page at the bottom left.
+As an additional aid, the numbers of the next pages are printed on each edge.
+
+\u000
+
+\dd \f{Snap Grid} - if the Snap Grid (\K{cmdGrid}) is visible then it may be drawn on the printout. This option is only enabled if the \e{Snap Grid} is visible.
+
+\u000
+
+\dd \f{Rulers} - print rulers on all edges of the page.  This option is only enabled if the \f{Angle} is \e{0.000}.
+
+\u000
+
+\dd \f{centerline below Scale 1:1} - dotted line down the center of the Track/Roadbed.  This line will always be printed at Scale 1:1, but selecting this option will print it at smaller scales. This option is disabled if tracks would be drawn with only one line (instead of two).
+
+\u000
+
+\dd \f{Roadbed Outline} - lines representing the edge of the Roadbed.  The Roadbed will be printed if the \e{Width} is greater than the track gauge.  Note: this option is most useful at 1:1.  This option is disabled if tracks would be drawn with only one line (instead of two).
+
+\u000
+
+\dd \f{Ignore Page Margins} - use the physical page size.  This allows the printouts to abut without trimming.
+
+\u000
+\dt The orientation of the print grid is controlled by:
+
+\dd \f{X} - X co-ordinate.
+
+\u000
+
+\dd \f{Y} - Y co-ordinate.
+
+\u000
+
+\dd \f{Angle} - of the grid.
+
+
+These values can be set directly or by dragging on the layout.  \e{Shift+Left+Drag} moves the grid and \e{Shift+Right+Drag} rotates the grid.  The \f{Reset} button resets the values to 0.
+
+The \f{Print} button prints the selected pages and closes the \f{Print} dialog.  It is not enabled until you have selected some pages to print.
+
+The \f{Setup} button invokes the Printer Setup (\K{printSetup}) dialog.
+
+The \f{Select All} button selects all pages for printing.
+
+The \f{Clear} button unselects all selected pages, so no pages will be printed.
+
+\e{Suggested Uses:}
+
+Use the \f{Snapshot} button to set the scale and orientation for a one-page printout of the layout.  Also set \f{Engineering Data} to add the Layout Title, Scale and other data for a summary.
+
+Use \f{Layers} (\K{cmdLayer}) to control which tracks are visible (and printed).  Put bench-work, scenery or different tracks levels in separate layers and hide the layers you are not working with.
+
+To transfer the drawing to the layout without printing at 1:1, make the Snap Grid (\K{cmdGrid}) visible and orient it to match your room or layout table.
+
+Check the \f{Print Snap Grid} toggle and use the printed grid to transfer measurements to your layout space.  You may want to change the color (\K{cmdRgbcolor}) of the \f{Snap Grid} to make it more visible on the printout.
+
+When you print multiple pages you can check \f{Ignore Page Margins} so pages can be placed next to each other.  The tracks will line up correctly without trimming or overlapping the pages.  Note: depending on your printer there will be an unprintable margin around the edge of the page.
+
+If you print at 1:1 for direct transfer to the sub-roadbed, check \f{Print Roadbed Outline} and set \f{Width} to show lines for making cuts.
+
+If you make printouts in strips at different angles at 1:1 (to follow tracks around a curve), check \e{Print Registration Marks} to be able to align the separate strips.
+
+\rule
+
+\S{printSetup} Printer Setup
+
+\S2{Linux} \i{Linux}
+
+\G{png.d/printset.png}
+
+The \f{Printer Setup} dialog allows you to configure the application's use of the printer.
+
+The \f{Printer Setup} window contains:
+
+\dd \f{Format for} - a list to select a particular printer.  The entries on this list are defined by \c{printer} lines in the \c{~/.xtrkcad/xtrkcad.rc} file.  The first entry, 'File', causes printouts to be sent to a file.  You will be prompted for a file name when doing a print.
+
+\u000
+
+\dd \f{Paper Size} - a list of various supported paper sizes.
+
+\u000
+
+\dd \f{Orientation} - a Radio button to select various Landscape or Portrait formats.
+
+\u000
+
+\dd \f{Apply} - updates the data and ends the dialog.
+
+\u000
+
+\dd \f{Cancel} - ends the dialog without update.
+
+\rule
+
+\S2{MS-Windows} \i{Microsoft Windows}
+
+\G{png.d/printset_win.png}
+
+The Windows \f{Printer Setup} dialog allows you to configure the application's use of the printer.
+
+The \f{Printer Setup} window contains:
+
+\dd \f{Name} - a drop down list for selection of a particular printer.  Entries in this list are defined by \c{Windows}.
+
+\u000
+
+\dd \f{Status} - the current status of the selected printer.
+
+\u000
+
+\dd \f{Type} - the type and model of printer selected.
+
+\u000
+
+\dd \f{Where} - The location of the printer if it's defined in the printers properties.
+
+\u000
+
+\dd \f{Comment} - Any comments defined that are defined in the printers properties.
+
+\u000
+
+\dd \f{Paper Size} - a list of various North American and European paper sizes.
+
+\u000
+
+\dd \f{Paper Source} - a list of various paper tray locations associated with the selected printer.
+
+\u000
+
+\dd \f{Orientation} - a Radio button to select either Landscape or Portrait format.
+
+\rule
