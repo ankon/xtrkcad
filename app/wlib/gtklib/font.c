@@ -245,7 +245,8 @@ PangoLayout *wlibFontCreatePangoLayout(GtkWidget *widget,
 
 void wlibFontDestroyPangoLayout(PangoLayout *layout)
 {
-    g_object_ref_sink(layout);
+    if (g_object_is_floating(layout))
+    	g_object_ref_sink(layout);
 	g_object_unref(layout);
 }
 
