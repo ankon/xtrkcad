@@ -20,6 +20,7 @@ cmdCmdopt	Command Options dialog
 cmdColor	Controls colors
 cmdConnect	Connect two tracks
 cmdControl	Create a control for layout automation
+cmdControlElements	Set Control Element creation mode	cmdControl 
 cmdContmgm	Manage control elements
 cmdCopy	Copy selected objects to clipboard
 cmdCurveCenter	Create curved track from center	cmdCurve
