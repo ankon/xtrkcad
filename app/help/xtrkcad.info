@@ -39,6 +39,12 @@ Command Options dialog
 Controls colors
 :cmdConnect
 Connect two tracks
+:cmdConvertSetCmd
+Set Convert Command mode
+:cmdConvertTo
+Convert To Cornu from Fixed Track
+:cmdConvertFrom
+Convert From Cornu to Fixed Track
 :cmdCopy
 Copy selected objects to clipboard
 :cmdControl
