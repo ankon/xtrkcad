@@ -98,6 +98,8 @@ void wTextAppend(wText_p bt,
 {
     GtkTextBuffer *tb;
     GtkTextIter ti1;
+    GtkTextMark *tm;
+    
 
     if (bt->text == 0) {
         abort();
@@ -109,6 +111,16 @@ void wTextAppend(wText_p bt,
     // append to end of buffer
     gtk_text_buffer_get_end_iter(tb, &ti1);
     gtk_text_buffer_insert(tb, &ti1, text, -1);
+    
+    // and scroll to end of text
+    gtk_text_buffer_get_end_iter(tb, &ti1);
+    tm = gtk_text_buffer_create_mark(tb, 
+								"endoftext",
+								&ti1,
+								TRUE );
+    gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW(bt->text),
+								  tm );
+	gtk_text_buffer_delete_mark( tb, tm );							
     bt->changed = FALSE;
 }
 
@@ -375,7 +387,7 @@ wBool_t wTextPrint(
  * Get the length of text
  *
  * \param bt IN the text widget
- * \return    length of string
+ * \return    length of string including terminating \0
  */
 
 int wTextGetSize(wText_p bt)
@@ -383,7 +395,7 @@ int wTextGetSize(wText_p bt)
     char *cp = wlibGetText(bt);
     int len = strlen(cp);
     free(cp);
-    return len;
+    return len + 1;
 }
 
 /**

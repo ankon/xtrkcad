@@ -53,7 +53,6 @@
 #define product "xtrkcad"
 #define PRODUCT "XTRKCAD"
 #define Version VERSION
-#define KEYCODE "x"
 #define PARAMKEY		(0)
 
 
@@ -71,12 +70,14 @@ char * sCustomF = product ".cus";
 char * sCheckPointF = product ".ckp";
 char * sCheckPoint1F = product ".ck1";
 char * sClipboardF = product ".clp";
-char * sParamQF = product "." KEYCODE "tq";
+char * sParamQF = product ".xtq";
 char * sUndoF = product ".und";
 char * sAuditF = product ".aud";
 char * sTipF = product ".tip";
 
 char * sSourceFilePattern = NULL;
+char * sSaveFilePattern = NULL;
+char * sImageFilePattern = NULL;
 char * sImportFilePattern = NULL;
 char * sDXFFilePattern = NULL;
 char * sRecordFilePattern = NULL;
@@ -157,7 +158,7 @@ BOOL_T Initialize( void )
 
 void InitCustom( void )
 {
-	char buf[STR_SHORT_SIZE];
+	char *buf = malloc(1024);
 
 	/* Initialize some localized strings */
 	if (sTurnoutDesignerW == NULL)
@@ -172,12 +173,32 @@ void InitCustom( void )
 	}
 	if (sSourceFilePattern == NULL)
 	{
-		sprintf(buf, _("%s Files|*.xtc"), Product);
+		sprintf(buf, _("All %s Files (*.xtc,*.xtce)|*.xtc;*.xtce|"
+					   "%s Trackplan (*.xtc)|*.xtc|"
+					   "%s Extended Trackplan (*.xtce)|*.xtce|"
+					   "All Files (*)|*"), 
+						Product,
+						Product, 
+						Product );
 		sSourceFilePattern = strdup(buf);
+	}
+	if (sSaveFilePattern == NULL)
+	{
+		sprintf(buf, _("%s Trackplan (*.xtc)|*.xtc|"
+					   "%s Extended Trackplan (*.xtce)|*.xtce|"
+					   "All Files (*)|*"),
+						Product,
+						Product );
+		sSaveFilePattern = strdup(buf);
+	}
+	if (sImageFilePattern == NULL)
+	{
+		sprintf(buf,_("All Files (*)|*"));
+		sImageFilePattern = strdup(buf);
 	}
 	if (sImportFilePattern == NULL)
 	{
-		sprintf(buf, _("%s Import Files|*.%sti"), Product, KEYCODE);
+		sprintf(buf, _("%s Import Files|*.xti"), Product );
 		sImportFilePattern = strdup(buf);
 	}
 	if (sDXFFilePattern == NULL)
@@ -186,7 +207,7 @@ void InitCustom( void )
 	}
 	if (sRecordFilePattern == NULL)
 	{
-		sprintf(buf, _("%s Record Files|*.%str"), Product, KEYCODE);
+		sprintf(buf, _("%s Record Files|*.xtr"), Product);
 		sRecordFilePattern = strdup(buf);
 	}
 	if (sNoteFilePattern == NULL)
@@ -204,6 +225,8 @@ void InitCustom( void )
 		sprintf(buf, _("%s PartsList Files|*.txt"), Product);
 		sPartsListFilePattern = strdup(buf);
 	}
+
+	free(buf);
 }
 
 

@@ -831,14 +831,16 @@ STATUS_T CmdBezModify (track_p trk, wAction_t action, coOrd pos, DIST_T trackG) 
 		Da.selectPoint = -1;
 		Da.selectTrack = NULL;
 
-		if (IsTrack(trk)) Da.track = TRUE;
+		if (IsTrack(trk)) {
+			Da.track = TRUE;
+			Da.trk[0] = GetTrkEndTrk( trk, 0 );
+			if (Da.trk[0]) Da.ep[0] = GetEndPtConnectedToMe(Da.trk[0],trk);
+			Da.trk[1] = GetTrkEndTrk( trk, 1 );
+			if (Da.trk[1]) Da.ep[1] = GetEndPtConnectedToMe(Da.trk[1],trk);
+		}
 		else Da.track = FALSE;
 
 		Da.selectTrack = trk;
-	    Da.trk[0] = GetTrkEndTrk( trk, 0 );
-		if (Da.trk[0]) Da.ep[0] = GetEndPtConnectedToMe(Da.trk[0],trk);
-		Da.trk[1] = GetTrkEndTrk( trk, 1 );
-		if (Da.trk[1]) Da.ep[1] = GetEndPtConnectedToMe(Da.trk[1],trk);
 
 	    for (int i=0;i<4;i++) Da.pos[i] = xx->bezierData.pos[i];              //Copy parms from old trk
 		InfoMessage(_("%s picked - now select a Point"),track?"Track":"Line");
@@ -929,6 +931,23 @@ DIST_T BezierLength(coOrd pos[4],dynArr_t segs) {
 	}
 	return dd;
 }
+
+DIST_T BezierOffsetLength(dynArr_t segs, double offset) {
+	DIST_T dd = 0.0;
+	if (segs.cnt == 0 ) return dd;
+	for (int i = 0;i<segs.cnt;i++) {
+		trkSeg_t t = DYNARR_N(trkSeg_t, segs, i);
+		if (t.type == SEG_CRVTRK || t.type == SEG_CRVLIN) {
+			dd += fabs((t.u.c.radius+(t.u.c.radius>0?offset:-offset))*D2R(t.u.c.a1));
+		} else if (t.type == SEG_BEZLIN || t.type == SEG_BEZTRK) {
+			dd +=BezierOffsetLength(t.bezSegs,offset);
+		} else if (t.type == SEG_STRLIN || t.type == SEG_STRTRK ) {
+			dd += FindDistance(t.u.l.pos[0],t.u.l.pos[1]);
+		}
+	}
+	return dd;
+}
+
 
 DIST_T BezierMinRadius(coOrd pos[4],dynArr_t segs) {
 	DIST_T r = 100000.0, rr;

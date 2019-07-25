@@ -305,7 +305,7 @@ static void UpdateBezier( track_p trk, int inx, descData_p descUpd, BOOL_T final
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), bezData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &bezData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &bezData.elev[1-ep], NULL, TRUE );
 		if ( bezData.length > minLength )
 			bezData.grade = fabs( (bezData.elev[0]-bezData.elev[1])/bezData.length )*100.0;
 		else
@@ -398,8 +398,8 @@ static void DescribeBezier( track_p trk, char * str, CSIZE_T len )
     bezData.center[1] = params.arcP;
 
     if (GetTrkType(trk) == T_BEZIER) {
-		ComputeElev( trk, 0, FALSE, &bezData.elev[0], NULL );
-		ComputeElev( trk, 1, FALSE, &bezData.elev[1], NULL );
+		ComputeElev( trk, 0, FALSE, &bezData.elev[0], NULL, FALSE );
+		ComputeElev( trk, 1, FALSE, &bezData.elev[1], NULL, FALSE );
 	
 		if ( bezData.length > minLength )
 			bezData.grade = fabs( (bezData.elev[0]-bezData.elev[1])/bezData.length )*100.0;
@@ -468,7 +468,7 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 	if (d->options&DC_BLOCK_RIGHT)
 		widthOptions |= DTS_BLOCK_RIGHT;
 
-	if (GetTrkType(t) == T_BZRLIN) {
+		if (GetTrkType(t) == T_BZRLIN) {
 		DrawSegsO(d,t,zero,0.0,xx->bezierData.arcSegs.ptr,xx->bezierData.arcSegs.cnt, 0.0, color, 0);
 		return;
 	}
@@ -496,6 +496,7 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 	if ( (d->funcs->options & wDrawOptTemp) == 0 &&
 		 (d->options&DC_QUICK) == 0 &&
 		 ((d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT))==0)) {
+
 		DrawEndPt( d, t, 0, color );
 		DrawEndPt( d, t, 1, color );
 	}
@@ -671,16 +672,21 @@ static BOOL_T SplitBezier( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover
 
     if (track) {
     	trk1 = NewBezierTrack(ep?newr:newl,NULL,0);
+    	//Move elev data from ep
     } else
     	trk1 = NewBezierLine(ep?newr:newl,NULL,0, xx->bezierData.segsColor,xx->bezierData.segsWidth);
-	UndoModify(trk);
+    DIST_T height;
+	int opt;
+	GetTrkEndElev(trk,ep,&opt,&height);
+	UpdateTrkEndElev( trk1, ep, opt, height, (opt==ELEV_STATION)?GetTrkEndElevStation(trk,ep):NULL );
+    UndoModify(trk);
     for (int i=0;i<4;i++) {
     	xx->bezierData.pos[i] = ep?newl[i]:newr[i];
     }
     FixUpBezier(xx->bezierData.pos,xx,track);
     ComputeBezierBoundingBox(trk,xx);
     SetTrkEndPoint( trk, ep, xx->bezierData.pos[ep?3:0], ep?xx->bezierData.a1:xx->bezierData.a0);
-
+    UpdateTrkEndElev( trk, ep, ELEV_NONE, 0, NULL);
 	*leftover = trk1;
 	*ep0 = 1-ep;
 	*ep1 = ep;
@@ -851,7 +857,8 @@ static BOOL_T EnumerateBezier( track_p trk )
 	if (trk != NULL) {
 		DIST_T d;
 		struct extraData *xx = GetTrkExtraData(trk);
-		d = xx->bezierData.length;
+		d = max(BezierOffsetLength(xx->bezierData.arcSegs,-GetTrkGauge(trk)/2.0),
+				BezierOffsetLength(xx->bezierData.arcSegs,GetTrkGauge(trk)/2.0));
 		ScaleLengthIncrement( GetTrkScale(trk), d );
 	}
 	return TRUE;
@@ -902,11 +909,12 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 	}
 	if (params->ep>=0)
 		params->angle = GetTrkEndAngle(trk, params->ep);
+
 	return TRUE;
 
 }
 
-static BOOL_T TrimBezier( track_p trk, EPINX_T ep, DIST_T dist ) {
+static BOOL_T TrimBezier( track_p trk, EPINX_T ep, DIST_T dist, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center ) {
 	DeleteTrack(trk, TRUE);
 	MainRedraw();
 	MapRedraw();

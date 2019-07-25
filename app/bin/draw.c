@@ -315,45 +315,63 @@ static void DDrawArc(
 		wDrawWidth width,
 		wDrawColor color )
 {
-	wPos_t x, y;
-	ANGLE_T da;
-	coOrd p0, p1;
-	DIST_T rr;
-	int i, cnt;
+    wPos_t x, y;
+    ANGLE_T da;
+    coOrd p0, p1;
+    DIST_T rr;
+    int i, cnt;
 
-	if (d == &mapD && !mapVisible)
-		return;
-	rr = (r / d->scale) * d->dpi + 0.5;
-	if (rr > wDrawGetMaxRadius(d->d)) {
-		da = (maxArcSegStraightLen * 180) / (M_PI * rr);
-		cnt = (int)(angle1/da) + 1;
-		da = angle1 / cnt;
-		coOrd min,max;
-		min = d->orig;
-		max.x = min.x + d->size.x;
-		max.y = min.y + d->size.y;
-		PointOnCircle( &p0, p, r, angle0 );
-		for ( i=1; i<=cnt; i++ ) {
-			angle0 += da;
-			PointOnCircle( &p1, p, r, angle0 );
-			if ((p0.x >= min.x && p0.x <= max.x &&
-				 p0.y >= min.y && p0.y <= max.y) ||
-				(p1.x >= min.x && p1.x <= max.x &&
-				 p1.y >=min.y && p1.y <=max.y))
-			DrawLine( d, p0, p1, width, color );
-			p0 = p1;
-		}
-		return;
-	}
-	if (d->angle!=0.0 && angle1 < 360.0)
-		angle0 = NormalizeAngle( angle0-d->angle );
-	d->CoOrd2Pix(d,p,&x,&y);
-	drawCount++;
-	if (drawEnable) {
-		wDrawArc( d->d, x, y, (wPos_t)(rr), angle0, angle1, drawCenter,
-				width, ((d->options&DC_DASH)==0)?wDrawLineSolid:wDrawLineDash,
-				color, (wDrawOpts)d->funcs->options );
-	}
+    if (d == &mapD && !mapVisible)
+    {
+        return;
+    }
+    rr = (r / d->scale) * d->dpi + 0.5;
+    if (rr > wDrawGetMaxRadius(d->d))
+    {
+        da = (maxArcSegStraightLen * 180) / (M_PI * rr);
+        cnt = (int)(angle1/da) + 1;
+        da = angle1 / cnt;
+        coOrd min,max;
+        min = d->orig;
+        max.x = min.x + d->size.x;
+        max.y = min.y + d->size.y;
+        PointOnCircle(&p0, p, r, angle0);
+        for (i=1; i<=cnt; i++) {
+            angle0 += da;
+            PointOnCircle(&p1, p, r, angle0);
+            if (d->angle == 0.0 &&
+                    ((p0.x >= min.x &&
+                      p0.x <= max.x &&
+                      p0.y >= min.y &&
+                      p0.y <= max.y) ||
+                     (p1.x >= min.x &&
+                      p1.x <= max.x &&
+                      p1.y >= min.y &&
+                      p1.y <= max.y))) {
+                DrawLine(d, p0, p1, width, color);
+            } else {
+                coOrd clip0 = p0, clip1 = p1;
+                if (ClipLine(&clip0, &clip1, d->orig, d->angle, d->size)) {
+                    DrawLine(d, clip0, clip1, width, color);
+                }
+            }
+
+            p0 = p1;
+        }
+        return;
+    }
+    if (d->angle!=0.0 && angle1 < 360.0)
+    {
+        angle0 = NormalizeAngle(angle0-d->angle);
+    }
+    d->CoOrd2Pix(d,p,&x,&y);
+    drawCount++;
+    if (drawEnable)
+    {
+        wDrawArc(d->d, x, y, (wPos_t)(rr), angle0, angle1, drawCenter,
+                 width, ((d->options&DC_DASH)==0)?wDrawLineSolid:wDrawLineDash,
+                 color, (wDrawOpts)d->funcs->options);
+    }
 }
 
 
@@ -711,11 +729,14 @@ EXPORT void DrawMultiLineTextSize(
 			blocksize.x = lineW;
 		lastline->x = textsize.x;
 		if (*text =='\n') {
+			blocksize.y += lineH;
 			lastline->y -= lineH;
 			lastline->x = 0;
 		}
-		if (*text == '\0')
+		if (*text == '\0') {
+			blocksize.y += textsize.y;
 			break;
+		}
 		text++;
 	}
 	size->x = blocksize.x;
@@ -953,7 +974,7 @@ EXPORT void InitInfoBar( void )
 {
 	wPos_t width, height, y, yb, ym, x, boxH;
 	wWinGetSize( mainW, &width, &height );
-	infoHeight = 3 + wStatusGetHeight( COMBOBOX ) + 3;
+	infoHeight = 2 + wStatusGetHeight( COMBOBOX ) + 2 ;
 	textHeight = wStatusGetHeight(0L);
 	y = height - max(infoHeight,textHeight)-10;
 
@@ -1001,9 +1022,9 @@ static void SetInfoBar( void )
 	newDistanceFormat = GetDistanceFormat();
 	if ( newDistanceFormat != oldDistanceFormat ) {
 		infoD.pos_w = GetInfoPosWidth() + 2;
-		wBoxSetSize( infoD.posX_b, infoD.pos_w, infoHeight-5 );
+		wBoxSetSize( infoD.posX_b, infoD.pos_w, infoHeight-3 );
 		wStatusSetWidth( infoD.posX_m, infoD.pos_w-six );
-		wBoxSetSize( infoD.posY_b, infoD.pos_w, infoHeight-5 );
+		wBoxSetSize( infoD.posY_b, infoD.pos_w, infoHeight-3 );
 		wStatusSetWidth( infoD.posY_m, infoD.pos_w-six );
 	}
 	infoD.info_w = width - 20 - infoD.pos_w*2 - infoD.scale_w - infoD.count_w - 40 + 4;
@@ -1107,7 +1128,11 @@ EXPORT void InfoSubstituteControls(
 	for ( inx=0; controls[inx]; inx++ ) {
 		curInfoLabelWidth[inx] = wLabelWidth(_(labels[inx]));
 		x += curInfoLabelWidth[inx];
-		int	y_this = y + (textHeight/2) - (wControlGetHeight( controls[inx] )/2);
+#ifdef WINDOWS
+		int	y_this = y + (infoHeight/2) - (textHeight / 2 );
+#else
+		int	y_this = y + (infoHeight / 2) - (wControlGetHeight(controls[inx]) / 2) - 2;
+#endif
 		wControlSetPos( controls[inx], x, y_this );
 		x += wControlGetWidth( controls[inx] );
 		wControlSetLabel( controls[inx], _(labels[inx]) );
@@ -1251,7 +1276,6 @@ EXPORT void MainRedraw( void )
 #endif
 
 	coOrd orig, size;
-	coOrd back_orig;
 	DIST_T t1;
 	if (inPlaybackQuit)
 		return;
@@ -1419,18 +1443,21 @@ EXPORT void DoRedraw( void )
 
 static void DrawRoomWalls( wBool_t t )
 {
-	coOrd p01, p11, p10;
+	coOrd p00, p01, p11, p10;
 
 	if (mainD.d == NULL)
 		return;
 
 	DrawTicks( &mainD, mapD.size );
 
+	p00.x = 0.0; p00.y = 0.0;
 	p01.x = p10.y = 0.0;
 	p11.x = p10.x = mapD.size.x;
 	p01.y = p11.y = mapD.size.y;
 	DrawLine( &mainD, p01, p11, 3, t?borderColor:wDrawColorWhite );
 	DrawLine( &mainD, p11, p10, 3, t?borderColor:wDrawColorWhite );
+	DrawLine( &mainD, p00, p01, 3, t?borderColor:wDrawColorWhite );
+	DrawLine( &mainD, p00, p10, 3, t?borderColor:wDrawColorWhite );
 
 }
 
@@ -1643,21 +1670,31 @@ EXPORT void DrawTicks( drawCmd_p d, coOrd size )
 
 	offset = 0.0;
 
-	if ( d->orig.x<0.0 )
-		offset = d->orig.x;
-	p0.x = 0.0/*d->orig.x*/; p1.x = size.x;
-	p0.y = p1.y = /*max(d->orig.y,0.0)*/ d->orig.y;
+	if ( d->orig.x<0.0 ) {
+		 p0.y = 0.0; p1.y = mapD.size.y;
+		 p0.x = p1.x = 0.0;
+		 DrawRuler( d, p0, p1, offset, FALSE, TRUE, borderColor );
+		 offset = d->orig.x;
+	}
+	p0.x = 0.0; p1.x = d->size.x-d->orig.x;
+	p0.y = p1.y = d->orig.y;
 	DrawRuler( d, p0, p1, offset, TRUE, FALSE, borderColor );
-	p0.y = p1.y = min(d->orig.y + d->size.y, size.y);
+	p0.y = p1.y = d->size.y+d->orig.y;
 	DrawRuler( d, p0, p1, offset, FALSE, TRUE, borderColor );
+
 	offset = 0.0;
 
-	if ( d->orig.y<0.0 )
+	if ( d->orig.y<0.0 ) {
+		p0.x = 0.0; p1.x = mapD.size.x;
+		p0.y = p1.y = 0.0;
+		DrawRuler( d, p0, p1, offset, FALSE, FALSE, borderColor );
 		offset = d->orig.y;
-	p0.y = 0.0/*d->orig.y*/; p1.y = max(size.y,0.0);
+	}
+
+	p0.y = 0.0; p1.y = d->size.y-d->orig.y;
 	p0.x = p1.x = d->orig.x;
 	DrawRuler( d, p0, p1, offset, TRUE, TRUE, borderColor );
-	p0.x = p1.x = min(d->orig.x + d->size.x, size.x);
+	p0.x = p1.x = d->size.x+d->orig.x;
 	DrawRuler( d, p0, p1, offset, FALSE, FALSE, borderColor );
 }
 
@@ -1684,19 +1721,22 @@ LOG( log_pan, 2, ( "ConstraintOrig [ %0.3f, %0.3f ] RoomSize(%0.3f %0.3f), WxH=%
 				orig->x, orig->y, mapD.size.x, mapD.size.y,
 				size.x, size.y ) )
 
-	if (orig->x+size.x > mapD.size.x ) {
-		orig->x = mapD.size.x-size.x;
+	coOrd bound;
+	bound.x = size.x/2;
+	bound.y = size.y/2;
+	if (orig->x+size.x > mapD.size.x+bound.x ) {
+		orig->x = mapD.size.x-size.x+bound.x;
 		orig->x += (units==UNITS_ENGLISH?1.0:(1.0/2.54));
 	}
-	if (orig->x < 0)
-		orig->x = 0;
-	if (orig->y+size.y > mapD.size.y ) {
-		orig->y = mapD.size.y-size.y;
+	if (orig->x < 0-bound.x)
+		orig->x = 0-bound.x;
+	if (orig->y+size.y > mapD.size.y+bound.y ) {
+		orig->y = mapD.size.y-size.y+bound.y;
 		orig->y += (units==UNITS_ENGLISH?1.0:1.0/2.54);
 
 	}
-	if (orig->y < 0)
-		orig->y = 0;
+	if (orig->y < 0-bound.y)
+		orig->y = 0-bound.y;
 
 	if (mainD.scale >= 1.0) {
 		if (units == UNITS_ENGLISH) {
@@ -2158,7 +2198,7 @@ EXPORT BOOL_T IsClose(
  *
  */
 
-static int ignoreMoves = 1;
+static int ignoreMoves = 0;
 
 EXPORT void ResetMouseState( void )
 {
@@ -2523,7 +2563,7 @@ static void MapDlgUpdate(
 					MapRedraw();
 					DrawMapBoundingBox( TRUE );
 				}
-				wPrefSetInteger( "draw", "mapscale", mapD.scale );
+				wPrefSetInteger( "draw", "mapscale", (long)mapD.scale );
 			}
 			DrawMapBoundingBox( TRUE );
 			break;

@@ -163,7 +163,7 @@ static void UpdateStraight( track_p trk, int inx, descData_p descUpd, BOOL_T fin
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), strData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &strData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &strData.elev[1-ep], NULL, TRUE );
 		if ( strData.length > minLength )
 			strData.grade = fabs( (strData.elev[0]-strData.elev[1])/strData.length )*100.0;
 		else
@@ -242,8 +242,8 @@ static void DescribeStraight( track_p trk, char * str, CSIZE_T len )
 	fix1 = GetTrkEndTrk(trk,1)!=NULL;
 	strData.endPt[0] = GetTrkEndPos(trk,0);
 	strData.endPt[1] = GetTrkEndPos(trk,1);
-	ComputeElev( trk, 0, FALSE, &strData.elev[0], NULL );
-	ComputeElev( trk, 1, FALSE, &strData.elev[1], NULL );
+	ComputeElev( trk, 0, FALSE, &strData.elev[0], NULL, FALSE );
+	ComputeElev( trk, 1, FALSE, &strData.elev[1], NULL, FALSE );
 	strData.length = FindDistance( strData.endPt[0], strData.endPt[1] );
 	strData.layerNumber = GetTrkLayer(trk);
 	if ( strData.length > minLength )
@@ -366,11 +366,16 @@ static BOOL_T SplitStraight( track_p trk, coOrd pos, EPINX_T ep, track_p *leftov
 {
 	track_p trk1;
 
-	trk1 = NewStraightTrack( GetTrkEndPos(trk,ep), pos );
+	trk1 = NewStraightTrack( 1-ep?GetTrkEndPos(trk,ep):pos, 1-ep?pos:GetTrkEndPos(trk,ep) );
+	DIST_T height;
+	int opt;
+	GetTrkEndElev(trk,ep,&opt,&height);
+	UpdateTrkEndElev( trk1, ep, opt, height, (opt==ELEV_STATION)?GetTrkEndElevStation(trk,ep):NULL );
 	AdjustStraightEndPt( trk, ep, pos );
+	UpdateTrkEndElev( trk, ep, ELEV_NONE, 0, NULL);
 	*leftover = trk1;
-	*ep0 = 1;
-	*ep1 = 0;
+	*ep0 = 1-ep;
+	*ep1 = ep;
 	return TRUE;
 }
 
@@ -417,7 +422,7 @@ static BOOL_T EnumerateStraight( track_p trk )
 	return TRUE;
 }
 
-static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist )
+static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	DIST_T d;
 	ANGLE_T a;
@@ -636,6 +641,7 @@ static BOOL_T QueryStraight( track_p trk, int query )
 	case Q_ISTRACK:
 	case Q_CORNU_CAN_MODIFY:
 	case Q_MODIFY_CAN_SPLIT:
+	case Q_CAN_EXTEND:
 		return TRUE;
 	default:
 		return FALSE;
