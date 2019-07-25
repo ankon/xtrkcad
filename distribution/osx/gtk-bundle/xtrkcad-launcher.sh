@@ -52,6 +52,7 @@ export GTK_DATA_PREFIX="$bundle_res"
 export GTK_EXE_PREFIX="$bundle_res"
 export GTK_PATH="$bundle_res"
 
+
 export GTK2_RC_FILES="$bundle_etc/gtk-2.0/gtkrc:~/.gtkrc-2.0"
 XTRKCAD_PANGO_RC_FILE="$XTRKCAD_RESOURCES/etc/pango/pangorc"
 

@@ -472,7 +472,7 @@ LOG( log_group, 1, ( " EP%d = [%0.3f %0.3f] A%0.3f T%d.%d\n", ep, epp->pos.x, ep
 		Rotate( &orig, zero, xx->angle );
 		orig.x = xx->orig.x - orig.x;
 		orig.y = xx->orig.y - orig.y;
-		trk1 = NewCompound( T_TURNOUT, 0, orig, xx->angle, xx->title, tempEndPts_da.cnt-epCnt1, &tempEndPts(epCnt1), pathPtr_da.cnt, &pathPtr(0), tempSegs_da.cnt, &tempSegs(0) );
+		trk1 = NewCompound( T_TURNOUT, 0, orig, xx->angle, xx->title, tempEndPts_da.cnt-epCnt1, &tempEndPts(epCnt1), NULL, pathPtr_da.cnt, &pathPtr(0), tempSegs_da.cnt, &tempSegs(0) );
 		xx1 = GetTrkExtraData(trk1);
 		xx1->ungrouped = TRUE;
 
@@ -611,16 +611,21 @@ static drawCmd_t groupD = {
 		NULL, &tempSegDrawFuncs, DC_GROUP, 1, 0.0, {0.0, 0.0}, {0.0, 0.0}, Pix2CoOrd, CoOrd2Pix };
 static long groupSegCnt;
 static long groupReplace;
+static double groupOriginX;
+static double groupOriginY;
 char * groupReplaceLabels[] = { N_("Replace with new group?"), NULL };
 
 static wWin_p groupW;
 static paramIntegerRange_t r0_999999 = { 0, 999999 };
+static paramFloatRange_t r_1000_1000    = { -1000.0, 1000.0, 80 };
 static paramData_t groupPLs[] = {
 /*0*/ { PD_STRING, groupManuf, "manuf", PDO_NOPREF | PDO_STRINGLIMITLENGTH, (void*)350, N_("Manufacturer"), 0, 0, sizeof(groupManuf)},
 /*1*/ { PD_STRING, groupDesc, "desc", PDO_NOPREF | PDO_STRINGLIMITLENGTH, (void*)230, N_("Description"), 0, 0, sizeof(groupDesc)},
 /*2*/ { PD_STRING, groupPartno, "partno", PDO_NOPREF|PDO_DLGHORZ|PDO_DLGIGNORELABELWIDTH|PDO_STRINGLIMITLENGTH, (void*)100, N_("#"), 0, 0, sizeof(groupPartno)},
 /*3*/ { PD_LONG, &groupSegCnt, "segcnt", PDO_NOPREF, &r0_999999, N_("# Segments"), BO_READONLY },
-/*4*/ { PD_TOGGLE, &groupReplace, "replace", 0, groupReplaceLabels, "", BC_HORZ|BC_NOBORDER } };
+/*4*/ { PD_FLOAT, &groupOriginX, "orig", PDO_DIM, &r_1000_1000, N_("Offset X,Y:")},
+/*5*/ { PD_FLOAT, &groupOriginY, "origy",PDO_DIM | PDO_DLGHORZ, &r_1000_1000, ""},
+/*6*/ { PD_TOGGLE, &groupReplace, "replace", 0, groupReplaceLabels, "", BC_HORZ|BC_NOBORDER } };
 static paramGroup_t groupPG = { "group", 0, groupPLs, sizeof groupPLs/sizeof groupPLs[0] };
 
 
@@ -1459,8 +1464,13 @@ groupSimpleTurnout:
 		/*
 		 * Final: create new definition
 		 */
-		CheckPaths( outputSegs_da.cnt, &outputSegs(0), path );
-		to = CreateNewTurnout( curScaleName, groupTitle, outputSegs_da.cnt, &outputSegs(0), pathLen, path, tempEndPts_da.cnt, &tempEndPts(0), TRUE );
+
+		CheckPaths( trackSegs_da.cnt, &trackSegs(0), path );
+		//for (int ep =0; ep<tempEndPts_da.cnt;ep++) {
+        //TODO Test to see if end is curved and if so set special and add radius to list
+		//}
+		to = CreateNewTurnout( curScaleName, groupTitle, trackSegs_da.cnt, &trackSegs(0), pathLen, path, tempEndPts_da.cnt, &tempEndPts(0), NULL, TRUE );
+
 		f = OpenCustom("a");
 		if (f && to) {
 			oldLocale = SaveLocale("C");
@@ -1491,7 +1501,9 @@ groupSimpleTurnout:
 					trackCount--;
 				}
 			}
-			trk = NewCompound( T_TURNOUT, 0, orig, 0.0, to->title, tempEndPts_da.cnt, &tempEndPts(0), pathLen, (char *)path, outputSegs_da.cnt, &outputSegs(0) );
+
+			trk = NewCompound( T_TURNOUT, 0, orig, 0.0, to->title, tempEndPts_da.cnt, &tempEndPts(0), NULL, pathLen, (char *)path, trackSegs_da.cnt, &trackSegs(0) );
+
 			SetTrkVisible( trk, TRUE );
 
 			SetTrkVisible( trk, TRUE );
@@ -1507,8 +1519,8 @@ groupSimpleTurnout:
 	} else {
 		CloneFilledDraw( tempSegs_da.cnt, &tempSegs(0), TRUE );
 		GetSegBounds( zero, 0, tempSegs_da.cnt, &tempSegs(0), &orig, &size );
-		orig.x = - orig.x;
-		orig.y = - orig.y;
+		orig.x = - orig.x+groupOriginX;  //Include orig offset
+		orig.y = - orig.y+groupOriginY;
 		MoveSegs( tempSegs_da.cnt, &tempSegs(0), orig );
 		to = CreateNewStructure( curScaleName, groupTitle, tempSegs_da.cnt, &tempSegs(0), TRUE );
 		f = OpenCustom("a");
@@ -1527,9 +1539,9 @@ groupSimpleTurnout:
 					trackCount--;
 				}
 			}
-			orig.x = - orig.x;
+			orig.x = - orig.x;   //Put back
 			orig.y = - orig.y;
-			trk = NewCompound( T_STRUCTURE, 0, orig, 0.0, groupTitle, 0, NULL, 0, "", tempSegs_da.cnt, &tempSegs(0) );
+			trk = NewCompound( T_STRUCTURE, 0, orig, 0.0, groupTitle, 0, NULL, NULL, 0, "", tempSegs_da.cnt, &tempSegs(0) );
 			SetTrkVisible( trk, TRUE );
 			DrawNewTrack( trk );
 			EnableCommands();
@@ -1553,6 +1565,8 @@ EXPORT void DoGroup( void )
 	xx = NULL;
 	groupSegCnt = 0;
 	groupCompoundCount = 0;
+	groupOriginX = 0.0;
+	groupOriginY = 0.0;
 
 	while ( TrackIterate( &trk ) ) {
 		if ( GetTrkSelected( trk ) ) {

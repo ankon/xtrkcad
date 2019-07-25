@@ -38,6 +38,7 @@
 #include "track.h"
 #include "utility.h"
 #include "messages.h"
+#include "paramfile.h"
 
 /*****************************************************************************
  *
@@ -731,7 +732,7 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 			 break;
 		for (int i=0;i<compoundData.epCnt;i++) {
 			if (i==ep) continue;
-			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL );
+			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL, TRUE );
 		}
 		if ( compoundData.length > minLength )
 			compoundData.grade = fabs( (compoundData.elev[0]-compoundData.elev[1])/compoundData.length )*100.0;
@@ -912,7 +913,7 @@ void DescribeCompound(
 				compoundDesc[C0+(E1-E0)*i].mode = DESC_IGNORE;
 				compoundDesc[R0+(E1-E0)*i].mode = DESC_IGNORE;
 			}
-			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL );
+			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL, FALSE );
 			compoundDesc[Z0+(E1-E0)*i].mode = (EndPtIsDefinedElev(trk,i)?0:DESC_RO)|DESC_NOREDRAW;
 		}
 		compoundDesc[GR].mode = DESC_RO;
@@ -986,6 +987,15 @@ BOOL_T WriteCompound(
 		break;
 	case TOpier:
 		rc &= fprintf( f, "\tX %s %0.6f \"%s\"\n", PIER, xx->u.pier.height, xx->u.pier.name )>0;
+		break;
+//	case TOcurved:
+//		rc &= fprintf( f, "\tX %s", CURVED )>0;
+//		for (ep=0; ep<epCnt; ep++) {
+//			fprintf( f, " %0.6f", DYNARR_N(DIST_T,xx->u.curved.radii,ep));
+//		}
+// 		rc &= fprintf( f, "\n")>0;
+//		break;
+
 	default:
 		;
 	}
@@ -1012,6 +1022,7 @@ EXPORT track_p NewCompound(
 		char * title,
 		EPINX_T epCnt,
 		trkEndPt_t * epp,
+		DIST_T * radii,
 		int pathLen,
 		char * paths,
 		wIndex_t segCnt,
@@ -1047,8 +1058,18 @@ EXPORT track_p NewCompound(
 	FixUpBezierSegs(xx->segs,xx->segCnt);
 	ComputeCompoundBoundingBox( trk );
 	SetDescriptionOrig( trk );
-	for ( ep=0; ep<epCnt; ep++ )
+//	if (radii) {
+//		xx->special = TOcurved;
+//		xx->u.curved.radii.max = 0;
+//		xx->u.curved.radii.cnt = 0;
+//		DYNARR_SET(DIST_T,xx->u.curved.radii,epCnt);
+//	}
+	for ( ep=0; ep<epCnt; ep++ ) {
 		SetTrkEndPoint( trk, ep, epp[ep].pos, epp[ep].angle );
+//		if (radii) {
+//			DYNARR_N(DIST_T,xx->u.curved.radii,ep) = radii[ep];
+//		}
+	}
 	return trk;
 }
 
@@ -1104,7 +1125,7 @@ void ReadCompound(
 			UpdateTitleMark( title, LookupScale(scale) );
 		}
 	}
-	trk = NewCompound( trkType, index, orig, angle, title, 0, NULL, pathCnt, (char *)path, tempSegs_da.cnt, &tempSegs(0) );
+	trk = NewCompound( trkType, index, orig, angle, title, 0, NULL, NULL, pathCnt, (char *)path, tempSegs_da.cnt, &tempSegs(0) );
 	SetEndPts( trk, 0 );
 	SetTrkVisible(trk, visible);
 	SetTrkScale(trk, LookupScale( scale ));
@@ -1175,6 +1196,21 @@ void ReadCompound(
 			GetArgs( tempSpecial+strlen(PIER), "fq",
 						&xx->u.pier.height, &xx->u.pier.name );
 
+		} else if (strncmp( tempSpecial, CURVED, strlen(CURVED))== 0) {
+//			xx->special = TOcurved;
+//			int cnt = GetTrkEndPtCnt(trk);
+//			xx->u.curved.radii.cnt = 0;
+//			xx->u.curved.radii.max = 0;
+//			xx->u.curved.radii.ptr = 0;
+//			DYNARR_SET(DIST_T,xx->u.curved.radii,cnt);
+//			char * cp;
+//			cp = tempSpecial + strlen(CURVED);
+//			for (int i=0;i<cnt;i++) {
+//				if (cp && cp[0] != '\0') {
+//					GetArgs( cp,"f",&DYNARR_N(DIST_T,xx->u.curved.radii,i));
+//					cp = strchr(cp,' ');
+//				} else
+//					DYNARR_N(DIST_T,xx->u.curved.radii,i) = 0.0;
 		} else {
 			InputError("Unknown special case", TRUE);
 		}

@@ -3,13 +3,11 @@ find_package(FreeImage REQUIRED)
 FILE(GLOB HEADERS *.h)
 
 SET(SOURCES
-#	checksum.c
 	backgnd.c
 	getopt.c
 	mswbox.c
 	mswbutt.c
 	mswbitmap.c
-	mswchksm.c
 	mswchoic.c
 	mswcolor.c
 	mswdraw.c

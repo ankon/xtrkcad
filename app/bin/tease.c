@@ -483,6 +483,20 @@ static DIST_T GetLengthJoint( track_p trk )
 		return fabs( d0-d1 );
 }
 
+static DIST_T GetFlexLengthJoint( track_p trk )
+{
+	struct extraData *xx;
+	DIST_T d0, d1, d3;
+	xx = GetTrkExtraData(trk);
+	d0 = JoinD( xx->l0, xx->R+(GetTrkGauge(trk)/2.0), xx->L );
+	d1 = JoinD( xx->l1, xx->R+(GetTrkGauge(trk)/2.0), xx->L );
+	d3 = JoinD( xx->l1, xx->R-(GetTrkGauge(trk)/2.0), xx->L );
+	if (xx->Scurve) {
+		return d0+d3;
+	} else
+		return fabs( d0-d1 );
+}
+
 
 static struct {
 		coOrd endPt[2];
@@ -523,7 +537,7 @@ static void UpdateJoint( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), jointData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &jointData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &jointData.elev[1-ep], NULL, TRUE );
 		if ( jointData.length > minLength )
 			jointData.grade = fabs( (jointData.elev[0]-jointData.elev[1])/jointData.length )*100.0;
 		else
@@ -570,8 +584,8 @@ static void DescribeJoint(
 	jointData.l0 = xx->l0;
 	jointData.l1 = xx->l1;
 	jointData.layerNumber = GetTrkLayer(trk);
-	ComputeElev( trk, 0, FALSE, &jointData.elev[0], NULL );
-	ComputeElev( trk, 1, FALSE, &jointData.elev[1], NULL );
+	ComputeElev( trk, 0, FALSE, &jointData.elev[0], NULL, FALSE );
+	ComputeElev( trk, 1, FALSE, &jointData.elev[1], NULL, FALSE );
 	if ( jointData.length > minLength )
 		jointData.grade = fabs( (jointData.elev[0]-jointData.elev[1])/jointData.length )*100.0;
 	else
@@ -1215,12 +1229,12 @@ static BOOL_T TraverseJointTrack(
 static BOOL_T EnumerateJoint( track_p trk )
 {
 	if (trk != NULL) {
-		ScaleLengthIncrement( GetTrkScale(trk), GetLengthJoint(trk) );
+		ScaleLengthIncrement( GetTrkScale(trk), GetFlexLengthJoint(trk) );
 	}
 	return TRUE;
 }
 
-static BOOL_T TrimJoint( track_p trk, EPINX_T ep, DIST_T maxX )
+static BOOL_T TrimJoint( track_p trk, EPINX_T ep, DIST_T maxX, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	DeleteTrack( trk, FALSE );
 	MainRedraw();
@@ -1294,7 +1308,7 @@ static BOOL_T GetParamsJoint( int inx, track_p trk, coOrd pos, trackParams_t * p
 	params->lineOrig = GetTrkEndPos(trk,params->ep);
 	params->lineEnd = params->lineOrig;
 	params->angle = GetTrkEndAngle(trk,params->ep);
-	params->len = 0.0;
+	params->len = GetLengthJoint(trk);
 	params->arcR = 0.0;
 	return TRUE;
 }

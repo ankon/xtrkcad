@@ -462,6 +462,7 @@ EXPORT void SetTrkEndElev( track_p trk, EPINX_T ep, int option, DIST_T height, c
 	track_p trk1;
 	EPINX_T ep1;
 	trk->endPt[ep].elev.option = option;
+	trk->endPt[ep].elev.cacheSet = FALSE;
 	if (EndPtIsDefinedElev(trk,ep)) {
 		trk->endPt[ep].elev.u.height = height;
 	} else if (EndPtIsStationElev(trk,ep)) {
@@ -506,6 +507,23 @@ EXPORT DIST_T GetTrkEndElevHeight( track_p trk, EPINX_T e )
 {
 	ASSERT( EndPtIsDefinedElev(trk,e) );
 	return trk->endPt[e].elev.u.height;
+}
+
+EXPORT BOOL_T GetTrkEndElevCachedHeight (track_p trk, EPINX_T e, DIST_T * height, DIST_T * length)
+{
+	if (trk->endPt[e].elev.cacheSet) {
+		*height = trk->endPt[e].elev.cachedElev;
+		*length = trk->endPt[e].elev.cachedLength;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+EXPORT void SetTrkEndElevCachedHeight ( track_p trk, EPINX_T e, DIST_T height, DIST_T length)
+{
+	trk->endPt[e].elev.cachedElev = height;
+	trk->endPt[e].elev.cachedLength = length;
+	trk->endPt[e].elev.cacheSet = TRUE;
 }
 
 
@@ -570,6 +588,9 @@ EXPORT void SetTrkElev( track_p trk, int mode, DIST_T elev )
 	SetTrkBits( trk, TB_ELEVPATH );
 	trk->elev = elev;
 	trk->elevMode = mode;
+	for (int i=0;i<trk->endCnt;i++) {
+		trk->endPt[i].elev.cacheSet = FALSE;
+	}
 }
 
 
@@ -1055,6 +1076,7 @@ EXPORT void ResolveIndex( void )
 	track_p trk;
 	EPINX_T ep;
 	TRK_ITERATE(trk) {
+		LOG (log_track, 1, ( "ResNextTrack( T%d, t%d, E%d, X%ld)\n", trk->index, trk->type, trk->endCnt, trk->extraSize ));
 		for (ep=0; ep<trk->endCnt; ep++)
 			if (trk->endPt[ep].index >= 0) {
 				trk->endPt[ep].track = FindTrack( trk->endPt[ep].index );
@@ -2002,14 +2024,14 @@ EXPORT BOOL_T RemoveTrack( track_p * trk, EPINX_T * ep, DIST_T *dist )
 	}
 	dist1 = *dist;
 	*dist = 0.0;
-	return TrimTrack( *trk, *ep, dist1 );
+	return TrimTrack( *trk, *ep, dist1, zero, 0.0, 0.0, zero );
 }
 
 
-EXPORT BOOL_T TrimTrack( track_p trk, EPINX_T ep, DIST_T dist )
+EXPORT BOOL_T TrimTrack( track_p trk, EPINX_T ep, DIST_T dist, coOrd pos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	if (trackCmds(trk->type)->trim)
-		return trackCmds(trk->type)->trim( trk, ep, dist );
+		return trackCmds(trk->type)->trim( trk, ep, dist, pos, angle, radius, center );
 	else
 		return FALSE;
 }
@@ -2024,6 +2046,130 @@ EXPORT BOOL_T MergeTracks( track_p trk0, EPINX_T ep0, track_p trk1, EPINX_T ep1 
 		return FALSE;
 }
 
+EXPORT STATUS_T ExtendTrackFromOrig( track_p trk, wAction_t action, coOrd pos )
+{
+	static EPINX_T ep;
+	static coOrd end_pos;
+	static BOOL_T valid;
+	DIST_T d;
+	track_p trk1;
+	trackParams_t params;
+	static wBool_t curved;
+	static ANGLE_T end_angle;
+
+	switch ( action ) {
+	case C_DOWN:
+		ep = PickUnconnectedEndPoint( pos, trk );
+		if ( ep == -1 )
+			return C_ERROR;
+		pos = GetTrkEndPos(trk,ep);
+		if (!GetTrackParams(PARAMS_CORNU,trk,pos,&params)) return C_ERROR;
+		end_pos = pos;
+		if (params.type == curveTypeCurve) {
+			curved = TRUE;
+			tempSegs(0).type = SEG_CRVTRK;
+			tempSegs(0).width = 0;
+			tempSegs(0).u.c.radius = params.arcR;
+			tempSegs(0).u.c.center = params.arcP;
+			tempSegs(0).u.c.a0 = FindAngle(params.arcP,GetTrkEndPos(trk,ep));
+			tempSegs(0).u.c.a1 = 0;
+		} else {
+			curved = FALSE;
+			tempSegs(0).type = SEG_STRTRK;
+			tempSegs(0).width = 0;
+			tempSegs(0).u.l.pos[0] = tempSegs(0).u.l.pos[1] = GetTrkEndPos( trk, ep );
+		}
+		valid = FALSE;
+		InfoMessage( _("Drag to change track length") );
+		return C_CONTINUE;
+		/*no break*/
+	case C_MOVE:
+		if (curved) {
+			//Normalize pos
+			PointOnCircle( &pos, tempSegs(0).u.c.center, tempSegs(0).u.c.radius, FindAngle(tempSegs(0).u.c.center,pos) );
+			ANGLE_T a = FindAngle(tempSegs(0).u.c.center,pos)-FindAngle(tempSegs(0).u.c.center,end_pos);
+			d = fabs(a)*2*M_PI/360*tempSegs(0).u.c.radius;
+			if ( d <= minLength ) {
+				if (action == C_MOVE)
+					ErrorMessage( MSG_TRK_TOO_SHORT, _("Connecting "), PutDim(fabs(minLength-d)) );
+				valid = FALSE;
+				return C_CONTINUE;
+			}
+			//Restrict to outside track
+			ANGLE_T diff = NormalizeAngle(GetTrkEndAngle(trk, ep)-FindAngle(end_pos,pos));
+			if (diff>90.0 && diff<270.0) {
+				valid = FALSE;
+				tempSegs(0).u.c.a1 = 0;
+				tempSegs(0).u.c.a0 = end_angle;
+				InfoMessage( _("Inside Turnout Track"));
+				return C_CONTINUE;
+			}
+			end_angle = GetTrkEndAngle( trk, ep );
+			a = FindAngle(tempSegs(0).u.c.center, pos );
+			PointOnCircle( &pos, tempSegs(0).u.c.center, tempSegs(0).u.c.radius, a );
+			ANGLE_T a2 = FindAngle(tempSegs(0).u.c.center,end_pos);
+			if ((end_angle > 180 && (a2>90 && a2 <270))  ||
+					(end_angle < 180 && (a2<90 || a2 >270))) {
+				tempSegs(0).u.c.a0 = a2;
+				tempSegs(0).u.c.a1 = NormalizeAngle(a-a2);
+			} else {
+				tempSegs(0).u.c.a0 = a;
+				tempSegs(0).u.c.a1 = NormalizeAngle(a2-a);
+			}
+			tempSegs_da.cnt = 1;
+			valid = TRUE;
+			if (action == C_MOVE)
+				InfoMessage( _("Curve: Length=%s, Radius=%0.3f Arc=%0.3f"),
+						FormatDistance( d ), FormatDistance(tempSegs(0).u.c.radius), PutAngle( fabs(a) ) );
+			return C_CONTINUE;
+		} else {
+			d = FindDistance( end_pos, pos );
+			valid = TRUE;
+			if ( d <= minLength ) {
+				if (action == C_MOVE)
+					ErrorMessage( MSG_TRK_TOO_SHORT, _("Connecting "), PutDim(fabs(minLength-d)) );
+				valid = FALSE;
+				return C_CONTINUE;
+			}
+			ANGLE_T diff = NormalizeAngle(GetTrkEndAngle( trk, ep )-FindAngle(end_pos, pos));
+			if (diff>=90.0 && diff<=270.0) {
+				valid = FALSE;
+				tempSegs(0).u.c.a1 = 0;
+				tempSegs(0).u.c.a0 = end_angle;
+				InfoMessage( _("Inside Turnout Track"));
+				return C_CONTINUE;
+			}
+			Translate( &tempSegs(0).u.l.pos[1], tempSegs(0).u.l.pos[0], GetTrkEndAngle( trk, ep ), d );
+			tempSegs_da.cnt = 1;
+			if (action == C_MOVE)
+				InfoMessage( _("Straight: Length=%s Angle=%0.3f"),
+						FormatDistance( d ), PutAngle( GetTrkEndAngle( trk, ep ) ) );
+		}
+		return C_CONTINUE;
+
+	case C_UP:
+		if (!valid)
+			return C_TERMINATE;
+		UndrawNewTrack( trk );
+		EPINX_T jp;
+		if (curved) {
+			trk1 = NewCurvedTrack(tempSegs(0).u.c.center, tempSegs(0).u.c.radius, tempSegs(0).u.c.a0, tempSegs(0).u.c.a1, 0);
+			jp = PickUnconnectedEndPoint(end_pos,trk1);
+		} else {
+			trk1 = NewStraightTrack( tempSegs(0).u.l.pos[0], tempSegs(0).u.l.pos[1] );
+			jp = 0;
+		}
+		CopyAttributes( trk, trk1 );
+		ConnectTracks( trk, ep, trk1, jp );
+		DrawNewTrack( trk );
+		DrawNewTrack( trk1 );
+		return C_TERMINATE;
+
+	default:
+		;
+	}
+	return C_ERROR;
+}
 
 EXPORT STATUS_T ExtendStraightFromOrig( track_p trk, wAction_t action, coOrd pos )
 {
@@ -2142,6 +2288,9 @@ EXPORT char * GetTrkTypeName( track_p trk )
 	return trackCmds(trk->type)->name;
 }
 
+/*
+ * Note Misnomer - this function also gets the normal length - enumerate deals with flextrack length
+ */
 
 EXPORT DIST_T GetFlexLength( track_p trk0, EPINX_T ep, coOrd * pos )
 {
@@ -2189,9 +2338,33 @@ EXPORT DIST_T GetTrkLength( track_p trk, EPINX_T ep0, EPINX_T ep1 )
 	} else {
 		pos0 = GetTrkEndPos(trk,ep0);
 		if (ep1==-1) {
+			// Usual case for asking about distance to center of turnout for grades
+			if (trk->type==T_TURNOUT) {
+				trackParams_t trackParamsData;
+				trackParamsData.ep = ep0;
+				if (trackCmds(trk->type)->getTrackParams != NULL) {
+					//Find distance to centroid of end points * 2 or actual length if epCnt < 3
+					trackCmds(trk->type)->getTrackParams(PARAMS_TURNOUT,trk,pos0,&trackParamsData);
+					return trackParamsData.len/2.0;
+				}
+			}
 			pos1.x = (trk->hi.x+trk->lo.x)/2.0;
 			pos1.y = (trk->hi.y+trk->lo.y)/2.0;
 		} else {
+			if (trk->type==T_TURNOUT) {
+				pos1 = GetTrkEndPos(trk,ep1);
+				trackParams_t trackParamsData;
+				trackParamsData.ep = ep0;
+				if (trackCmds(trk->type)->getTrackParams != NULL) {
+					//Find distance via centroid of end points or actual length if epCnt < 3
+					trackCmds(trk->type)->getTrackParams(PARAMS_TURNOUT,trk,pos0,&trackParamsData);
+					d = trackParamsData.len/2.0;
+					trackParamsData.ep = ep1;
+					trackCmds(trk->type)->getTrackParams(PARAMS_TURNOUT,trk,pos1,&trackParamsData);
+					d += trackParamsData.len/2.0;
+					return d;
+				}
+			}
 			pos1 = GetTrkEndPos(trk,ep1);
 		}
 		pos1.x -= pos0.x;
@@ -2531,15 +2704,19 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 
 EXPORT wDrawColor GetTrkColor( track_p trk, drawCmd_p d )
 {
-	DIST_T len, elev0, elev1;
+	DIST_T len, len1, elev0, elev1;
 	ANGLE_T grade = 0.0;
 
 	if ( IsTrack( trk ) && GetTrkEndPtCnt(trk) == 2 ) {
-		len = GetTrkLength( trk, 0, 1 );
-		if (len>0.1) {
-			ComputeElev( trk, 0, FALSE, &elev0, NULL );
-			ComputeElev( trk, 1, FALSE, &elev1, NULL );
-			grade = fabs( (elev1-elev0)/len )*100.0;
+		if (GetTrkEndElevCachedHeight(trk,0,&elev0,&len) && GetTrkEndElevCachedHeight(trk,1,&elev1,&len1)) {
+			grade = fabs( (elev1-elev0)/(len+len1))*100.0;
+		} else {
+			len = GetTrkLength( trk, 0, 1 );
+			if (len>0.1) {
+				ComputeElev( trk, 0, FALSE, &elev0, NULL, FALSE );
+				ComputeElev( trk, 1, FALSE, &elev1, NULL, FALSE );
+				grade = fabs( (elev1-elev0)/len )*100.0;
+			}
 		}
 	}
 	if ( d->options &(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) {
@@ -2706,7 +2883,7 @@ EXPORT void DrawEndElev( drawCmd_p d, track_p trk, EPINX_T ep, wDrawColor color 
 	case ELEV_GRADE:
 		if ( color == wDrawColorWhite ) {
 			elev0 = grade = elev->u.height;
-		} else if ( !ComputeElev( trk, ep, FALSE, &elev0, &grade ) ) {
+		} else if ( !ComputeElev( trk, ep, FALSE, &elev0, &grade, FALSE ) ) {
 			elev0 = grade = 0;
 			gradeOk = FALSE;
 		}
@@ -2714,7 +2891,7 @@ EXPORT void DrawEndElev( drawCmd_p d, track_p trk, EPINX_T ep, wDrawColor color 
 			elevStr = FormatDistance(elev0);
 			elev->u.height = elev0;
 		} else if (gradeOk) {
-			sprintf( message, "%0.1f%%", fabs(grade*100.0) );
+			sprintf( message, "%0.1f%%", round(fabs(grade*100.0)*10)/10 );
 			elevStr = message;
 			a = GetTrkEndAngle( trk, ep );
 			style = BOX_ARROW;
