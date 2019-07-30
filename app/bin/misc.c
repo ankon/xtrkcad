@@ -2369,6 +2369,9 @@ static void CreateMenus(void) {
 	MiscMenuItemCreate(optionM, NULL, "cmdSticky", _("Stic&ky ..."),
 			ACCL_STICKY, (void*) (wMenuCallBack_p) DoSticky, IC_MODETRAIN_TOO,
 			(void *) 0);
+	MiscMenuItemCreate(optionM, NULL, "cmdSigOpt", _("&Signal ..."),
+			ACCL_SIGNALW, (void*) SignalInit(), IC_MODETRAIN_TOO, (void*) 0);
+
 	if (extraButtons) {
 		menuPLs[menuPG.paramCnt].context = debugW;
 		MiscMenuItemCreate(optionM, NULL, "cmdDebug", _("&Debug ..."), 0,

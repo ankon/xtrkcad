@@ -687,15 +687,10 @@ static void DrawTurnout(
 	DIST_T scale2rail;
 
 	widthOptions = DTS_LEFT|DTS_RIGHT;
-<<<<<<< local
 	if (d->options&DC_BLOCK_LEFT)
 		widthOptions |= DTS_BLOCK_LEFT;
 	if (d->options&DC_BLOCK_RIGHT)
 		widthOptions |= DTS_BLOCK_RIGHT;
-
-=======
-    
->>>>>>> other
 	if (GetTrkWidth(trk) == 2)
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(trk) == 3)

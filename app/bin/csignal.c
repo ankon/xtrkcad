@@ -49,6 +49,7 @@ static const char rcsid[] = "@(#) : $Id$";
 
 #include <ctype.h>
 #include <string.h>
+#include <math.h>
 
 #include "compound.h"
 #include "cundo.h"
@@ -63,9 +64,22 @@ static const char rcsid[] = "@(#) : $Id$";
 #include "messages.h"
 #include "common.h"
 #include "condition.h"
+#include "paramfile.h"
+#include "csignal.h"
+
 
 
 EXPORT TRKTYP_T T_SIGNAL = -1;
+
+#define SIGNAL_DISPLAY_PLAN (1)
+#define SIGNAL_DISPLAY_DIAG (0)
+#define SIGNAL_DISPLAY_ELEV (2)
+
+EXPORT long SignalDisplay = SIGNAL_DISPLAY_DIAG;
+
+EXPORT long SignalSide = SIGNAL_SIDE_LEFT;
+
+EXPORT double SignalOffset = 0.0;
 
 static int log_signal = 0;
 
@@ -114,26 +128,6 @@ static paramGroup_t signalPG = { "Signal", 0, signalPLs, sizeof signalPLs/sizeof
 
 EXPORT dynArr_t signalData_da;       //HotBar Signals - These can be picked from but are not in Layout
 
-
-
-/*
- * A Signaling System is a set of elements that can be used to send instructions to drivers
- * It has a set of HeadTypes which show appearances and a set of MastTypes that integrate those Heads into a SignalMast.
- * There can be several Systems active on one layout - reflecting different heritages or vintages.
- * Each HeadType and mastType is qualified by its system.
- */
-typedef struct signalSystem_t {
-	int systemsCount;					//Number of Systems installed
-	char * systemName[10];				//Names of Systems
-	char * notes[10];					//Explanations
-	dynArr_t headTypes;					//Types of Heads - Heads to add to Signals - combined
-	dynArr_t postTypes;					//Types of Posts - Places to put Heads - combined
-	dynArr_t prototypeSignals;          //List of ProtoType Signals - combined
-	dynArr_t extraAspectTypes;			//Array of all non-base Aspects Used by all Signals - combined
-} signalSystem_t, *signalSystem_p;
-
-static signalSystem_t signalSystem;    //The combined signallingSystems in use
-
 /* These are the normal Aspect Names that JMRI will recognize they are used in XTrackCAD if no Base Aspects are defined */
 typedef enum {ASPECT_NONE = -1,
 			ASPECT_DANGER,
@@ -148,14 +142,6 @@ typedef enum {ASPECT_NONE = -1,
 			ASPECT_SHUNT,
 			ASPECT_WARNING,
 			} baseAspects_e;
-/*
- * An AspectType maps an AspectName to a Speed - Note multiple Aspects on a Signal can map onto one baseAspect
- */
-typedef struct aspectType_t {
-	char * aspectName;
-	baseAspects_e aspect;
-	int speed;
-} aspectType_t, *aspectType_p;
 
 static aspectType_t defaultAspectsMap[] = {
 		{N_("None"), ASPECT_NONE,0},
@@ -209,62 +195,10 @@ static char * getNamefromBaseAspect(baseAspects_e aspect) {
 	return defaultAspectsMap[0].aspectName;   /* Aspect_None */
 }
 
-/*
- * A Map from the Aspects from this Signal to all the Heads and the Appearances that they show
- */
-typedef struct headAspectMap_t {
-	char * aspectMapHeadName;					//Head Name
-	int aspectMapHeadNumber;					//Which Head is that on this Signal
-	char * aspectMapHeadAppearance;				//Appearance name
-	int aspectMapHeadAppearanceNumber;		    //Which appearance is that on the head
-} headAspectMap_t, *headAspectMap_p;
-
-
-/*
- * An Aspect is an appearance by a Signal Mast to a driver of what he is allowed to do. It may be shown by using one or more Heads.
- * The Aspect in JMRI communicates a max speed to the "driver" - this is achieved.
- */
-typedef struct signalAspect_t {
-    char * aspectName;					//Aspect
-    char * aspectScript;
-    dynArr_t headMap;					//Array of all Head settings for this Aspect
-    int baseAspect;
-} signalAspect_t, *signalAspect_p;
 
 #define headaspect(N) DYNARR_N( headAspectMap_t, headMap, N )
 
-/*
- * An Appearance is a unique display by one Head
- */
-typedef struct Appearance_t {
-	char * appearanceName;				//Appearance name
-	dynArr_t appearanceSegs; 			//How to Draw it
-	coOrd orig;
-	ANGLE_T angle;
-} Appearance_t, *Appearance_p;
 
-typedef enum {IND_DIAGRAM,
-			IND_UNLIT,
-			IND_RED,
-			IND_GREEN,
-			IND_YELLOW,
-			IND_LUNAR,
-			IND_FLASHRED,
-			IND_FLASHGREEN,
-			IND_FLASHYELLOW,
-			IND_FLASHLUNAR,
-			IND_ON,
-			IND_OFF,
-			IND_LIT} baseIndicators; //Eight predefined Appearances
-
-/*
- * An IndicatorType maps an IndicatorName to a default Aspect
- */
-typedef struct indicatorType_t {
-	char * aspectName;
-	baseIndicators indicator;
-	baseAspects_e aspect;
-} indicatorType_t, *indicatorType_p;
 
 static indicatorType_t defaultBaseIndicatorsMap[] =
 {
@@ -282,32 +216,10 @@ static indicatorType_t defaultBaseIndicatorsMap[] =
 		{N_("Off"),IND_OFF,ASPECT_OFF},
 		{N_("Lit"),IND_LIT,ASPECT_CALLON},
 };
-/*
- * A HeadType is a parameter definition from which shows all the Appearances of a Head
- */
-typedef struct headType_t {
-	char * headTypeName;
-	dynArr_t headSegs;                  //Draw Segments that don't change for head (background, lamp body, etc)
-	dynArr_t headAppearances;	 		//All things the head can show
-	BOOL_T used;
-} headType_t, *headType_p;
+
 
 static dynArr_t headTypes_da;			//Array of headTypes of all signals in use in the layout
 #define signalHeadType(N) DYNARR_N( headType_t, headTypes_da, N )
-
-/*
- * A Head is the smallest controllable unit. It could be as small as one light or arm, or as complex as a matrix display
- * The head is found by its ordinal position on the post.
- */
-typedef struct signalHead_t {
-	char * headName;					//Often includes Lever #
-	coOrd headPos;						//Relative to Post
-	char * headTypeName;				//Type Name
-	headType_p headType;				//Pointer to common HeadType definition
-	dynArr_t headSegs;					//Static segs
-	int currentHeadAppearance;			//Index of appearance within HeadType.Appearances
-	char * diagramText;					//Internal Label for Matrix/Stencil
-} signalHead_t, *signalHead_p;
 
 static dynArr_t signalHead_da;          //Array of active heads
 #define signalHead(N) DYNARR_N( signalHead_t, signalHead_da, N )
@@ -315,8 +227,10 @@ static dynArr_t signalHead_da;          //Array of active heads
 static dynArr_t signalAspect_da;		//Array of signals Aspects
 #define signalAspect(N) DYNARR_N( signalAspect_t, signalAspect_da, N )
 
+
 /*
- * A Real Signal (Mast). This will contain an arbitrary number of Heads.
+ *
+ * A Real Signal (Mast) on the Layout. This will contain an arbitrary number of Heads.
  *
  * For display, the signal segs are first,
  * all the Heads ->segs are drawn,
@@ -333,8 +247,7 @@ typedef struct signalData_t {
     dynArr_t signalHeads;				//Array of all the heads
     BOOL_T IsHilite;
     dynArr_t signalAspects;			    //Array of all the Aspects for the Signal
-    dynArr_t staticSignalSegsElev;		//Static draw elements for the signal (like dolls/posts)
-    dynArr_t staticSignalSegsPlan;		//Static draw elements for signal Plan
+    dynArr_t staticSignalSegs[3];		//Static draw elements for the signal (like dolls/posts)
     dynArr_t currSegs;					//The current set of Segs to draw
     dynArr_t signalGroups;				//Grouped Head/Appearances
     int numberHeads;					//Legacy Number of Heads
@@ -343,27 +256,7 @@ typedef struct signalData_t {
     coOrd size;
     SCALEINX_T scaleInx;				// Scale of Signal Def (or SCALE_ANY)
     int paramFileIndex;
-} signalData_t, *signalData_p;
-
-/*
- * Tracked Tracks and Appearances
- */
-typedef struct {
-	char * appearanceName;			//Name of Appearance
-	char * conditions;				//States that all have to be true to set the Appearance
-} signalGroupInstance_t,*signalGroupInstance_p;
-
-/*signalGroup_Instance_p
- * The Group is a way of connecting one Head's Appearances to another Head having an Appearance and some Conditions
- * The typical use is for Matrix, Stencil or Feathers to Indicate which Route has been cleared
- */
-typedef struct signalGroup_t {
-	int headNumber;						//# Head to set
-	int trackedHeadNumber;				//# Head that has to be True
-	char * trackedAppearance;			//Name of Appearance that has to be True
-	char * falseAppearanceName;			//Default Appearance if not True
-	dynArr_t groupInstances;			//List of conditions and Appearances
-} signalGroup_t, *signalGroup_p;
+	} signalData_t, *signalData_p;
 
 EXPORT signalData_t * curSignal = NULL;
 EXPORT EPINX_T curSignalEp = 0;
@@ -396,22 +289,28 @@ static signalData_p getSignalData ( track_p trk )
  *\param diagram - Force mode to diagram
  *
  */
-static void RebuildSignalSegs(signalData_p sp, BOOL_T diagram) {
+static void RebuildSignalSegs(signalData_p sp, int display) {
 	CleanSegs(&sp->currSegs);
-	AppendSegs(&sp->currSegs,&sp->staticSignalSegsElev);
+	AppendSegs(&sp->currSegs,&sp->staticSignalSegs[display]);
 	signalAspect_t aspect;
 	for (int i=0;i<sp->signalHeads.cnt-1;i++) {
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->signalHeads,i);
 		AppendTransformedSegs(&sp->currSegs,&head->headSegs,head->headPos,zero,0.0);
 		int indIndex;
-		if (!diagram)
-			indIndex = head->currentHeadAppearance;
-		else
-			indIndex = 0;                         //Drawing is always Appearance 0
+		switch(display) {
+			case SIGNAL_DISPLAY_ELEV:
+				indIndex = head->currentHeadAppearance;
+				break;
+			case SIGNAL_DISPLAY_DIAG:
+				indIndex = 0;
+				break;
+			default:
+				indIndex = -1;
+		}
 		headType_p type = head->headType;
 		int pre_cnt = sp->currSegs.cnt;
-		if (indIndex <= type->headAppearances.cnt) {
+		if ((indIndex >=0) && (indIndex <= type->headAppearances.cnt)) {
 			/* Note Segs already moved to appearance origin and rotated */
 			/* Now only need to be be placed relative to the rest */
 			Appearance_p a = &DYNARR_N(Appearance_t,type->headAppearances,indIndex);
@@ -426,20 +325,23 @@ static void DrawSignal (track_p t, drawCmd_p d, wDrawColor color )
     signalData_p sp = getSignalData(t);
 
     if (sp->currSegs.cnt == 0) {
-    	RebuildSignalSegs(sp, (d==&mainD&&(programMode==MODE_TRAIN))?FALSE:TRUE);
+    	RebuildSignalSegs(sp, (d==&mainD&&(programMode==MODE_TRAIN))?SIGNAL_DISPLAY_ELEV:SignalDisplay);
+    }
+    coOrd o;
+    ANGLE_T a;
+    if (sp->track) {
+    	a = NormalizeAngle(GetTrkEndAngle(sp->track,sp->ep)+180.0);
+    	o = GetTrkEndPos(sp->track,sp->ep);
+    	o.x += sp->orig.x;
+    	o.y += sp->orig.y;
+    } else {
+    	o = sp->orig;
+    	a = sp->angle;
     }
     /*Draw entire signal at pos and angle */
-    DrawSegsO(d,t,sp->orig,sp->angle,(trkSeg_p)sp->currSegs.ptr,sp->currSegs.cnt,GetTrkGauge(t),color,0);
+    DrawSegsO(d,t,o,a,(trkSeg_p)sp->currSegs.ptr,sp->currSegs.cnt,GetTrkGauge(t),color,0);
 }
 
-static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
-                        signalData_p signal, DIST_T scaleRatio,
-                        wDrawColor color )
-{
-
-
-
-}
 
 EXPORT long curSignalAspect = 0;
 
@@ -471,11 +373,11 @@ void setAspect(track_p t, signalAspect_t a) {
 
 
 
-static void ComputeSignalBoundingBox (track_p t )
+static void ComputeSignalBoundingBox (track_p t, int display )
 {
     coOrd lo, hi, lo2, hi2;
     signalData_p xx = getSignalData(t);
-    GetSegBounds(xx->orig,xx->angle,xx->staticSignalSegsElev.cnt,(trkSeg_p)xx->staticSignalSegsElev.ptr,&lo,&hi);
+    GetSegBounds(xx->orig,xx->angle,xx->staticSignalSegs[display].cnt,(trkSeg_p)xx->staticSignalSegs[display].ptr,&lo,&hi);
     hi.x += lo.x;
     hi.y += lo.y;
 	for (int i=0;i<xx->signalHeads.cnt;i++) {
@@ -486,6 +388,7 @@ static void ComputeSignalBoundingBox (track_p t )
 		orig_h.y +=xx->orig.y;
 		headType_p ht = h->headType;
 		if (!ht) continue;
+		if (SignalDisplay == SIGNAL_DISPLAY_PLAN) continue;
 		/*Draw fixed HeadSegs */
 		GetSegBounds(orig_h,xx->angle,ht->headSegs.cnt,(trkSeg_p)ht->headSegs.ptr,&lo2,&hi2);
 		hi2.x +=lo2.x;
@@ -725,7 +628,27 @@ static void DeleteSignal ( track_p trk )
     MyFree(xx->signalHeads.ptr); xx->signalHeads.ptr = NULL;
 }
 
-static BOOL_T WriteSignal ( track_p t, FILE * f )
+int WriteStaticSegs(FILE * f, dynArr_t * staticSegs[3]) {
+    int rc = 0;
+	for (int i=0;i<3;i++) {
+    	char * disp;
+    	switch(i) {
+    		case SIGNAL_DISPLAY_PLAN:
+    			disp = "PLAN";
+    			break;
+    		case SIGNAL_DISPLAY_ELEV:
+    			disp = "ELEV";
+    			break;
+    		default:
+    			disp = "DIAG";
+    	}
+    	rc &= fprint(f, "DISPLAY \"%s\"\n",disp);
+    	rc &= WriteSegs(f,staticSegs[i]->cnt,staticSegs[i]->ptr);
+    }
+    return rc;
+}
+
+static BOOL_T WriteSignal ( FILE * f,track_p t )
 {
     BOOL_T rc = TRUE;
     wIndex_t ia,ih,im;
@@ -734,7 +657,8 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
                   GetTrkIndex(t), GetTrkLayer(t), GetTrkScaleName(t), 
                   GetTrkVisible(t), xx->orig.x, xx->orig.y, xx->angle, 
                   xx->signalHeads.cnt, xx->signalName)>0;
-    rc &= WriteSegs(f,xx->staticSignalSegsElev.cnt,xx->staticSignalSegsElev.ptr);
+    rc &= WriteStaticSegs(f, &xx->staticSignalSegs);
+
     for (ih = 0; ih < xx->signalHeads.cnt; ih++) {
     	signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,ih);
     	rc &= fprintf(f, "\tHEAD %d %0.6f %0.6f \"%s\" \"%s\"\n",
@@ -797,13 +721,32 @@ BOOL_T WriteHeadTypes(FILE * f) {
 	return rc;
 }
 
-static BOOL_T ReadSignalSystem ( char * line ) {
+static BOOL_T ReadSignalSystemParam ( char * line ) {
 	return TRUE;
 }
 
-static BOOL_T ReadSignalParam ( char * line ) {
-	return TRUE;
+static dynArr_t signalDefs_da;
+
+signalInfo_t * FindSignalDef(char* scale, char * name) {
+	signalInfo_t * si = NULL;
+	SCALEINX_T scaleInx;
+	if ( scale )
+			scaleInx = LookupScale( scale );
+		else
+			scaleInx = -1;
+
+	for (int i=0;i<signalDefs_da.cnt;i++) {
+		si = DYNARR_N(signalInfo_t *, signalDefs_da,i);
+		if ( IsParamValid(si->paramFileIndex) &&
+			(scaleInx == -1 || si->scaleInx == scaleInx ) &&
+			strcmp( si->title, title ) == 0 ) {
+				return si;
+		}
+	}
+	return NULL;
 }
+
+
 
 
 
@@ -822,7 +765,9 @@ static int FindAppearanceNum( headType_p t, char * name) {
 }
 
 
-BOOL_T ReadHeadType ( char * line) {
+
+
+BOOL_T ReadHeadTypeParam ( char * line) {
 	char * typename;
 	char * cp = NULL;
 	if (!GetArgs(line+6,"q",&typename)) {
@@ -834,6 +779,11 @@ BOOL_T ReadHeadType ( char * line) {
 		headType_p ht1 = &DYNARR_N(headType_t,headTypes_da,i);
 		if (strncmp(ht1->headTypeName,typename,50) ==0) {
 			ht = ht1;
+			CleanSegs(&ht->headSegs);
+			for (int i=0;i<ht->headAppearances.cnt;i++) {
+				Appearance_p ap = &DYNARR_N( Appearance_t, ht->headAppearances, i );
+				CleanSegs(&ap->appearanceSegs);
+			}
 			memset(ht,0,sizeof(headType_t));
 			break;
 		}
@@ -866,6 +816,8 @@ BOOL_T ReadHeadType ( char * line) {
 				DYNARR_APPEND( Appearance_p *, ht->headAppearances, 1 );
 				Appearance_p a = &DYNARR_N(Appearance_t,ht->headAppearances,ht->headAppearances.cnt-1);
 				a->appearanceName = appname;
+				a->orig = pos;
+				a->angle = angle;
 				if ((cp = GetNextLine()) != NULL) {
 					while (isspace((unsigned char)*cp)) cp++;
 					if ( strncmp( cp, "END", 3 ) == 0 ) break;
@@ -874,14 +826,15 @@ BOOL_T ReadHeadType ( char * line) {
 					ReadSegs();
 					AppendSegs(&a->appearanceSegs,&tempSegs_da);
 				}
-				/* Move Segs to be read to be added to the Signal at the SignalHead point*/
+				/* Move and Rotate Segs to be read to be added to the Signal at the SignalHead point*/
 				coOrd orig_a = a->orig;
 				orig_a.x = -orig_a.x;
 				orig_a.y = -orig_a.y;
 				MoveSegs(a->appearanceSegs.cnt,(trkSeg_p)a->appearanceSegs.ptr,orig_a);
 				RotateSegs(a->appearanceSegs.cnt,(trkSeg_p)a->appearanceSegs.ptr,zero,a->angle);
+				MoveSegs(a->appearanceSegs.cnt,(trkSeg_p)a->appearanceSegs.ptr,a->orig);
 			}
-		} else {
+		} else {	//The fixed elements for this HeadType
 			CleanSegs(&tempSegs_da);
 			ReadSegs();
 			AppendSegs(&signalHeadType(headTypes_da.cnt-1).headSegs,&tempSegs_da);
@@ -961,7 +914,8 @@ static void ReadSignal ( char * line )
     trk = NewTrack(index, T_SIGNAL, 0, sizeof(signalData_t)+1);
     xx = getSignalData ( trk );
     xx->signalName = name;
-    xx->numberHeads = numHeads;
+    DYNARR_RESET( signalHead_t, xx->signalHeads);
+    xx->numberHeads = numHeads;												//Legacy definition
     for (int i=0;i<numHeads;i++) {
     	DYNARR_APPEND( signalHead_p *, xx->signalHeads, 1 );
     	signalHead_p sh = &DYNARR_LAST(signalHead_t,xx->signalHeads);
@@ -972,7 +926,6 @@ static void ReadSignal ( char * line )
     		ErrorMessage(MSG_SIGNAL_MISSING_HEADTYPE,sh->headTypeName);
     }
     DYNARR_RESET( signalAspect_p, signalAspect_da );
-    DYNARR_RESET( signalHead_t, xx->signalHeads);
     while ( (cp = GetNextLine()) != NULL ) {
         while (isspace((unsigned char)*cp)) cp++;
         if ( strncmp( cp, "END", 3 ) == 0 ) {
@@ -1008,9 +961,12 @@ static void ReadSignal ( char * line )
 					am->aspectMapHeadName = headName;
 					am->aspectMapHeadAppearance = appName;
 					am->aspectMapHeadNumber = FindHeadNum(xx,headName);
-					if (am->aspectMapHeadNumber == -1) ErrorMessage(MSG_SIGNAL_MISSING_HEAD,headName,xx->signalName);
-					am->aspectMapHeadAppearanceNumber = FindAppearanceNum(DYNARR_N(signalHead_t,xx->signalHeads,am->aspectMapHeadNumber).headType,appName);
-					if (am->aspectMapHeadAppearanceNumber == -1) ErrorMessage(MSG_SIGNAL_MISSING_APPEARANCE,appName,headName,xx->signalName);
+					if (am->aspectMapHeadNumber == -1) {
+						ErrorMessage(MSG_SIGNAL_MISSING_HEAD,headName,xx->signalName);
+					} else {
+						am->aspectMapHeadAppearanceNumber = FindAppearanceNum(DYNARR_N(signalHead_t,xx->signalHeads,am->aspectMapHeadNumber).headType,appName);
+						if (am->aspectMapHeadAppearanceNumber == -1) ErrorMessage(MSG_SIGNAL_MISSING_APPEARANCE,appName,headName,xx->signalName);
+					}
 				}
             }
 
@@ -1038,8 +994,10 @@ static void ReadSignal ( char * line )
 			if (!GetArgs(cp+5, "ddqq",&groupHeadId,&headId,&groupHeadInd,&defaultInd) ) return;
 			DYNARR_APPEND(signalGroup_t, xx->signalGroups, 1 );
 			signalGroup_p sg =  &DYNARR_LAST(signalGroup_t,xx->signalGroups);
-			sg->trackedHeadNumber = headId;
+			sg->trackedHeadNumber = groupHeadId;
 			sg->headNumber = headId;
+			sg->falseAppearanceName = defaultInd;
+			sg->trackedAppearance = groupHeadInd;
 			while ( (cp = GetNextLine()) != NULL ) {
 				while (isspace((unsigned char)*cp)) cp++;
 				if ( *cp == '\n' || *cp == '#' ) continue;
@@ -1082,6 +1040,9 @@ static void RotateSignal (track_p trk, coOrd orig, ANGLE_T angle )
 
 static void RescaleSignal (track_p trk, FLOAT_T ratio ) 
 {
+	signalData_p xx = getSignalData ( trk );
+
+	ComputeSignalBoundingBox(trk);
 }
 
 static void FlipSignal (track_p trk, coOrd orig, ANGLE_T angle )
@@ -1224,7 +1185,7 @@ static int pubSubSignal(track_p trk, pubSubParmList_p parm) {
 }
 
 static trackCmd_t signalCmds = {
-    "SIGNAL",
+    "SIGNAL ",
     DrawSignal,
     DistanceSignal,
     DescribeSignal,
@@ -1467,6 +1428,13 @@ static paramData_t headEditPLs[] = {
 
 static paramGroup_t headEditPG = { "aspectEdit", 0, headEditPLs, sizeof headEditPLs/sizeof headEditPLs[0] };
 static wWin_p headEditW;
+
+static struct {
+	track_p trk;
+	ANGLE_T orient;
+	coOrd pos0,pos1;
+	dynArr_t currSegs;
+} Da;
 
 
 static void SignalEditOk ( void * junk )
@@ -1732,7 +1700,7 @@ EXPORT signalData_t * SignalAdd( long mode, SCALEINX_T scale, wList_p list, coOr
 
 static coOrd maxSignalDim;
 
-static void RescaleTurnout( void )
+static void RescaleSignalItem( void )
 {
 	DIST_T xscale, yscale;
 	wPos_t ww, hh;
@@ -1753,7 +1721,7 @@ static void RescaleTurnout( void )
 static void RedrawSignal()
 {
 	coOrd p, s;
-	RescaleTurnout();
+	RescaleSignalItem();
 LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") ) )
 
 	wDrawClear( signalD.d );
@@ -1762,7 +1730,7 @@ LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") )
 	}
 	signalD.orig.x = curSignal->orig.x+trackGauge;
 	signalD.orig.y = (curSignal->size.y + curSignal->orig.y) - signalD.size.y+trackGauge;
-	DrawSegs( &signalD, zero, 0.0, curSignal->staticSignalSegsElev.ptr, curSignal->staticSignalSegsElev.cnt,
+	DrawSegs( &signalD, zero, 0.0, curSignal->staticSignalSegs[SIGNAL_DISPLAY_ELEV].ptr, curSignal->staticSignalSegs[SIGNAL_DISPLAY_ELEV].cnt,
 					 trackGauge, wDrawColorBlack );
 	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
 		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
@@ -1819,7 +1787,7 @@ LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") )
 		return;
 	}
 
-	DrawSegs( &signalEditD, zero, 0.0, curSignal->staticSignalSegsElev.ptr, curSignal->staticSignalSegsElev.cnt,
+	DrawSegs( &signalEditD, zero, 0.0, curSignal->staticSignalSegs[SIGNAL_DISPLAY_ELEV].ptr, curSignal->staticSignalSegs[SIGNAL_DISPLAY_ELEV].cnt,
 					 trackGauge, wDrawColorBlack );
 	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
 		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
@@ -2028,8 +1996,36 @@ static void CreateNewSignal (coOrd orig, ANGLE_T angle, track_p track, EPINX_T e
 
 }
 
-static coOrd pos0,pos1;
-static ANGLE_T orient;
+/*
+ * Always draw the Signal in the HotBar and for placement as an Diagram...
+ */
+static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
+                        signalData_p signal, DIST_T scaleRatio,
+                        wDrawColor color )
+{
+	if (signal == NULL) return;
+		CleanSegs(&Da.currSegs);
+		AppendSegs(&signal->currSegs,&signal->staticSignalSegs[SIGNAL_DISPLAY_DIAG]);
+		signalAspect_t aspect;
+		for (int i=0;i<signal->signalHeads.cnt-1;i++) {
+			/* All Heads */
+			signalHead_p head = &DYNARR_N(signalHead_t,signal->signalHeads,i);
+			AppendTransformedSegs(&signal->currSegs,&head->headSegs,head->headPos,zero,0.0);
+			//Drawing is always Appearance 0
+			headType_p type = head->headType;
+			int pre_cnt = signal->currSegs.cnt;
+			/* Note Segs already moved to appearance origin and rotated */
+			/* Now only need to be be placed relative to the rest */
+			Appearance_p a = &DYNARR_N(Appearance_t,type->headAppearances,SIGNAL_DISPLAY_DIAG);
+			AppendTransformedSegs(&signal->currSegs,&a->appearanceSegs, head->headPos, zero, 0.0 );
+		}
+
+	/*Draw entire signal at pos and angle */
+	DrawSegsO(d,NULL,orig,angle,(trkSeg_p)signal->currSegs.ptr,signal->currSegs.cnt,trackGauge,color,0);
+
+}
+
+
 
 static STATUS_T CmdSignalAction ( wAction_t action, coOrd pos )
 {
@@ -2040,36 +2036,33 @@ static STATUS_T CmdSignalAction ( wAction_t action, coOrd pos )
         trk = NULL;
         return C_CONTINUE;
     case C_DOWN:
-    	pos0 = pos;
         trk = OnTrack(&pos,FALSE,TRUE);
         if (!trk) {
         	NoticeMessage2( 0, MSG_SIGNAL_NO_TRACK_HERE, _("Ok"), NULL );
         	return C_TERMINATE;
         }
         EPINX_T ep = PickEndPoint(pos,trk);
-        pos1 = GetTrkEndPos(trk,ep);
-        orient = NormalizeAngle(GetTrkEndAngle(trk,ep)-180.0);
-        ANGLE_T a = DifferenceBetweenAngles(FindAngle(pos1,pos0),orient);
-        Translate(&pos,pos,a<180?orient+90:orient-90,GetTrkWidth(trk));  //Start one Track Width away
-        pos1 = pos;
+        Da.pos1 = GetTrkEndPos(trk,ep);
+        Da.orient = NormalizeAngle(GetTrkEndAngle(trk,ep)+180.0);
+        Translate(&pos,Da.pos1,NormalizeAngle(Da.orient+((SignalSide==SIGNAL_SIDE_LEFT)?-90:90)),ceil(8.0*12.0/curScaleRatio));  //Start one Track Width away
+        Da.pos0 = pos;
         InfoMessage(_("Drag to re-position signal"));
         return C_CONTINUE;
     case C_MOVE:
     	if (!trk) return C_CONTINUE;
     	coOrd diff;
-    	diff.x = pos.x-pos0.x;
-    	diff.y = pos.y-pos0.y;
-    	pos1.x +=diff.x;
-    	pos1.y +=diff.y;
-        DDrawSignal( &tempD, pos1, orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+    	ANGLE_T a = DifferenceBetweenAngles(Da.orient,FindAngle(Da.pos0,pos));
+    	DIST_T d = FindDistance(pos,Da.pos0)*cos(R2D(a));
+    	Translate(&Da.pos1,Da.pos0,d,NormalizeAngle(GetTrkEndAngle(trk,ep)+90.0));
+        DDrawSignal( &tempD, Da.pos1, Da.orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
         return C_CONTINUE;
     case C_UP:
     	if (!trk) return C_CONTINUE;
-        CreateNewSignal(pos1,orient,trk,ep);
+        CreateNewSignal(Da.pos1,Da.orient,trk,ep);
         return C_TERMINATE;
     case C_REDRAW:
     case C_CANCEL:
-        DDrawSignal( &tempD, pos1, orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+        DDrawSignal( &tempD, Da.pos1, Da.orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
         return C_CONTINUE;
     default:
         return C_CONTINUE;
@@ -2086,6 +2079,7 @@ static STATUS_T CmdSignal (wAction_t action, coOrd pos) {
 
 	case C_START:
 		if (signalW == NULL) {
+			ParamRegister( &signalPG );
 			signalW = ParamCreateDialog( &signalPG, MakeWindowTitle(_("Signal")), _("Close"),
 					(paramActionOkProc)SignalOk, NULL, TRUE, NULL, F_RESIZE|F_RECALLSIZE|PD_F_ALT_CANCELLABEL, SignalDlgUpdate );
 			InitNewTurn( signalNewM );
@@ -2103,7 +2097,7 @@ static STATUS_T CmdSignal (wAction_t action, coOrd pos) {
 			wListSetIndex( signalListL, signalIndex );
 			RedrawSignal();
 		}
-		InfoMessage( _("Pick signal and active End Point, then place on the layout"));
+		InfoMessage( _("Pick signal and place on the layout"));
 		ParamLoadControls( &signalPG );
 		ParamGroupRecord( &signalPG );
 		return CmdSignalAction( action, pos );
@@ -2148,6 +2142,7 @@ static STATUS_T CmdSignal (wAction_t action, coOrd pos) {
 static coOrd sighiliteOrig, sighiliteSize;
 static POS_T sighiliteBorder;
 static wDrawColor sighiliteColor = 0;
+
 static void DrawSignalTrackHilite( void )
 {
 	wPos_t x, y, w, h;
@@ -2230,84 +2225,6 @@ EXPORT void SignalMgmLoad ( void )
     }
 }
 
-void FormatSignalTitle(
-		long format,
-		char * title )
-{
-	char *cp1, *cp2=NULL, *cq;
-	int len;
-	FLOAT_T price;
-	BOOL_T needSep;
-	cq = message;
-	if (format&LABEL_COST) {
-		FormatCompoundTitle( LABEL_MANUF|LABEL_DESCR|LABEL_PARTNO, title );
-		wPrefGetFloat( "price list", message, &price, 0.0 );
-		if (price > 0.00) {
-			sprintf( cq, "%7.2f\t", price );
-		} else {
-			strcpy( cq, "\t" );
-		}
-		cq += strlen(cq);
-	}
-	cp1 = strchr( title, '\t' );
-	if ( cp1 != NULL )
-		cp2 = strchr( cp1+1, '\t' );
-	if (cp2 == NULL) {
-		if ( (format&LABEL_TABBED) ) {
-			*cq++ = '\t';
-			*cq++ = '\t';
-		}
-		strcpy( cq, title );
-	} else {
-		len = 0;
-		needSep = FALSE;
-		if ((format&LABEL_MANUF) && cp1-title>1) {
-			len = cp1-title;
-			memcpy( cq, title, len );
-			cq += len;
-			needSep = TRUE;
-		}
-		if ( (format&LABEL_TABBED) ) {
-			*cq++ = '\t';
-			needSep = FALSE;
-		}
-		if ((format&LABEL_PARTNO) && *(cp2+1)) {
-			if ( needSep ) {
-				*cq++ = ' ';
-				needSep = FALSE;
-			}
-			strcpy( cq, cp2+1 );
-			cq += strlen( cq );
-			needSep = TRUE;
-		}
-		if ( (format&LABEL_TABBED) ) {
-			*cq++ = '\t';
-			needSep = FALSE;
-		}
-		if ((format&LABEL_DESCR) || !(format&LABEL_PARTNO)) {
-			if ( needSep ) {
-				*cq++ = ' ';
-				needSep = FALSE;
-			}
-			if ( (format&LABEL_FLIPPED) ) {
-				memcpy( cq, "Flipped ", 8 );
-				cq += 8;
-			}
-			if ( (format&LABEL_UNGROUPED) ) {
-				memcpy( cq, "Ungrouped ", 10 );
-				cq += 10;
-			}
-			if ( (format&LABEL_SPLIT) ) {
-				memcpy( cq, "Split ", 6 );
-				cq += 6;
-			}
-			memcpy( cq, cp1+1, cp2-cp1-1 );
-			cq += cp2-cp1-1;
-			needSep = TRUE;
-		}
-		*cq = '\0';
-	}
-}
 
 /**
  * Event procedure for the hotbar.
@@ -2381,7 +2298,9 @@ EXPORT void InitTrkSignal ( void )
 {
     log_signal = LogFindIndex ( "signal" );
     //InitSignalSystem();
-    AddParam( "HEADTYPE", ReadHeadType );
-    AddParam( "SIGNALSYSTEM", ReadSignalSystem);
-    AddParam( "SIGNAL",ReadSignalParam);
+    AddParam( "SIGNAL ", ReadSignalParam);
+    AddParam( "HEADTYPE ", ReadHeadTypeParam );
+    AddParam( "SIGNALSYSTEM ", ReadSignalSystemParam);
+    AddParam( "SIGNALPOST", ReadSignalPostParam);
+    T_SIGNAL = InitObject(&signalCmds);
 }

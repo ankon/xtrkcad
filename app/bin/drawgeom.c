@@ -270,53 +270,6 @@ STATUS_T DrawGeomMouse(
 						track_p t;
 						if ((t=OnTrack(&p,FALSE,FALSE))) {
 							if (GetClosestEndPt(t,&p)) {
-								d = tempD.scale*0.15;
-								anchors(0).type = SEG_FILCRCL;
-								anchors(0).color = wDrawColorBlue;
-								anchors(0).u.c.center = p;
-								anchors(0).u.c.radius = d/2;
-								anchors(0).u.c.a0 = 0.0;
-								anchors(0).u.c.a1 = 360.0;
-								anchors(0).width = 0;
-								anchors_da.cnt = 1;
-							} else {
-								anchors_da.cnt = 0;
-							}
-						}
-					};
-					break;
-				default:
-					;
-			}
-		}
-		return C_CONTINUE;
-
-	case wActionLDown:
-		if (context->State == 2) {
-			tempSegs_da.cnt = segCnt;
-			if ((context->Op == OP_POLY || context->Op == OP_FILLPOLY)) {
-				EndPoly(context, segCnt);
-			} else {
-				DrawGeomOk();
-			}
-			MainRedraw();
-			segCnt = 0;
-			anchors_da.cnt = 0;
-			context->State = 0;
-		}
-		context->Started = TRUE;
-		line_angle = 90.0;
-		if (context->State == 0) {		//First Down only
-			switch (context->Op) {  	//Snap pos to nearest line end point if this is end and just shift is depressed for lines and some curves
-				case OP_LINE:
-				case OP_CURVE1:
-				case OP_CURVE2:
-				case OP_CURVE4:
-					if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_SHIFT ) {
-						coOrd p = pos;
-						track_p t;
-						if ((t=OnTrack(&p,FALSE,FALSE))) {
-							if (GetClosestEndPt(t,&p)) {
 								pos = p;
 								EPINX_T ep1,ep2;
 								line_angle = GetAngleAtPoint(t,pos,&ep1,&ep2);
@@ -420,14 +373,6 @@ STATUS_T DrawGeomMouse(
 		case OP_POLY:
 		case OP_FILLPOLY:
 			tempSegs_da.cnt = segCnt;
-			if ( segCnt>2 && IsClose(FindDistance(tempSegs(0).u.l.pos[0], pos ))) {
-				EndPoly(context, tempSegs_da.cnt);
-				DYNARR_RESET(points_t, points_da);
-				DYNARR_RESET(trkSeg_t,tempSegs_da);
-				context->State = 0;
-				segCnt = 0;
-				return C_TERMINATE;
-            }
 			wBool_t first_spot = FALSE;
 			if (segCnt == 1 && tempSegs(0).type == SEG_CRVLIN) {
 				coOrd start;
@@ -442,7 +387,6 @@ STATUS_T DrawGeomMouse(
 			segPtr->type = SEG_STRLIN;
 			segPtr->color = context->Color;
 			segPtr->width = (context->Op==OP_POLY?width:0);
-
 			//End if over start
 			if ( segCnt>2 && IsClose(FindDistance(tempSegs(0).u.l.pos[0], pos ))) {
 				segPtr->u.l.pos[0] = tempSegs(segCnt-1).u.l.pos[1];
@@ -457,11 +401,9 @@ STATUS_T DrawGeomMouse(
 			if (!first_spot) {
 				if ( tempSegs_da.cnt == 1) {
 					segPtr->u.l.pos[0] = pos;
-
 				} else {
 					segPtr->u.l.pos[0] = segPtr[-1].u.l.pos[1];
 				}
-
 			}
 			segPtr->u.l.pos[1] = pos;
 			context->State = 1;
@@ -1482,8 +1424,6 @@ void BuildCircleContext(drawModContext_t * context,int segInx) {
 	}
 }
 
-<<<<<<< local
-=======
 void CreateSelectedAnchor(coOrd pos) {
 	double d = tempD.scale*0.15;
 	DYNARR_APPEND(trkSeg_t,anchors_da,1);
@@ -1496,7 +1436,6 @@ void CreateSelectedAnchor(coOrd pos) {
 	anchors(inx).u.c.center = pos;
 }
 
->>>>>>> other
 /*
  * Rotate Object Dialogs.
  *

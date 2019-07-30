@@ -754,6 +754,7 @@ For detail about;
 \dd Changing track radius refer to \K{chgTrackRadius}
 
 \rule
+
 \S2{chgDraw} Modifying Draw Elements
 
 Draw elements have blue handles that show how they can be modified. They also have text entry boxes that allow precise entry of parameters. These values become active when a \e{Tab} is entered, or the cursor is moved out of the text box.  
