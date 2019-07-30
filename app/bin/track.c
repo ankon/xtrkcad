@@ -1321,7 +1321,7 @@ if (bsearchRead) {
 	if (strncmp( line, "CONDITIONGROUP",15) == 0)
 		return ReadConditionGroup( line );
 	if (strncmp( line, "HEADTYPE", 8) == 0)
-		return ReadHeadType ( line );
+		return ReadHeadTypeParam ( line );
 
 	if (strncmp( paramLine, "TABLEEDGE ", 10 ) == 0)
 		return ReadTableEdge( paramLine+10 );

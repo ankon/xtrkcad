@@ -29,6 +29,7 @@
 #include "messages.h"
 #include "param.h"
 #include "track.h"
+#include "csignal.h"
 
 static paramIntegerRange_t i0_64 = { 0, 64 };
 static paramIntegerRange_t i1_64 = { 1, 64 };
@@ -41,6 +42,7 @@ static paramIntegerRange_t i10_100 = { 10, 100 };
 static paramFloatRange_t r0o1_1 = { 0.1, 1 };
 static paramFloatRange_t r1_10 = { 1, 10 };
 static paramFloatRange_t r1_1000 = { 1, 1000 };
+static paramFloatRange_t r0_1000 = { 0, 1000 };
 static paramFloatRange_t r0_180 = { 0, 180 };
 
 static void UpdatePrefD( void );
@@ -158,16 +160,6 @@ static void DisplayOk( void * junk )
 }
 
 
-#ifdef LATER
-static void DisplayChange( long changes )
-{
-	if (changes & (CHANGE_SCALE|CHANGE_UNITS))
-		if (displayW != NULL && wWinIsVisible(displayW) )
-			ParamLoadControls( &displayPG );
-}
-#endif
-
-
 static void DoDisplay( void * junk )
 {
 	if (displayW == NULL) {
@@ -196,6 +188,54 @@ EXPORT addButtonCallBack_t DisplayInit( void )
 	RegisterChangeNotification( DisplayChange );
 #endif
 	return &DoDisplay;
+}
+
+/*
+ * Signal Dialog
+ */
+
+static wWin_p signalW;
+
+static char * signalDisplayLabels[] = { N_("Diagram"),  N_("Plan"), N_("Elevation"), NULL };
+static char * signalSideLabels[] = { N_("Left"),  N_("Right"), NULL };
+static paramData_t signalPLs[] = {
+	{ PD_RADIO, &SignalDisplay, "signal-display", PDO_NOPSHUPD, signalDisplayLabels, N_("Signal Display"), BC_HORZ },
+	{ PD_RADIO, &SignalSide, "signal-side", PDO_NOPSHUPD, signalSideLabels, N_("Signal Side"), 0 },
+
+};
+static paramGroup_t signalPG = { "signal", PGO_RECORD|PGO_PREFMISC, signalPLs, sizeof signalPLs/sizeof signalPLs[0] };
+
+static void SignalsOk( void * junk )
+{
+	long changes;
+	changes = GetChanges( &signalPG );
+	wHide( signalW );
+	DoChangeNotification(changes);
+}
+
+static void DoSignals( void * junk )
+{
+	if (signalW == NULL) {
+		signalW = ParamCreateDialog( &signalPG, MakeWindowTitle(_("Signal Options")), _("Ok"), SignalsOk, OptionDlgCancel, TRUE, NULL, 0, OptionDlgUpdate );
+	}
+	ParamLoadControls( &signalPG );
+	wShow( signalW );
+}
+
+static void CmdSigChange( long changes )
+{
+	if (changes & CHANGE_SIGNAL)
+		if (signalW != NULL && wWinIsVisible(signalW) )
+			ParamLoadControls( &signalPG );
+}
+
+
+EXPORT addButtonCallBack_t SignalInit( void )
+{
+	ParamRegister( &signalPG );
+	RegisterChangeNotification( CmdSigChange );
+	wEnableBalloonHelp( (int)enableBalloonHelp );
+	return &DoSignals;
 }
 
 /****************************************************************************

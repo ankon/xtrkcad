@@ -147,12 +147,8 @@ static STATUS_T ModifyDraw(wAction_t action, coOrd pos) {
 			rc = ModifyTrack( Dex.Trk, action, pos );
 			Dex.Trk = NULL;
 			modifyDrawMode = FALSE;
-<<<<<<< local
-			rc = C_TERMINATE;
-=======
 			tempSegs_da.cnt = 0;
 			rc = C_CONTINUE;
->>>>>>> other
 			break;
 		case C_REDRAW:
 			rc = ModifyTrack( Dex.Trk, action, pos );

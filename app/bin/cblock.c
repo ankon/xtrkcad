@@ -712,7 +712,7 @@ EXPORT BOOL_T ResolveBlockTrack ( track_p trk )
         t_trk = FindTrack(tracklist(iTrack).i);
 
         if (t_trk == NULL) {
-           if NoticeMessage( _("resolveBlockTrack: T%d[%d]: T%d doesn't exist"), _("Continue"), NULL, GetTrkIndex(trk), iTrack, tracklist(iTrack).i,t_trk )
+           if (NoticeMessage( _("resolveBlockTrack: T%d[%d]: T%d doesn't exist"), _("Continue"), NULL, GetTrkIndex(trk), iTrack, tracklist(iTrack).i,t_trk ))
             {
         	   exit(4);
            } else {

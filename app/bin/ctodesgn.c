@@ -1207,7 +1207,7 @@ static BOOL_T ComputeCurve(
 
 #ifndef MKTURNOUT
 /* For Bezier Segs we need to duplicate the subSegs Array as well */
-void AppendSegs(dynArr_t * target, dynArr_t * source) {
+void AppendBezSegs(dynArr_t * target, dynArr_t * source) {
 
 #define sourceSegs(N) DYNARR_N( trkSeg_t, *source, N )
 #define targetSegs(N) DYNARR_N( trkSeg_t, *target, N )
@@ -1732,7 +1732,7 @@ static toDesignSchema_t * LoadSegs(
 						CallCornuNoBez(&cornuData.pos[2],&cornuData.center[2],&cornuData.angle[2],&cornuData.radius[2],&cornuSegs_da);
 					Toe2Seg = cornuSegs_da.cnt+Toe1Seg;
 					/* Add to second cornu to tempSegs array */
-					AppendSegs(&tempSegs_da,&cornuSegs_da);
+					AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 					/* Get ready to reuse cornuSegs array*/
 					ClearSegs(&cornuSegs_da);
 				} else {
@@ -1742,7 +1742,7 @@ static toDesignSchema_t * LoadSegs(
 				CallCornuNoBez(&cornuData.pos[4],&cornuData.center[4],&cornuData.angle[4],&cornuData.radius[4],&cornuSegs_da);
 				CenterEndSeg = cornuSegs_da.cnt+Toe2Seg;
 				/* Add to second cornu to tempSegs array */
-				AppendSegs(&tempSegs_da,&cornuSegs_da);
+				AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 				/* Get ready to reuse cornuSegs array*/
 				ClearSegs(&cornuSegs_da);
 			} else {
@@ -1754,7 +1754,7 @@ static toDesignSchema_t * LoadSegs(
 			LeftEndSeg = cornuSegs_da.cnt+CenterEndSeg;
 
 			/* Add to second cornu to tempSegs array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 			/* Get ready to reuse cornuSegs array*/
 			ClearSegs(&cornuSegs_da);
 
@@ -1763,7 +1763,7 @@ static toDesignSchema_t * LoadSegs(
 			RightEndSeg = cornuSegs_da.cnt+LeftEndSeg;
 
 			/*Add Third Part to tempSegs Array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 			/* Safety - clear out cornu Array */
 			ClearSegs(&cornuSegs_da);
 
@@ -2044,7 +2044,7 @@ static toDesignSchema_t * LoadSegs(
 			cornu_p = (trkSeg_p)cornuSegs_da.ptr;
 
 			/* Add to second cornu to tempSegs array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 
 			/* Get ready to reuse cornuSegs array*/
 			ClearSegs(&cornuSegs_da);
@@ -2054,7 +2054,7 @@ static toDesignSchema_t * LoadSegs(
 			int InnerEndSeg = cornuSegs_da.cnt + OuterEndSeg;
 
 			/*Add Third Part to tempSegs Array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 
 			/* Safety - clear out cornu Array */
 			ClearSegs(&cornuSegs_da);
