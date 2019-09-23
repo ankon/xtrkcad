@@ -1,6 +1,7 @@
 PROJECT(XTrkCAD)
 enable_testing()
 cmake_minimum_required(VERSION 2.8)
+set(CMAKE_MACOSX_RPATH 0)
 
 # where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 
@@ -14,8 +15,6 @@ if(UNIX)
     if(APPLE)
 	SET(XTRKCAD_USE_GETTEXT_DEFAULT OFF)
     else()
-	set(XTRKCAD_USE_GETTEXT_DEFAULT ON)
-    add_compile_options("-std=gnu99")
 	PKG_CHECK_MODULES(GTK_WEBKIT "webkit-1.0")
         if(GTK_WEBKIT_FOUND)
             set(XTRKCAD_USE_BROWSER_DEFAULT OFF)
@@ -24,6 +23,9 @@ if(UNIX)
         endif()
     endif(APPLE)
 endif(UNIX)
+
+find_package(Libzip)
+find_package(Zlib)
 
 IF(WIN32)
 	SET(XTRKCAD_USE_GTK_DEFAULT OFF)
@@ -41,7 +43,7 @@ ENDIF(WIN32)
 if(COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
     if( POLICY CMP0026 )
-	cmake_policy(SET CMP0026 OLD)
+	cmake_policy(SET CMP0026 NEW)
     endif( POLICY CMP0026 )
 endif(COMMAND cmake_policy)
 
@@ -83,12 +85,12 @@ IF(XTRKCAD_USE_PACKAGEMAKER)
 ENDIF(XTRKCAD_USE_PACKAGEMAKER)
 
 # Find unit testing framework
-find_package(CMocka)
-if(CMOCKA_FOUND)
-  include_directories(${CMOCKA_INCLUDE_DIR})
-  set(LIBS ${LIBS} ${CMOCKA_LIBRARIES})
-  option( XTRKCAD_TESTING "Build unittests" ON)
-endif()
+#find_package(CMocka)
+#if(CMOCKA_FOUND)
+#  include_directories(${CMOCKA_INCLUDE_DIR})
+#  set(LIBS ${LIBS} ${CMOCKA_LIBRARIES})
+#  option( XTRKCAD_TESTING "Build unittests" ON)
+#endif()
 
 # Find document conversion tool
 find_package(Pandoc)
@@ -100,9 +102,9 @@ CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
 
 # Setup some global options for installation ...
 SET(XTRKCAD_MAJOR_VERSION "5")
-SET(XTRKCAD_MINOR_VERSION "1")
-SET(XTRKCAD_RELEASE_VERSION "2")
-SET(XTRKCAD_VERSION_MODIFIER "a")
+SET(XTRKCAD_MINOR_VERSION "2")
+SET(XTRKCAD_RELEASE_VERSION "0")
+SET(XTRKCAD_VERSION_MODIFIER "BSF")
 SET(XTRKCAD_VERSION "${XTRKCAD_MAJOR_VERSION}.${XTRKCAD_MINOR_VERSION}.${XTRKCAD_RELEASE_VERSION}${XTRKCAD_VERSION_MODIFIER}")
 
 IF(WIN32)

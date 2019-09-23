@@ -92,6 +92,7 @@ static STATUS_T CmdSplitTrack( wAction_t action, coOrd pos )
 			UndoStart( _("Split Track"), "SplitTrack( T%d[%d] )", GetTrkIndex(trk0), ep0 );
 			oldTrackCount = trackCount;
 			SplitTrack( trk0, pos, ep0, &trk1, FALSE );
+			//TODO If trk0 part of Block, so is trk1 (unless disconnected) ->  also check contiguous
 			UndoEnd();
 			return C_TERMINATE;
 		}

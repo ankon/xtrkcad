@@ -38,12 +38,32 @@
 #include "track.h"
 #include "utility.h"
 #include "messages.h"
+#include "paramfile.h"
 
 /*****************************************************************************
  *
  * Misc
  *
  */
+
+//Convert the internal path segment into the external one - which is based on the index count of only the track segments
+
+char ConvertPathSegToExternal(char signed pp, int segCnt,trkSeg_p segs) {
+
+	char signed new_pp;
+	int old_inx;
+	EPINX_T old_EP;
+	GetSegInxEP(pp,&old_inx,&old_EP);
+	int j = old_inx;
+	for (int i=0;i<old_inx;i++) {
+		if ( !IsSegTrack(&segs[i]) ) {
+			j--;
+		}
+	}
+	SetSegInxEP(&new_pp,j,old_EP);
+	return new_pp;
+
+}
 
 BOOL_T WriteCompoundPathsEndPtsSegs(
 		FILE * f,
@@ -55,11 +75,12 @@ BOOL_T WriteCompoundPathsEndPtsSegs(
 {
 	int i;
 	PATHPTR_T pp;
+
 	BOOL_T rc = TRUE;
 	for ( pp=paths; *pp; pp+=2 ) {
 		rc &= fprintf( f, "\tP \"%s\"", pp )>0;
-		for ( pp+=strlen((char *)pp)+1; pp[0]!=0||pp[1]!=0; pp++ )
-			rc &= fprintf( f, " %d", *pp )>0;
+		for ( pp+=strlen((char *)pp)+1; pp[0]!=0 || pp[1]!=0; pp++ )
+			rc &= fprintf( f, " %d", ConvertPathSegToExternal(pp[0],segCnt,segs) )>0;
 		rc &= fprintf( f, "\n" )>0;
 	}
 	for ( i=0; i<endPtCnt; i++ )
@@ -405,6 +426,18 @@ STATUS_T CompoundDescriptionMove(
  *
  */
 
+EXPORT void SetSegInxEP(
+		signed char * segChar,
+		int segInx,
+		EPINX_T segEP )
+{
+	if (segEP == 1) {
+		* segChar = -(segInx+1);
+	} else {
+		* segChar = (segInx+1);
+	}
+
+}
 
 EXPORT void GetSegInxEP(
 		signed char segChar,
@@ -482,6 +515,7 @@ static struct {
 		FLOAT_T elev[4];
 		coOrd orig;
 		ANGLE_T angle;
+		descPivot_t pivot;
 		char manuf[STR_SIZE];
 		char name[STR_SIZE];
 		char partno[STR_SIZE];
@@ -492,7 +526,7 @@ static struct {
 		DIST_T length;
 		unsigned int layerNumber;
 		} compoundData;
-typedef enum { E0, A0, C0, R0, Z0, E1, A1, C1, R1, Z1, E2, A2, C2, R2, Z2, E3, A3, C3, R3, Z3, GR, OR, AN, MN, NM, PN, EC, SC, LY } compoundDesc_e;
+typedef enum { E0, A0, C0, R0, Z0, E1, A1, C1, R1, Z1, E2, A2, C2, R2, Z2, E3, A3, C3, R3, Z3, GR, OR, AN, PV, MN, NM, PN, EC, SC, LY } compoundDesc_e;
 static descData_t compoundDesc[] = {
 /*E0*/	{ DESC_POS, N_("End Pt 1: X,Y"), &compoundData.endPt[0] },
 /*A0*/  { DESC_ANGLE, N_("Angle"), &compoundData.endAngle[0] },
@@ -517,6 +551,7 @@ static descData_t compoundDesc[] = {
 /*GR*/	{ DESC_FLOAT, N_("Grade"), &compoundData.grade },
 /*OR*/	{ DESC_POS, N_("Origin: X,Y"), &compoundData.orig },
 /*AN*/	{ DESC_ANGLE, N_("Angle"), &compoundData.angle },
+/*PV*/	{ DESC_PIVOT, N_("Pivot"), &compoundData.pivot },
 /*MN*/	{ DESC_STRING, N_("Manufacturer"), &compoundData.manuf, sizeof(compoundData.manuf)},
 /*NM*/	{ DESC_STRING, N_("Name"), &compoundData.name, sizeof(compoundData.name) },
 /*PN*/	{ DESC_STRING, N_("Part No"), &compoundData.partno, sizeof(compoundData.partno)},
@@ -616,7 +651,7 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 		GetBoundingBox( trk, &hi, &lo );
 		if ( labelScale >= mainD.scale &&
 			 !OFF_MAIND( lo, hi ) ) {
-			DrawCompoundDescription( trk, &tempD, GetTrkColor(trk,&tempD) );
+			DrawCompoundDescription( trk, &tempD, wDrawColorWhite );
 		}
 		/*sprintf( message, "%s\t%s\t%s", manufS, nameS, partnoS );*/
 		if (xx->title) MyFree(xx->title);
@@ -632,6 +667,7 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 	}
 
 	UndrawNewTrack( trk );
+	coOrd orig;
 	switch ( inx ) {
 	case OR:
 		pos.x = compoundData.orig.x - xx->orig.x;
@@ -653,7 +689,23 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 		compoundDesc[AN].mode |= DESC_CHANGE;
 		break;
 	case AN:
-		RotateTrack( trk, xx->orig, NormalizeAngle( compoundData.angle-xx->angle ) );
+		orig = xx->orig;
+		GetBoundingBox(trk,&hi,&lo);
+		switch (compoundData.pivot) {
+			case DESC_PIVOT_MID:
+				orig.x = (hi.x-lo.x)/2+lo.x;
+				orig.y = (hi.y-lo.y)/2+lo.y;
+				break;
+			case DESC_PIVOT_SECOND:
+				orig.x = (hi.x-lo.x)/2+lo.x;
+				orig.y = (hi.y-lo.y)/2+lo.y;
+				orig.x = (orig.x - xx->orig.x)*2+xx->orig.x;
+				orig.y = (orig.y - xx->orig.y)*2+xx->orig.y;
+				break;
+			default:
+				break;
+		}
+		RotateTrack( trk, orig, NormalizeAngle( compoundData.angle-xx->angle ) );
 		ComputeCompoundBoundingBox( trk );
 		break;
 	case E0:
@@ -680,7 +732,7 @@ static void UpdateCompound( track_p trk, int inx, descData_p descUpd, BOOL_T nee
 			 break;
 		for (int i=0;i<compoundData.epCnt;i++) {
 			if (i==ep) continue;
-			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL );
+			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL, TRUE );
 		}
 		if ( compoundData.length > minLength )
 			compoundData.grade = fabs( (compoundData.elev[0]-compoundData.elev[1])/compoundData.length )*100.0;
@@ -842,6 +894,8 @@ void DescribeCompound(
 	compoundDesc[EC].mode =
 	compoundDesc[SC].mode = DESC_RO;
 	compoundDesc[LY].mode = DESC_NOREDRAW;
+	compoundDesc[PV].mode = 0;
+	compoundData.pivot = DESC_PIVOT_FIRST;
 	if (compoundData.epCnt >0) {
 		for (int i=0;(i<compoundData.epCnt)&&(i<MAX_DESCRIBE_ENDS);i++) {
 			compoundDesc[A0+(E1-E0)*i].mode = (int)mode;
@@ -859,7 +913,7 @@ void DescribeCompound(
 				compoundDesc[C0+(E1-E0)*i].mode = DESC_IGNORE;
 				compoundDesc[R0+(E1-E0)*i].mode = DESC_IGNORE;
 			}
-			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL );
+			ComputeElev( trk, i, FALSE, &compoundData.elev[i], NULL, FALSE );
 			compoundDesc[Z0+(E1-E0)*i].mode = (EndPtIsDefinedElev(trk,i)?0:DESC_RO)|DESC_NOREDRAW;
 		}
 		compoundDesc[GR].mode = DESC_RO;
@@ -933,6 +987,15 @@ BOOL_T WriteCompound(
 		break;
 	case TOpier:
 		rc &= fprintf( f, "\tX %s %0.6f \"%s\"\n", PIER, xx->u.pier.height, xx->u.pier.name )>0;
+		break;
+//	case TOcurved:
+//		rc &= fprintf( f, "\tX %s", CURVED )>0;
+//		for (ep=0; ep<epCnt; ep++) {
+//			fprintf( f, " %0.6f", DYNARR_N(DIST_T,xx->u.curved.radii,ep));
+//		}
+// 		rc &= fprintf( f, "\n")>0;
+//		break;
+
 	default:
 		;
 	}
@@ -959,6 +1022,7 @@ EXPORT track_p NewCompound(
 		char * title,
 		EPINX_T epCnt,
 		trkEndPt_t * epp,
+		DIST_T * radii,
 		int pathLen,
 		char * paths,
 		wIndex_t segCnt,
@@ -994,8 +1058,18 @@ EXPORT track_p NewCompound(
 	FixUpBezierSegs(xx->segs,xx->segCnt);
 	ComputeCompoundBoundingBox( trk );
 	SetDescriptionOrig( trk );
-	for ( ep=0; ep<epCnt; ep++ )
+//	if (radii) {
+//		xx->special = TOcurved;
+//		xx->u.curved.radii.max = 0;
+//		xx->u.curved.radii.cnt = 0;
+//		DYNARR_SET(DIST_T,xx->u.curved.radii,epCnt);
+//	}
+	for ( ep=0; ep<epCnt; ep++ ) {
 		SetTrkEndPoint( trk, ep, epp[ep].pos, epp[ep].angle );
+//		if (radii) {
+//			DYNARR_N(DIST_T,xx->u.curved.radii,ep) = radii[ep];
+//		}
+	}
 	return trk;
 }
 
@@ -1051,7 +1125,7 @@ void ReadCompound(
 			UpdateTitleMark( title, LookupScale(scale) );
 		}
 	}
-	trk = NewCompound( trkType, index, orig, angle, title, 0, NULL, pathCnt, (char *)path, tempSegs_da.cnt, &tempSegs(0) );
+	trk = NewCompound( trkType, index, orig, angle, title, 0, NULL, NULL, pathCnt, (char *)path, tempSegs_da.cnt, &tempSegs(0) );
 	SetEndPts( trk, 0 );
 	SetTrkVisible(trk, visible);
 	SetTrkScale(trk, LookupScale( scale ));
@@ -1122,6 +1196,21 @@ void ReadCompound(
 			GetArgs( tempSpecial+strlen(PIER), "fq",
 						&xx->u.pier.height, &xx->u.pier.name );
 
+		} else if (strncmp( tempSpecial, CURVED, strlen(CURVED))== 0) {
+//			xx->special = TOcurved;
+//			int cnt = GetTrkEndPtCnt(trk);
+//			xx->u.curved.radii.cnt = 0;
+//			xx->u.curved.radii.max = 0;
+//			xx->u.curved.radii.ptr = 0;
+//			DYNARR_SET(DIST_T,xx->u.curved.radii,cnt);
+//			char * cp;
+//			cp = tempSpecial + strlen(CURVED);
+//			for (int i=0;i<cnt;i++) {
+//				if (cp && cp[0] != '\0') {
+//					GetArgs( cp,"f",&DYNARR_N(DIST_T,xx->u.curved.radii,i));
+//					cp = strchr(cp,' ');
+//				} else
+//					DYNARR_N(DIST_T,xx->u.curved.radii,i) = 0.0;
 		} else {
 			InputError("Unknown special case", TRUE);
 		}

@@ -33,12 +33,11 @@
 #include <time.h>
 #include <ctype.h>
 #ifdef WINDOWS
-#include <io.h>
-#include <windows.h>
+	#include <io.h>
+	#include <windows.h>
 	//#if _MSC_VER >=1400
 	//	#define strdup _strdup
 	//#endif
-#else
 #endif
 #include <sys/stat.h>
 #include <stdarg.h>
@@ -48,18 +47,25 @@
 
 #include <assert.h>
 
+#include <cJSON.h>
+
+#include "archive.h"
 #include "common.h"
 #include "compound.h"
 #include "cselect.h"
 #include "cundo.h"
 #include "custom.h"
+#include "directory.h"
 #include "draw.h"
 #include "fileio.h"
+#include "fcntl.h"
 #include "i18n.h"
 #include "layout.h"
+#include "manifest.h"
 #include "messages.h"
 #include "misc.h"
 #include "param.h"
+#include "paramfile.h"
 #include "paths.h"
 #include "track.h"
 #include "utility.h"
@@ -68,15 +74,14 @@
 
 /*#define TIME_READTRACKFILE*/
 
+#define COPYBLOCKSIZE	1024
+
 EXPORT const char * workingDir;
 EXPORT const char * libDir;
 
-static char * customPath = NULL;
-static char * customPathBak = NULL;
 
 EXPORT char * clipBoardN;
 
-static int log_paramFile;
 
 EXPORT wBool_t bExample = FALSE;
 EXPORT wBool_t bReadOnly = FALSE;
@@ -157,17 +162,10 @@ EXPORT wIndex_t paramLineNum = 0;
 EXPORT char paramLine[STR_LONG_SIZE];
 EXPORT char * curContents;
 EXPORT char * curSubContents;
-static long paramCheckSum;
 
 #define PARAM_DEMO (-1)
 
-typedef struct {
-		char * name;
-		readParam_t proc;
-		} paramProc_t;
-static dynArr_t paramProc_da;
-#define paramProc(N) DYNARR_N( paramProc_t, paramProc_da, N )
-
+dynArr_t paramProc_da;
 
 EXPORT void Stripcr( char * line )
 {
@@ -180,13 +178,6 @@ EXPORT void Stripcr( char * line )
 		*cp-- = '\0';
 	if (cp >= line && *cp == '\r')
 		*cp = '\0';
-}
-
-EXPORT void ParamCheckSumLine( char * line )
-{
-	long mult=1;
-	while ( *line )
-		paramCheckSum += (((long)(*line++))&0xFF)*(mult++);
 }
 
 EXPORT char * GetNextLine( void )
@@ -507,162 +498,6 @@ EXPORT void AddParam(
 }
 
 
-EXPORT BOOL_T ReadParams(
-		long key,
-		const char * dirName,
-		const char * fileName )
-{
-	FILE * oldFile;
-	char *cp;
-	wIndex_t oldLineNum;
-	wIndex_t pc;
-	long oldCheckSum;
-	long checkSum=0;
-	BOOL_T checkSummed;
-	long paramVersion = -1;
-	char *oldLocale = NULL;
-
-	if (dirName) {
-		MakeFullpath(&paramFileName, dirName, fileName, NULL);
-	} else {
-		MakeFullpath(&paramFileName, fileName, NULL);
-	}
-	paramLineNum = 0;
-	curBarScale = -1;
-	curContents = strdup( fileName );
-	curSubContents = curContents;
-
-LOG1( log_paramFile, ("ReadParam( %s )\n", fileName ) )
-
-	oldLocale = SaveLocale("C");
-
-	paramFile = fopen( paramFileName, "r" );
-	if (paramFile == NULL) {
-		/* Reset the locale settings */
-		RestoreLocale( oldLocale );
-
-		NoticeMessage( MSG_OPEN_FAIL, _("Continue"), NULL, _("Parameter"), paramFileName, strerror(errno) );
-
-		return FALSE;
-	}
-	paramCheckSum = key;
-	paramLineNum = 0;
-	checkSummed = FALSE;
-	while ( paramFile && ( fgets(paramLine, 256, paramFile) ) != NULL ) {
-		paramLineNum++;
-		Stripcr( paramLine );
-		if (strncmp( paramLine, "CHECKSUM ", 9 ) == 0) {
-			checkSum = atol( paramLine+9 );
-			checkSummed = TRUE;
-			goto nextLine;
-		}
-		ParamCheckSumLine( paramLine );
-		if (paramLine[0] == '#') {
-			/* comment */
-		} else if (paramLine[0] == 0) {
-			/* empty paramLine */
-		} else if (strncmp( paramLine, "INCLUDE ", 8 ) == 0) {
-			cp = &paramLine[8];
-			while (*cp && isspace((unsigned char)*cp)) cp++;
-			if (!*cp) {
-				InputError( "INCLUDE - no file name", TRUE );
-
-				/* Close file and reset the locale settings */
-				if (paramFile) fclose(paramFile);
-				RestoreLocale( oldLocale );
-
-				return FALSE;
-			}
-			oldFile = paramFile;
-			oldLineNum = paramLineNum;
-			oldCheckSum = paramCheckSum;
-			ReadParams( key, dirName, cp );
-			paramFile = oldFile;
-			paramLineNum = oldLineNum;
-			paramCheckSum = oldCheckSum;
-			if (dirName) {
-				MakeFullpath(&paramFileName, dirName, fileName, NULL);
-			} else {
-				MakeFullpath(&paramFileName, fileName);
-			}
-		} else if (strncmp( paramLine, "CONTENTS ", 9) == 0 ) {
-			curContents = MyStrdup( paramLine+9 );
-			curSubContents = curContents;
-		} else if (strncmp( paramLine, "SUBCONTENTS ", 12) == 0 ) {
-			curSubContents = MyStrdup( paramLine+12 );
-		} else if (strncmp( paramLine, "PARAM ", 6) == 0 ) {
-			paramVersion = atol( paramLine+6 );
-		} else {
-			for (pc = 0; pc < paramProc_da.cnt; pc++ ) {
-				if (strncmp( paramLine, paramProc(pc).name,
-							 strlen(paramProc(pc).name)) == 0 ) {
-					paramProc(pc).proc( paramLine );
-					goto nextLine;
-				}
-			}
-			InputError( "Unknown param line", TRUE );
-		}
- nextLine:;
-	}
-	if ( key ) {
-		if ( !checkSummed || checkSum != paramCheckSum ) {
-			/* Close file and reset the locale settings */
-			if (paramFile) fclose(paramFile);
-			RestoreLocale( oldLocale );
-
-			NoticeMessage( MSG_PROG_CORRUPTED, _("Ok"), NULL, paramFileName );
-
-			return FALSE;
-		}
-	}
-	if (paramFile)fclose( paramFile );
-	free(paramFileName);
-	paramFileName = NULL;
-	RestoreLocale( oldLocale );
-
-	return TRUE;
-}
-
-
-static void ReadCustom( void )
-{
-	FILE * f;
-	MakeFullpath(&customPath, workingDir, sCustomF, NULL);
-	customPathBak = MyStrdup( customPath );
-	customPathBak[ strlen(customPathBak)-1 ] = '1';
-	f = fopen( customPath, "r" );
-	if ( f != NULL ) {
-		fclose( f );
-		curParamFileIndex = PARAM_CUSTOM;
-		ReadParams( 0, workingDir, sCustomF );
-	}
-}
-
-
-/*
- * Open the file and then set the locale to "C". Old locale will be copied to
- * oldLocale. After the required file I/O is done, the caller must call
- * CloseCustom() with the same locale value that was returned in oldLocale by
- * this function.
- */
-EXPORT FILE * OpenCustom( char *mode )
-{
-	FILE * ret = NULL;
-
-	if (inPlayback)
-		return NULL;
-	if ( *mode == 'w' )
-		rename( customPath, customPathBak );
-	if (customPath) {
-		ret = fopen( customPath, mode );
-		if (ret == NULL) {
-			NoticeMessage( MSG_OPEN_FAIL, _("Continue"), NULL, _("Custom"), customPath, strerror(errno) );
-		}
-	}
-
-	return ret;
-}
-
 
 EXPORT char * PutTitle( char * cp )
 {
@@ -704,7 +539,9 @@ void SetWindowTitle( void )
 		sProdName, sVersion );
 	wWinSetTitle( mainW, message );
 }
-
+
+
+
 /*****************************************************************************
  *
  * LOAD / SAVE TRACKS
@@ -840,8 +677,10 @@ static BOOL_T ReadTrackFile(
 		}
 	}
 
-	if (paramFile)
+	if (paramFile) {
 		fclose(paramFile);
+		paramFile = NULL;
+	}
 
 	if( ret ) {
 		if (!noSetCurDir)
@@ -866,8 +705,7 @@ static BOOL_T ReadTrackFile(
 	return ret;
 }
 
-
-EXPORT int LoadTracks(
+int LoadTracks(
 		int cnt,
 		char **fileName,
 		void * data)
@@ -875,20 +713,29 @@ EXPORT int LoadTracks(
 #ifdef TIME_READTRACKFILE
 	long time0, time1;
 #endif
-	char *nameOfFile;
+	char *nameOfFile = NULL;
+
+	char *extOfFile;
 
 	assert( fileName != NULL );
 	assert( cnt == 1 ); 
 
-	if ( ! bExample )
-		SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
-	bReadOnly = bExample;
-	paramVersion = -1;
-	wSetCursor( wCursorWait );
+    if ( bExample )
+        bReadOnly = TRUE;
+    else if ( access( fileName[0], W_OK ) == -1 )
+        bReadOnly = TRUE;
+    else
+        bReadOnly = FALSE;
+    if (ReadTrackFile( fileName[ 0 ], nameOfFile, TRUE, FALSE, TRUE )) {
+        if ( ! bExample )
+            wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );	paramVersion = -1;
+        
+	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	ClearTracks();
 	ResetLayers();
 	checkPtMark = changed = 0;
+	LayoutBackGroundInit(TRUE);   //Keep values of background -> will be overriden my archive
 	UndoSuspend();
 	useCurrentLayer = FALSE;
 #ifdef TIME_READTRACKFILE
@@ -896,15 +743,105 @@ EXPORT int LoadTracks(
 #endif
 	nameOfFile = FindFilename( fileName[ 0 ] );
 
-	if ( bExample )
-		bReadOnly = TRUE;
-	else if ( access( fileName[0], W_OK ) == -1 )
-		bReadOnly = TRUE;
-	else
-		bReadOnly = FALSE;
-	if (ReadTrackFile( fileName[ 0 ], nameOfFile, TRUE, FALSE, TRUE )) {
-		if ( ! bExample )
-			wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
+ /*
+  * Support zipped filetype 
+  */
+	extOfFile = FindFileExtension( nameOfFile);
+
+	BOOL_T zipped = FALSE;
+	BOOL_T loadXTC = TRUE;
+	char * full_path = fileName[0];
+
+	if (extOfFile && (strcmp(extOfFile, ZIPFILETYPEEXTENSION )==0)) {
+
+		char * zip_input = GetZipDirectoryName(ARCHIVE_READ);
+
+		//If zipped unpack file into temporary input dir (cleared and re-created)
+
+		DeleteDirectory(zip_input);
+		SafeCreateDir(zip_input);
+
+		if (UnpackArchiveFor(fileName[0], nameOfFile, zip_input, FALSE)) {
+
+			char * manifest_file;
+
+			MakeFullpath(&manifest_file, zip_input, "manifest.json", NULL);
+
+			char * manifest = 0;
+			long length;
+
+			FILE * f = fopen (manifest_file, "rb");
+
+			if (f)
+			{
+			    fseek(f, 0, SEEK_END);
+			    length = ftell(f);
+			    fseek(f, 0, SEEK_SET);
+			    manifest = malloc(length + 1);
+			    if (manifest) {
+			        fread(manifest, 1, length, f);
+			        manifest[length] = '\0';
+			    }
+			    fclose(f);
+			} else
+			{
+			    NoticeMessage(MSG_MANIFEST_OPEN_FAIL, _("Continue"), NULL, manifest_file);
+			}
+			free(manifest_file);
+
+			char * arch_file = NULL;
+
+			//Set filename to point to included .xtc file
+			//Use the name inside manifest (this helps if a user renames the zip)
+			if (manifest)
+			{
+			    arch_file = ParseManifest(manifest, zip_input);
+				free(manifest);
+			}
+
+			// If no manifest value use same name as the archive
+			if (arch_file && arch_file[0])
+			{
+			    MakeFullpath(&full_path, zip_input, arch_file, NULL);
+			} else
+			{
+			    MakeFullpath(&full_path, zip_input, nameOfFile, NULL);
+			}
+
+			nameOfFile = FindFilename(full_path);
+			extOfFile = FindFileExtension(full_path);
+			if (strcmp(extOfFile, ZIPFILETYPEEXTENSION )==0)
+			{
+			    for (int i=0; i<4; i++) {
+			        extOfFile[i] = extOfFile[i+1];
+			    }
+			}
+			LOG(log_zip, 1, ("Zip-File %s \n", full_path))
+			#if DEBUG
+			    printf("File Path: %s \n", full_path);
+			#endif
+		} else {
+			loadXTC = FALSE; // when unzipping fails, don't attempt loading the trackplan
+		}
+		zipped = TRUE;
+
+		free(zip_input);
+
+	}
+
+	if (loadXTC && ReadTrackFile( full_path, FindFilename( fileName[0]), TRUE, FALSE, TRUE )) {
+
+		if (zipped) {  //Put back to zipped extension - change back title and path
+			nameOfFile = FindFilename( fileName[0]);
+			extOfFile = FindFileExtension( fileName[0]);
+			SetCurrentPath( LAYOUTPATHKEY, fileName[0] );
+			SetLayoutFullPath(fileName[0]);
+			SetWindowTitle();
+			free(full_path);
+			full_path = fileName[0];
+		}
+
+		wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
 		ResolveIndex();
 #ifdef TIME_READTRACKFILE
 		time1 = wGetTimer();
@@ -919,7 +856,7 @@ EXPORT int LoadTracks(
 	}
 	UndoResume();
 	Reset();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	return TRUE;
 }
 
@@ -960,7 +897,7 @@ static BOOL_T DoSaveTracks(
 
 		return FALSE;
 	}
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	time(&clock);
 	rc &= fprintf(f,"#%s Version: %s, Date: %s\n", sProdName, sVersion, ctime(&clock) )>0;
 	rc &= fprintf(f, "VERSION %d %s\n", iParamVersion, PARAMVERSIONVERSION )>0;
@@ -983,25 +920,146 @@ static BOOL_T DoSaveTracks(
 	RestoreLocale( oldLocale );
 
 	checkPtMark = changed;
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	return rc;
+}
+
+/************************************************
+ * Copy Dependency - copy file into another directory
+ *
+ * \param IN name
+ * \param IN target_dir
+ *
+ * \returns TRUE for success
+ *
+ */
+static BOOL_T CopyDependency(char * name, char * target_dir)
+{
+    char * backname = FindFilename(name);
+	BOOL_T copied = TRUE;
+	FILE * source = fopen(name, "rb");
+
+    if (source != NULL) {
+        char * target_file;
+        MakeFullpath(&target_file, target_dir, backname, NULL);
+        FILE * target = fopen(target_file, "wb");
+
+        if (target != NULL) {
+            char *buffer = MyMalloc(COPYBLOCKSIZE);
+            while (!feof(source)) {
+                size_t bytes = fread(buffer, 1, sizeof(buffer), source);
+                if (bytes) {
+                    fwrite(buffer, 1, bytes, target);
+                }
+            }
+			MyFree(buffer);
+            LOG(log_zip, 1, ("Zip-Include %s into %s \n", name, target_file))
+#if DEBUG
+            printf("xtrkcad: Included file %s into %s \n",
+                   name, target_file);
+#endif
+            fclose(target);
+        } else {
+            NoticeMessage(MSG_COPY_FAIL, _("Continue"), NULL, name, target_file);
+            copied = FALSE;
+        }
+        free(target_file);
+        fclose(source);
+    } else {
+        NoticeMessage(MSG_COPY_OPEN_FAIL, _("Continue"), NULL, name);
+        copied = FALSE;
+    }
+    return copied;
 }
 
 
 static doSaveCallBack_p doAfterSave;
+
+
 
 static int SaveTracks(
 		int cnt,
 		char **fileName,
 		void * data )
 {
-	char *nameOfFile;
 
 	assert( fileName != NULL );
 	assert( cnt == 1 );
 
+	char *nameOfFile = FindFilename(fileName[0]);
+
 	SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
-	DoSaveTracks( fileName[ 0 ] );
+
+	//Support Archive zipped files
+
+	char * extOfFile = FindFileExtension( fileName[0]);
+
+
+	if (extOfFile && (strcmp(extOfFile,ZIPFILETYPEEXTENSION)==0)) {
+
+		char * ArchiveName;
+
+		//Set filename to point to be the same as the included .xtc file.
+		//This is also in the manifest - in case a user renames the archive file.
+
+		char * zip_output = GetZipDirectoryName(ARCHIVE_WRITE);
+
+		DeleteDirectory(zip_output);
+		SafeCreateDir(zip_output);
+
+		MakeFullpath(&ArchiveName, zip_output, nameOfFile, NULL);
+
+		nameOfFile = FindFilename(ArchiveName);
+		extOfFile = FindFileExtension(ArchiveName);
+
+		if (extOfFile && strcmp(extOfFile, ZIPFILETYPEEXTENSION)==0) {
+			// Get rid of the 'e'
+			extOfFile[3] = '\0';
+		}
+
+		char * DependencyDir;
+
+		//The included files are placed (for now) into an includes directory - TODO an array of includes with directories by type
+		MakeFullpath(&DependencyDir, zip_output, "includes", NULL);
+
+		SafeCreateDir(DependencyDir);
+
+		char * background = GetLayoutBackGroundFullPath();
+
+		if (background && background[0])
+			CopyDependency(background,DependencyDir);
+
+		//The details are stored into the manifest - TODO use arrays for files, locations
+		char *oldLocale = SaveLocale("C");
+		char* json_Manifest = CreateManifest(nameOfFile, background, "includes");
+		char * manifest_file;
+
+		MakeFullpath(&manifest_file, zip_output, "manifest.json", NULL);
+		
+		FILE *fp = fopen(manifest_file, "wb");
+		if (fp != NULL)
+		{
+		   fputs(json_Manifest, fp);
+		   fclose(fp);
+		} else {
+			NoticeMessage( MSG_MANIFEST_FAIL, _("Continue"), NULL, manifest_file );
+		}
+		RestoreLocale(oldLocale);
+
+		free(manifest_file);
+		free(json_Manifest);
+
+		DoSaveTracks( ArchiveName );
+
+		if (CreateArchive(	zip_output,	fileName[0]) != TRUE) {
+			NoticeMessage( MSG_ARCHIVE_FAIL, _("Continue"), NULL, fileName[0], zip_output );
+		}
+		free(zip_output);
+		free(ArchiveName);
+
+	} else
+
+		DoSaveTracks( fileName[ 0 ] );
 
 	nameOfFile = FindFilename( fileName[ 0 ] );
 	wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[ 0 ]) );
@@ -1029,6 +1087,7 @@ EXPORT void DoSave( doSaveCallBack_p after )
 		SaveTracks( 1, &temp, NULL );
 	}
 	SetWindowTitle();
+	SaveState();
 }
 
 EXPORT void DoSaveAs( doSaveCallBack_p after )
@@ -1036,9 +1095,10 @@ EXPORT void DoSaveAs( doSaveCallBack_p after )
 	doAfterSave = after;
 	if (saveFile_fs == NULL)
 		saveFile_fs = wFilSelCreate( mainW, FS_SAVE, 0, _("Save Tracks As"),
-			sSourceFilePattern, SaveTracks, NULL );
+			sSaveFilePattern, SaveTracks, NULL );
 	wFilSelect( saveFile_fs, GetCurrentPath(LAYOUTPATHKEY));
 	SetWindowTitle();
+	SaveState();
 }
 
 EXPORT void DoLoad( void )
@@ -1048,6 +1108,7 @@ EXPORT void DoLoad( void )
 			sSourceFilePattern, LoadTracks, NULL );
 	bExample = FALSE;
 	wFilSelect( loadFile_fs, GetCurrentPath(LAYOUTPATHKEY));
+	SaveState();
 }
 
 
@@ -1088,9 +1149,9 @@ EXPORT void DoCheckPoint( void )
 }
 
 /**
- * Remove all temporary files before exiting.When the program terminates
- * normally through the exit choice, files that are created temporarily are removed:
- * xtrkcad.ckp
+ * Remove all temporary files before exiting. When the program terminates
+ * normally through the exit choice, files and directories that were created 
+ * temporarily are removed: xtrkcad.ckp
  *
  * \param none
  * \return none
@@ -1099,8 +1160,18 @@ EXPORT void DoCheckPoint( void )
 
 EXPORT void CleanupFiles( void )
 {
+	char *tempDir;
+
 	if( checkPtFileName1 )
 		remove( checkPtFileName1 );
+
+	for (int i = ARCHIVE_READ; i <= ARCHIVE_WRITE; ++i) {
+		tempDir = GetZipDirectoryName(i);
+		if (tempDir) {
+			DeleteDirectory(tempDir);
+			free(tempDir);
+		}
+	}
 }
 
 /**
@@ -1138,7 +1209,7 @@ EXPORT int LoadCheckpoint( void )
 	char *search;
 
 	paramVersion = -1;
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 
 	MakeFullpath(&search, workingDir, sCheckPointF, NULL);
 	UndoSuspend();
@@ -1155,7 +1226,7 @@ EXPORT int LoadCheckpoint( void )
 	Reset();
 	UndoResume();
 
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 
 	SetLayoutFullPath("");
 	SetWindowTitle();
@@ -1187,7 +1258,7 @@ static int ImportTracks(
 
 	nameOfFile = FindFilename(fileName[ 0 ]);
 	paramVersion = -1;
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	SetAllTrackSelect( FALSE );
 	ImportStart();
@@ -1198,7 +1269,7 @@ static int ImportTracks(
 	useCurrentLayer = FALSE;
 	/*DoRedraw();*/
 	EnableCommands();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	paramVersion = paramVersionOld;
 	importMove = TRUE;
 	DoCommandB( (void*)(intptr_t)selectCmdInx );
@@ -1247,7 +1318,7 @@ static int DoExportTracks(
 
 	oldLocale = SaveLocale("C");
 
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	time(&clock);
 	fprintf(f,"#%s Version: %s, Date: %s\n", sProdName, sVersion, ctime(&clock) );
 	fprintf(f, "VERSION %d %s\n", iParamVersion, PARAMVERSIONVERSION );
@@ -1258,7 +1329,7 @@ static int DoExportTracks(
 	RestoreLocale( oldLocale );
 
 	Reset();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	UpdateAllElevations();
 	return TRUE;
 }
@@ -1330,7 +1401,7 @@ EXPORT BOOL_T EditPaste( void )
 
 	oldLocale = SaveLocale("C");
 
-	wSetCursor( wCursorWait );
+	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	SetAllTrackSelect( FALSE );
 	ImportStart();
@@ -1344,7 +1415,7 @@ EXPORT BOOL_T EditPaste( void )
 	useCurrentLayer = FALSE;
 	/*DoRedraw();*/
 	EnableCommands();
-	wSetCursor( wCursorNormal );
+	wSetCursor( mainD.d, defaultCursor );
 	importMove = TRUE;
 	DoCommandB( (void*)(intptr_t)selectCmdInx );
 	SelectRecount();
@@ -1366,23 +1437,9 @@ EXPORT void FileInit( void )
 	}
 	if ( (workingDir = wGetAppWorkDir()) == NULL )
 		AbortProg( "wGetAppWorkDir()" );
-}
-
-EXPORT BOOL_T ParamFileInit( void )
-{
-	curParamFileIndex = PARAM_DEMO;
-	log_paramFile = LogFindIndex( "paramFile" );
-	if ( ReadParams( lParamKey, libDir, sParamQF ) == FALSE )
-		return FALSE;
-
-	curParamFileIndex = PARAM_CUSTOM;
-	if (lParamKey == 0) {
-		ReadParamFiles();
-		ReadCustom();
-	}
 
 	SetLayoutFullPath("");
 	MakeFullpath(&clipBoardN, workingDir, sClipboardF, NULL);
-	return TRUE;
-
 }
+
+

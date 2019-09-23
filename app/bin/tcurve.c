@@ -220,8 +220,8 @@ static void DrawCurveDescription(
 		dist = GetLengthCurve( trk );
 		elevValid = FALSE;
 		if ( (!xx->circle) &&
-			 ComputeElev( trk, 0, FALSE, &elev0, NULL ) &&
-			 ComputeElev( trk, 1, FALSE, &elev1, NULL ) ) {
+			 ComputeElev( trk, 0, FALSE, &elev0, NULL, FALSE ) &&
+			 ComputeElev( trk, 1, FALSE, &elev1, NULL, FALSE ) ) {
 			if( elev0 == elev1 )
 				elevValid = FALSE;
 			else {
@@ -478,7 +478,7 @@ static void UpdateCurve( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), crvData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &crvData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &crvData.elev[1-ep], NULL, TRUE );
 		if ( crvData.length > minLength )
 			crvData.grade = fabs( (crvData.elev[0]-crvData.elev[1])/crvData.length )*100.0;
 		else
@@ -575,13 +575,13 @@ static void DescribeCurve( track_p trk, char * str, CSIZE_T len )
 	crvData.angle = a1;
 	crvData.layerNumber = GetTrkLayer(trk);
 	if ( !xx->circle ) {
-		ComputeElev( trk, 0, FALSE, &crvData.elev[0], NULL );
-		ComputeElev( trk, 1, FALSE, &crvData.elev[1], NULL );
+		ComputeElev( trk, 0, FALSE, &crvData.elev[0], NULL, FALSE );
+		ComputeElev( trk, 1, FALSE, &crvData.elev[1], NULL, FALSE );
 	} else {
 		crvData.elev[0] = crvData.elev[1] = 0;
 	}
-	ComputeElev( trk, 0, FALSE, &crvData.elev[0], NULL );
-	ComputeElev( trk, 1, FALSE, &crvData.elev[1], NULL );
+	ComputeElev( trk, 0, FALSE, &crvData.elev[0], NULL, FALSE );
+	ComputeElev( trk, 1, FALSE, &crvData.elev[1], NULL, FALSE );
 	if ( crvData.length > minLength )
 		crvData.grade = fabs( (crvData.elev[0]-crvData.elev[1])/crvData.length )*100.0;
 	else
@@ -659,6 +659,13 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 	track_p tt = t;
 	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
 
+
+	if (d->options&DC_BLOCK_LEFT)
+		widthOptions |= DTS_BLOCK_LEFT;
+	if (d->options&DC_BLOCK_RIGHT)
+		widthOptions |= DTS_BLOCK_RIGHT;
+
+
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)
@@ -682,6 +689,7 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 				t, GetTrkGauge(t), color, widthOptions );
 	if ( (d->funcs->options & wDrawOptTemp) == 0 &&
 		 (d->options&DC_QUICK) == 0 &&
+		 (d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) ==0 &&
 		 (!IsCurveCircle(t)) ) {
 		DrawEndPt( d, t, 0, color );
 		DrawEndPt( d, t, 1, color );
@@ -927,15 +935,15 @@ static BOOL_T EnumerateCurve( track_p trk )
 	if (trk != NULL) {
 		xx = GetTrkExtraData(trk);
 		GetCurveAngles( &a0, &a1, trk );
-		d = xx->radius * 2.0 * M_PI * a1 / 360.0;
+		d = (xx->radius + (GetTrkGauge(trk)/2.0))* 2.0 * M_PI * a1 / 360.0;
 		if (xx->helixTurns > 0)
-			d += (xx->helixTurns-(xx->circle?1:0)) * xx->radius * 2.0 * M_PI;
+			d += (xx->helixTurns-(xx->circle?1:0)) * (xx->radius+(GetTrkGauge(trk)/2.0)) * 2.0 * M_PI;
 		ScaleLengthIncrement( GetTrkScale(trk), d );
 	}
 	return TRUE;
 }
 
-static BOOL_T TrimCurve( track_p trk, EPINX_T ep, DIST_T dist )
+static BOOL_T TrimCurve( track_p trk, EPINX_T ep, DIST_T dist, coOrd endpos, ANGLE_T angle, DIST_T endradius, coOrd endcenter )
 {
 	DIST_T d;
 	DIST_T radius;
@@ -1173,7 +1181,8 @@ static DIST_T GetLengthCurve( track_p trk )
 		a1 = 360.0;
 	else
 		GetCurveAngles( &a0, &a1, trk );
-	dist = (rad+GetTrkGauge(trk)/2.0)*a1*2.0*M_PI/360.0;
+
+	dist = rad*a1*2.0*M_PI/360.0;
 	if (xx->helixTurns>0)
 		dist += (xx->helixTurns-(xx->circle?1:0)) * xx->radius * 2.0 * M_PI;
 	return dist;
@@ -1260,6 +1269,7 @@ static BOOL_T QueryCurve( track_p trk, int query )
 	case Q_HAS_DESC:
 	case Q_CORNU_CAN_MODIFY:
 	case Q_MODIFY_CAN_SPLIT:
+	case Q_CAN_EXTEND:
 		return TRUE;
 		break;
 	case Q_EXCEPTION:
@@ -1529,7 +1539,7 @@ EXPORT void PlotCurve(
 		coOrd pos1,
 		coOrd pos2,
 		curveData_t * curveData,
-		BOOL_T constrain )
+		BOOL_T constrain )   //Make the Radius be in steps of radiusGranularity (1/8)
 {
 	DIST_T d0, d2, r;
 	ANGLE_T angle, a0, a1, a2;
@@ -1537,13 +1547,14 @@ EXPORT void PlotCurve(
 
 	switch ( mode ) {
 	case crvCmdFromCornu:
+		/* Already set curveRadius, pos1, and type */
 	case crvCmdFromEP1:
 		angle = FindAngle( pos0, pos1 );
 		d0 = FindDistance( pos0, pos2 )/2.0;
 		a0 = FindAngle( pos0, pos2 );
 		a1 = NormalizeAngle( a0 - angle );
 LOG( log_curve, 3, ( "P1 = [%0.3f %0.3f] D=%0.3f A0=%0.3f A1=%0.3f\n", pos2.x, pos2.y, d0, a0, a1 ) )
-		if ((fabs(d0*sin(D2R(a1))) < (4.0/75.0)*mainD.scale) & (mode == crvCmdFromEP1)) {
+		if ((fabs(d0*sin(D2R(a1))) < (4.0/75.0)*mainD.scale)) {
 LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*mainD.scale ) )
 			curveData->pos1.x = pos0.x + d0*2.0*sin(D2R(angle));
 			curveData->pos1.y = pos0.y + d0*2.0*cos(D2R(angle));
@@ -1565,7 +1576,7 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 				else
 					curveData->curveRadius = d0/sin(D2R(-a1));
 			}
-			if (curveData->curveRadius > 1000 && mode == crvCmdFromEP1) {
+			if (curveData->curveRadius > 1000) {
 				LOG( log_curve, 3, ( "Straight %0.3f > 1000\n", curveData->curveRadius ) )
 				curveData->pos1.x = pos0.x + d0*2.0*sin(D2R(angle));
 				curveData->pos1.y = pos0.y + d0*2.0*cos(D2R(angle));

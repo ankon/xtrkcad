@@ -33,6 +33,7 @@
 #include "layout.h"
 #include "messages.h"
 #include "param.h"
+#include "paramfile.h"
 #include "track.h"
 #include "utility.h"
 
@@ -151,6 +152,28 @@ EXPORT turnoutInfo_t * CreateNewStructure(
 	return to;
 }
 
+enum paramFileState
+GetStructureCompatibility(int paramFileIndex, SCALEINX_T scaleIndex)
+{
+	int i;
+	enum paramFileState ret = PARAMFILE_NOTUSABLE;
+	DIST_T ratio = GetScaleRatio(scaleIndex);
+
+	if (!IsParamValid(paramFileIndex)) {
+		return(PARAMFILE_UNLOADED);
+	}
+
+	for (i = 0; i < structureInfo_da.cnt; i++) {
+		turnoutInfo_t *to = structureInfo(i);
+		if (to->paramFileIndex == paramFileIndex) {
+			if (GetScaleRatio(to->scaleInx) == ratio || to->scaleInx == SCALE_ANY) {
+				ret = PARAMFILE_FIT;
+				break;
+			} 
+		}
+	}
+	return(ret);
+}
 
 static BOOL_T ReadStructureParam(
 		char * firstLine )
@@ -547,7 +570,7 @@ static void NewStructure( void )
 		curStructure->segs, curStructure->segCnt, 0.0, wDrawColorBlack );
 	UndoStart( _("Place Structure"), "newStruct" );
 	titleLen = strlen( curStructure->title );
-	trk = NewCompound( T_STRUCTURE, 0, Dst.pos, Dst.angle, curStructure->title, 0, NULL, 0, "", curStructure->segCnt, curStructure->segs );
+	trk = NewCompound( T_STRUCTURE, 0, Dst.pos, Dst.angle, curStructure->title, 0, NULL, NULL, 0, "", curStructure->segCnt, curStructure->segs );
 	xx = GetTrkExtraData(trk);
 #ifdef LATER
 	trk = NewTrack( 0, T_STRUCTURE, 0, sizeof (*xx) + 1 );

@@ -78,6 +78,16 @@ HELP
 The angle specified for a curve must be between 0\u00B0 and 360\u00B0.
 END
 
+# ctodesgn.c
+MESSAGE MSG_TODSGN_CORNU_TOO_COMPLEX
+The curves created by the Turnout Designer for a cornu curve have more than 128 segments.
+Try adjusting the end angles and radii to be closer in values.
+HELP
+Too complex a curve set to be used. Respecify \f{Turnout Designer} values.
+
+Refer to \k{cmdTurnoutNew} for detail.
+END
+
 # dcustmgm.c
 MESSAGE MSG_CUSTMGM_DELETE_CONFIRM
 Are you sure you want to delete the
@@ -189,7 +199,7 @@ You cannot select a \f{Turntable} as the second track in \f{Join} command. If yo
 Refer to \k{cmdJoin} for detail.
 END
 
- ccornu.c
+# ccornu.c
 MESSAGE MSG_JOIN_CORNU_SAME
 Cannot Join; Selected endpoints are on same track.
 HELP
@@ -205,6 +215,13 @@ HELP
 You are trying to \f{Join} a section of track with itself. Different tracks must selected when using the \f{Join} command.
 
 Refer to \k{cmdJoin} for detail.
+END
+
+#cjoin.c 
+MESSAGE MSG_JOIN_GAUGE
+Cannot Join; Selected tracks are different scale and gauge.
+HELP
+You are trying to \f{Join} two tracks that are different gauges.
 END
 
 # cjoin.c
@@ -617,7 +634,14 @@ END
 MESSAGE MSG_POLY_SHAPES_3_SIDES
 Poly shapes must have at least 3 sides.
 HELP
-Polygons and Poly Lines must have at least 3 sides. By moving one of the corners close to another corner you're attempting to merge the corners and create a Poly shape with only 2 sides. Try moving the other corner to the new position first.
+Polygons and Poly Lines must have at least 3 sides. You're attempting to create a Poly shape with only 2 sides by deleting the third. 
+END
+
+# drawgeom.c
+MESSAGE MSG_POLY_MULTIPLE_SELECTED
+Can't delete multiple points at once
+HELP
+Polygons and Poly Lines points can only be deleted one at a time. 
 END
 
 # dcar.c
@@ -1015,6 +1039,132 @@ Cannot open %s file:
 #NOHELP
 END
 
+# fileio.c
+MESSAGE MSG_DIR_CREATE_FAIL
+Cannot create directory: %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_DIR_OPEN_FAIL
+Cannot open directory: %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_NOT_DIR_FAIL
+Path for deletion is not a directory: %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_OPEN_DIR_FAIL
+Open filed for directory: %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_DIR_ADD_FAIL
+Can't add directory record %s to zip - %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_FILE_ADD_FAIL
+Can't add file record %s to zip at %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_CREATE_FAIL
+Can't create zip %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_CLOSE_FAIL
+Close failure for zip %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_RENAME_FAIL
+Rename failure for zip from %s to %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_OPEN_FAIL
+Open failure for zip %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_INDEX_FAIL
+Index failure for zip %s - %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_FILE_OPEN_FAIL
+Open read file failure %s %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ZIP_READ_FAIL
+Open file in zip failure %s %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_UNLINK_FAIL
+Unlink failed for: %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_RMDIR_FAIL
+Remove Directory failed for: %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_ARCHIVE_FAIL
+Cannot save archive to %s from directory: %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_MANIFEST_FAIL
+Cannot save manifest file to %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_MANIFEST_OPEN_FAIL
+Cannot open manifest file %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_UNPACK_FAIL
+Cannot unpack file: %s for file: %s in directory: %s
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_COPY_OPEN_FAIL
+Cannot open file %s 
+#NOHELP
+END
+
+# fileio.c
+MESSAGE MSG_COPY_FAIL
+Cannot copy file %s into directory %s
+#NOHELP
+END
+
 # various
 MESSAGE MSG_BAD_OPTION
 Unrecognized Option: %s
@@ -1342,9 +1492,46 @@ Moved beyond the end of the track
 END
 
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_HEADTYPE
+The specified HeadType %s definition is missing for Signal %s
+HELP
+Either change to use an existing HeadType or add a new Headtype
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_HEAD
+The Head %s definition is missing in Signal %s
+HELP
+Either change to use another Head or add a new Head
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_APPEARANCE
+The Appearance %s definition is missing for Head %s in Signal %s
+HELP
+Either change to use an existing Appearance in the HeadType or a new HeadType with this Appearance
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_DUPLICATE_APPEARANCE
+The Appearance %s already exists for Head Type %s
+HELP
+Fix the Head Type definition
+END
+
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_TRACK_HERE
+There isn't a track end point here
+HELP
+Move to a Track End Point
+END
+
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_SIGNAL
+No Signal selected to Modify
+Select a Signal
+END
 
 ############################################################
 # Message Archive

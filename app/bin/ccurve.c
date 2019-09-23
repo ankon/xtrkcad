@@ -39,6 +39,8 @@
 #include "utility.h"
 #include "wlib.h"
 #include "cbezier.h"
+#include "ccornu.h"
+#include "layout.h"
 
 /*
  * STATE INFO
@@ -57,7 +59,7 @@ static struct {
 static long curveMode;
 
 
-EXPORT void DrawArrowHeads(
+EXPORT int DrawArrowHeads(
 		trkSeg_p sp,
 		coOrd pos,
 		ANGLE_T angle,
@@ -87,8 +89,15 @@ EXPORT void DrawArrowHeads(
 		Translate( &sp[3].u.l.pos[1], p1, angle-45, d/2.0 );
 		sp[4].u.l.pos[0] = p1;
 		Translate( &sp[4].u.l.pos[1], p1, angle+45, d/2.0 );
+	} else {
+		sp[3].u.l.pos[0] = p1;
+		sp[3].u.l.pos[1] = p1;
+		sp[4].u.l.pos[0] = p1;
+		sp[4].u.l.pos[1] = p1;
 	}
+	return 5;
 }
+
 
 
 
@@ -111,6 +120,7 @@ EXPORT STATUS_T CreateCurve(
 	switch ( action ) {
 	case C_START:
 		DYNARR_SET( trkSeg_t, tempSegs_da, 8 );
+		tempSegs_da.cnt = 0;
 		Da.down = FALSE;  						//Not got a valid start yet
 		switch ( curveMode ) {
 		case crvCmdFromEP1:
@@ -146,6 +156,11 @@ EXPORT STATUS_T CreateCurve(
 				if ((t = OnTrack(&p, FALSE, TRUE)) != NULL) {
 			   		EPINX_T ep = PickUnconnectedEndPointSilent(p, t);
 			   		if (ep != -1) {
+			   			if (GetTrkScale(t) != (char)GetLayoutCurScale()) {
+			   				wBeep();
+			   				InfoMessage(_("Track is different scale"));
+			   				return C_CONTINUE;
+			   			}
 			   			Da.trk = t;
 			   			Da.ep = ep;
 			   			pos = GetTrkEndPos(t, ep);
@@ -166,6 +181,7 @@ EXPORT STATUS_T CreateCurve(
 			if (!found) SnapPos( &pos );
 			pos0 = pos;
 			Da.pos0 = pos;
+			tempSegs_da.cnt = 1;
 			switch (mode) {
 			case crvCmdFromEP1:
 				tempSegs(0).type = (track?SEG_STRTRK:SEG_STRLIN);
@@ -177,11 +193,14 @@ EXPORT STATUS_T CreateCurve(
 			case crvCmdFromTangent:
 			case crvCmdFromCenter:
 				tempSegs(0).type = SEG_STRLIN;
+				tempSegs(0).color = color;
 				tempSegs(1).type = SEG_CRVLIN;
+				tempSegs(1).color = color;
 				tempSegs(1).u.c.radius = mainD.scale*0.05;
 				tempSegs(1).u.c.a0 = 0;
 				tempSegs(1).u.c.a1 = 360;
 				tempSegs(2).type = SEG_STRLIN;
+				tempSegs(2).color = color;
 				if (Da.trk && mode==crvCmdFromTangent) message(_("End Locked: Drag out to center"));
 				else	
 					message( mode==crvCmdFromTangent?_("Drag from End-Point to Center"):_("Drag from Center to End-Point") );
@@ -193,7 +212,7 @@ EXPORT STATUS_T CreateCurve(
 				message( _("Drag to other end of chord") );
 				break;
 			}
-			tempSegs(0).u.l.pos[0] = pos;
+			tempSegs(0).u.l.pos[0] = tempSegs(0).u.l.pos[1] = pos;
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -226,8 +245,7 @@ EXPORT STATUS_T CreateCurve(
 			if (Da.trk) message( _("Tangent Locked: Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			else message( _("Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			tempSegs(1).u.c.center = pos;
-			DrawArrowHeads( &tempSegs(2), pos0, FindAngle(pos0,pos)+90, TRUE, wDrawColorBlack );
-			tempSegs_da.cnt = 7;
+			tempSegs_da.cnt += DrawArrowHeads( &tempSegs(2), pos0, FindAngle(pos0,pos)+90, TRUE, wDrawColorBlack );
 			break;
 		case crvCmdFromCenter:
 			message( _("Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
@@ -330,13 +348,13 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			//Da.pos0 = pos;
 		} else {
 			tempSegs_da.cnt = segCnt;
+			MainRedraw();
 			return C_CONTINUE;
 		}
 
 	case C_MOVE:
 		if (Da.state<0) return C_CONTINUE;
 		mainD.funcs->options = wDrawOptTemp;
-		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if ( Da.state == 0 ) {
 		    Da.pos1 = pos;
 			rc = CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
@@ -377,24 +395,23 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 						FormatDistance(Da.curveData.curveRadius*d) );
 			}
 		}
-		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		mainD.funcs->options = 0;
+		MainRedraw();
 		return rc;
 
 
 	case C_UP:
 		if (Da.state<0) return C_CONTINUE;
 		mainD.funcs->options = wDrawOptTemp;
-		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if (Da.state == 0) {
 			SnapPos( &pos );
 			Da.pos1 = pos;
 			Da.state = 1;
 			CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, InfoMessage );
-			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 			mainD.funcs->options = 0;
 			segCnt = tempSegs_da.cnt;
 			InfoMessage( _("Drag on Red arrows to adjust curve") );
+			MainRedraw();
 			return C_CONTINUE;
 		} else {
 			mainD.funcs->options = 0;
@@ -428,7 +445,8 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			} else {
 				return C_ERROR;
 			}
-			DrawNewTrack( t );
+			MainRedraw();
+			MapRedraw();
 			return C_TERMINATE;
 		}
 
@@ -442,13 +460,12 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 
 	case C_CANCEL:
 		if (Da.state == 1) {
-			mainD.funcs->options = wDrawOptTemp;
-			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-			mainD.funcs->options = 0;
 			tempSegs_da.cnt = 0;
 			Da.trk = NULL;
 		}
 		Da.state = -1;
+		MainRedraw();
+		MapRedraw();
 		return C_CONTINUE;
 
 	}
@@ -679,7 +696,6 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		return C_CONTINUE;
 
 	case C_MOVE:
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		SnapPos( &pos );
 		tempSegs(0).u.c.center = pos;
 		if ( !helix ) {
@@ -702,10 +718,11 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		tempSegs(0).u.c.a0 = 0.0;
 		tempSegs(0).u.c.a1 = 360.0;
 		tempSegs_da.cnt = 1;
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		MainRedraw();
 		return C_CONTINUE;
 
 	case C_UP:
+            
 		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if (helixRadius > mapD.size.x && helixRadius > mapD.size.y) {
 			ErrorMessage( MSG_RADIUS_TOO_BIG );
@@ -715,6 +732,7 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 			ErrorMessage( MSG_RADIUS_TOO_BIG );
 			return C_ERROR;
 		}
+
 		if ( helix ) {
 			if (helixRadius > 10000) {
 				ErrorMessage( MSG_RADIUS_GTR_10000 );
@@ -779,6 +797,7 @@ static STATUS_T CmdHelix( wAction_t action, coOrd pos )
 #include "bitmaps/curve3.xpm"
 #include "bitmaps/curve4.xpm"
 #include "bitmaps/bezier.xpm"
+#include "bitmaps/cornu.xpm"
 #include "bitmaps/circle1.xpm"
 #include "bitmaps/circle2.xpm"
 #include "bitmaps/circle3.xpm"
@@ -792,6 +811,7 @@ EXPORT void InitCmdCurve( wMenu_p menu )
 	AddMenuButton( menu, CmdCurve, "cmdCurveCenter", _("Curve from Center"), wIconCreatePixMap( curve3_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CURVE3, (void*)2 );
 	AddMenuButton( menu, CmdCurve, "cmdCurveChord", _("Curve from Chord"), wIconCreatePixMap( curve4_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CURVE4, (void*)3 );
 	AddMenuButton( menu, CmdBezCurve, "cmdBezier", _("Bezier Curve"), wIconCreatePixMap(bezier_xpm), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_BEZIER, (void*)bezCmdCreateTrack );
+	AddMenuButton( menu, CmdCornu, "cmdCornu", _("Cornu Curve"), wIconCreatePixMap(cornu_xpm), LEVEL0_50, IC_STICKY|IC_POPUP2, ACCL_CORNU, (void*)cornuCmdCreateTrack);
 	ButtonGroupEnd();
 
 	ButtonGroupBegin( _("Circle Track"), "cmdCurveSetCmd", _("Circle Tracks") );

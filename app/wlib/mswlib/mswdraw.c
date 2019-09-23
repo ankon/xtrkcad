@@ -722,7 +722,19 @@ void wDrawGetTextSize(
 	DeleteObject( newFont );
 	fp->lfHeight = oldLfHeight;
 }
-
+/**
+ * Draw text
+ * 
+ * \param d	device context
+ * \param px position x
+ * \param py position y
+ * \param angle drawing angle
+ * \param text text to print
+ * \param fp font
+ * \param siz font size
+ * \param dc color
+ * \param dopts drawing options
+ */
 void wDrawString(
     wDraw_p d,
     wPos_t px,
@@ -791,23 +803,40 @@ void wDrawString(
             myInvalidateRect(d, &rect);
         }
     } else {
-        COLORREF old;
         prevFont = SelectObject(d->hDc, newFont);
         SetBkMode(d->hDc, TRANSPARENT);
-        old = SetTextColor(d->hDc, mswGetColor(d->hasPalette,
-                                               dc));
-        TextOut(d->hDc, x, y, text, strlen(text));
-        SetTextColor(d->hDc, old);
+
+        if (dopts & wDrawOutlineFont) {
+            HPEN oldPen;
+            BeginPath(d->hDc);
+            TextOut(d->hDc, x, y, text, strlen(text));
+            EndPath(d->hDc);
+
+            // Now draw outline text
+            oldPen = SelectObject(d->hDc,
+                                  CreatePen(PS_SOLID, 1,
+                                            mswGetColor(d->hasPalette, dc)));
+            StrokePath(d->hDc);
+            SelectObject(d->hDc, oldPen);
+        } else {
+            COLORREF old;
+
+            old = SetTextColor(d->hDc, mswGetColor(d->hasPalette,
+                                                   dc));
+            TextOut(d->hDc, x, y, text, strlen(text));
+            SetTextColor(d->hDc, old);
+        }
+
         extent = GetTextExtent(d->hDc, CAST_AWAY_CONST text, strlen(text));
         SelectObject(d->hDc, prevFont);
         w = LOWORD(extent);
         h = HIWORD(extent);
 
         if (d->hWnd) {
-            rect.top = y-(w+h+1);
-            rect.bottom = y+(w+h+1);
-            rect.left = x-(w+h+1);
-            rect.right = x+(w+h+1);
+            rect.top = y - (w + h + 1);
+            rect.bottom = y + (w + h + 1);
+            rect.left = x - (w + h + 1);
+            rect.right = x + (w + h + 1);
             myInvalidateRect(d, &rect);
         }
     }
@@ -1383,6 +1412,7 @@ long FAR PASCAL XEXPORT mswDrawPush(
 	case WM_LBUTTONUP:
 	case WM_RBUTTONDOWN:
 	case WM_RBUTTONUP:
+	case WM_LBUTTONDBLCLK:
 		if (message == WM_LBUTTONDOWN)
 			action = wActionLDown;
 		else if (message == WM_RBUTTONDOWN)
@@ -1391,6 +1421,8 @@ long FAR PASCAL XEXPORT mswDrawPush(
 			action = wActionLUp;
 		else if (message == WM_RBUTTONUP)
 			action = wActionRUp;
+		else if (message == WM_LBUTTONDBLCLK)
+			action = wActionLDownDouble;
 		else {
 			if ( (wParam & MK_LBUTTON) != 0)
 				action = wActionLDrag;
