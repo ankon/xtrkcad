@@ -1,0 +1,4 @@
+#include <windows.h>
+#include "mswlib.h"
+
+0 ICON xtrkcad.ico
