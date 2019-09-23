@@ -36,6 +36,8 @@
 #define DC_CENTERLINE	(1<<8)
 #define DC_SEGTRACK		(1<<9)
 #define DC_TIES			(1<<10)
+#define DC_BLOCK_LEFT   (1<<11)
+#define DC_BLOCK_RIGHT  (1<<12)
 
 typedef struct drawCmd_t * drawCmd_p;
 
@@ -62,7 +64,7 @@ typedef struct drawCmd_t {
 		drawConvertPix2CoOrd Pix2CoOrd;
 		drawConvertCoOrd2Pix CoOrd2Pix;
 		FLOAT_T dpi;
-		} drawCmd_t;
+	} drawCmd_t;
 
 #define SCALEX(D,X)		((X)/(D).dpi)
 #define SCALEY(D,Y)		((Y)/(D).dpi)
@@ -113,11 +115,13 @@ extern wDrawColor drawColorRed;
 extern wDrawColor drawColorBlue;
 extern wDrawColor drawColorGreen;
 extern wDrawColor drawColorAqua;
+extern wDrawColor drawColorPowderedBlue;
 extern wDrawColor drawColorPurple;
 extern wDrawColor drawColorGold;
 #define wDrawColorBlack drawColorBlack
 #define wDrawColorWhite drawColorWhite
 #define wDrawColorBlue  drawColorBlue
+#define wDrawColorAqua  drawColorAqua
 #define wDrawColorRed	drawColorRed
 
 extern wDrawColor markerColor;
@@ -172,7 +176,7 @@ void DrawBoxedString( int, drawCmd_p, coOrd, char *, wFont_p, wFontSize_t, wDraw
 void DrawMultiLineTextSize(drawCmd_p dp, char * text, wFont_p fp, wFontSize_t fs, BOOL_T relative, coOrd * size, coOrd * lastline );
 void DrawTextSize2( drawCmd_p, char *, wFont_p, wFontSize_t, BOOL_T, coOrd *, POS_T *);
 void DrawTextSize( drawCmd_p, char *, wFont_p, wFontSize_t, BOOL_T, coOrd * );
-void DrawMultiString(drawCmd_p d, coOrd pos, char * text, wFont_p fp, wFontSize_t fs, wDrawColor color, ANGLE_T a, coOrd * lo, coOrd * hi);
+void DrawMultiString(drawCmd_p d, coOrd pos, char * text, wFont_p fp, wFontSize_t fs, wDrawColor color, ANGLE_T a, coOrd * lo, coOrd * hi, BOOL_T boxed);
 BOOL_T SetRoomSize( coOrd );
 void GetRoomSize( coOrd * );
 void DoRedraw( void );

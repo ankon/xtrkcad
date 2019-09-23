@@ -235,9 +235,36 @@ wBool_t wDropListSetValues(
 }
 
 /**
+ * Signal handler for the "changed"-signal in drop list's entry field.
+ * Get the entered text and calls the 'action' for handling of entered
+ * value.
+ * *
+ * \param entry IN entry field of the droplist
+ * \param data IN the drop list handle
+ * \return
+ */
+
+static void DropListEntryEntered(
+    GtkEntry * entry,
+    gpointer userData)
+{
+    const gchar * text;
+
+    text = gtk_entry_get_text(entry);
+
+    if (text && *text != '\0') {
+        gchar *copyOfText = g_strdup(text);
+        ((wList_p)userData)->editted = TRUE;
+        ((wList_p)userData)->action(-1, copyOfText, 1, ((wList_p)userData)->data, NULL);
+        g_free((gpointer)copyOfText);
+    } else {
+        wBeep();
+    }
+}
+
+/**
  * Signal handler for the "changed"-signal in drop list.
  * Gets the selected text and determines the selected row in the tree model.
- * Or handles user entered text.
  *
  * \param comboBox IN the combo_box
  * \param data IN the drop list handle

@@ -48,6 +48,9 @@ BOOL_T GetBezierMiddle( track_p, coOrd * );
 BOOL_T ConvertToArcs (coOrd[4], dynArr_t *, BOOL_T, wDrawColor, DIST_T);
 track_p NewBezierTrack(coOrd[4], trkSeg_t *, int);
 double BezierLength(coOrd[4], dynArr_t);
+double BezierOffsetLength(dynArr_t,double offset);
 double BezierMinRadius(coOrd[4],dynArr_t);
 void UpdateParms(wDrawColor color,long width);
+
+void addSegBezier(dynArr_t * const array_p, trkSeg_p seg);
 

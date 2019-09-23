@@ -589,6 +589,67 @@ BOOL_T ClipLine( coOrd *fp0, coOrd *fp1, coOrd orig, double angle, coOrd size )
 	return 1;
 }
 
+coOrd FindCentroid(int vertexCount, coOrd vertices[] )
+{
+    coOrd centroid = {0, 0};
+    double signedArea = 0.0;
+    double x0 = 0.0; // Current vertex X
+    double y0 = 0.0; // Current vertex Y
+    double x1 = 0.0; // Next vertex X
+    double y1 = 0.0; // Next vertex Y
+    double a = 0.0;  // Partial signed area
+
+    // For all vertices except last
+    int i=0;
+    for (i=0; i<vertexCount-1; ++i)
+    {
+        x0 = vertices[i].x;
+        y0 = vertices[i].y;
+        x1 = vertices[i+1].x;
+        y1 = vertices[i+1].y;
+        a = x0*y1 - x1*y0;
+        signedArea += a;
+        centroid.x += (x0 + x1)*a;
+        centroid.y += (y0 + y1)*a;
+    }
+
+    // Do last vertex separately to avoid performing an expensive
+    // modulus operation in each iteration.
+    x0 = vertices[i].x;
+    y0 = vertices[i].y;
+    x1 = vertices[0].x;
+    y1 = vertices[0].y;
+    a = x0*y1 - x1*y0;
+    signedArea += a;
+    centroid.x += (x0 + x1)*a;
+    centroid.y += (y0 + y1)*a;
+
+    signedArea *= 0.5;
+    centroid.x /= (6.0*signedArea);
+    centroid.y /= (6.0*signedArea);
+
+    return centroid;
+}
+
+double FindArcCenter(
+		coOrd * pos,
+		coOrd p0,
+		coOrd p1,
+		double radius )
+{
+	double d;
+	double a0, a1;
+	d = FindDistance( p0, p1 )/2.0;
+	a0 = FindAngle( p0, p1 );
+	a1 = NormalizeAngle(R2D(asin( d/radius )));
+	if (a1 > 180)
+		a1 -= 360;
+	a0 = NormalizeAngle( a0 + (90.0-a1) );
+	Translate( pos, p0, a0, radius );
+	return a1*2.0;
+}
+
+
 #ifdef LATER
 BOOL_T ClipArc( double a0, double a1, coOrd pos, double radius, coOrd orig, double angle, double size )
 {

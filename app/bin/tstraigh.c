@@ -163,7 +163,7 @@ static void UpdateStraight( track_p trk, int inx, descData_p descUpd, BOOL_T fin
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), strData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &strData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &strData.elev[1-ep], NULL, TRUE );
 		if ( strData.length > minLength )
 			strData.grade = fabs( (strData.elev[0]-strData.elev[1])/strData.length )*100.0;
 		else
@@ -242,8 +242,8 @@ static void DescribeStraight( track_p trk, char * str, CSIZE_T len )
 	fix1 = GetTrkEndTrk(trk,1)!=NULL;
 	strData.endPt[0] = GetTrkEndPos(trk,0);
 	strData.endPt[1] = GetTrkEndPos(trk,1);
-	ComputeElev( trk, 0, FALSE, &strData.elev[0], NULL );
-	ComputeElev( trk, 1, FALSE, &strData.elev[1], NULL );
+	ComputeElev( trk, 0, FALSE, &strData.elev[0], NULL, FALSE );
+	ComputeElev( trk, 1, FALSE, &strData.elev[1], NULL, FALSE );
 	strData.length = FindDistance( strData.endPt[0], strData.endPt[1] );
 	strData.layerNumber = GetTrkLayer(trk);
 	if ( strData.length > minLength )
@@ -275,6 +275,10 @@ static DIST_T DistanceStraight( track_p t, coOrd * p )
 static void DrawStraight( track_p t, drawCmd_p d, wDrawColor color )
 {
 	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
+	if ((d->options & DC_BLOCK_LEFT)!=0)
+		widthOptions |= DTS_BLOCK_LEFT|DTS_NOCENTER;
+	if ((d->options & DC_BLOCK_RIGHT)!=0)
+		widthOptions |= DTS_BLOCK_RIGHT|DTS_NOCENTER;
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)
@@ -282,7 +286,7 @@ static void DrawStraight( track_p t, drawCmd_p d, wDrawColor color )
 	DrawStraightTrack( d, GetTrkEndPos(t,0), GetTrkEndPos(t,1),
 				GetTrkEndAngle(t,0),
 				t, GetTrkGauge(t), color, widthOptions );
-	if ( (d->funcs->options & wDrawOptTemp) == 0 && (d->options & DC_QUICK) == 0 ) {
+	if ( (d->funcs->options & wDrawOptTemp) == 0 && (d->options & (DC_QUICK|DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) == 0 ) {
 		DrawEndPt( d, t, 0, color );
 		DrawEndPt( d, t, 1, color );
 	}
@@ -418,7 +422,7 @@ static BOOL_T EnumerateStraight( track_p trk )
 	return TRUE;
 }
 
-static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist )
+static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	DIST_T d;
 	ANGLE_T a;
@@ -432,8 +436,11 @@ static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist )
 					UndrawNewTrack( trk );
 					AdjustStraightEndPt( trk, ep, pos );
 					DrawNewTrack( trk );
-	} else
+	} else {
 		DeleteTrack( trk, TRUE );
+		MainRedraw();
+		MapRedraw();
+	}
 	return TRUE;
 }
 
@@ -499,6 +506,8 @@ BOOL_T ExtendStraightToJoin(
 		}
 		if (trk2) {
 			DeleteTrack( trk1, TRUE );
+			MainRedraw();
+			MapRedraw();
 		} else {
 			trk2 = trk1;
 			UndrawNewTrack( trk2 );
@@ -632,6 +641,7 @@ static BOOL_T QueryStraight( track_p trk, int query )
 	case Q_ISTRACK:
 	case Q_CORNU_CAN_MODIFY:
 	case Q_MODIFY_CAN_SPLIT:
+	case Q_CAN_EXTEND:
 		return TRUE;
 	default:
 		return FALSE;

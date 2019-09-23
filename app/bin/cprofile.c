@@ -219,7 +219,11 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 	pb.x = 0.0; pb.y = prof.minE;
 	pt = points(0);
 	DrawLine( D, pb, pt, lw, borderColor );
-	sprintf( message, "%0.1f", PutDim(profElem(0).elev) );
+	if (units==UNITS_ENGLISH) {
+		sprintf( message, "%0.1f\"", PutDim(profElem(0).elev)+0.05 );
+	} else {
+		sprintf( message, "%0.1fmm", PutDim(profElem(0).elev)+0.05 );
+	}
 	if (printVert) {
 		pl.x = pt.x + LABELH/2.0/prof.scaleX*D->scale;
 		pl.y = pt.y + 2.0/mainD.dpi/prof.scaleY*D->scale;
@@ -243,7 +247,7 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 		if (profElem(inx).dist > 0.1) {
 			grade = fabs(profElem(inx).elev-profElem(inx-1).elev)/
 				(profElem(inx).dist-profElem(inx-1).dist);
-			sprintf( message, "%0.1f%%", grade*100.0 );
+			sprintf( message, "%0.1f%%", round(grade*1000.0)/10.0 );
 			DrawTextSize( &mainD, message, fp, fontSize, FALSE, &textsize );
 			pl.x = (points(inx).x+points(inx-1).x)/2.0;
 			pl.y = (points(inx).y+points(inx-1).y)/2.0;
@@ -259,22 +263,22 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 		}
 		if (units==UNITS_ENGLISH) {
 			if (prof.totalD > 240)
-				sprintf( message, "%d'", ((int)floor(profElem(inx).dist)+6)/12 );
+				sprintf( message, "%0.1f'", (round((profElem(inx).dist/12.0)*10.0)/10.0) );
 			else
-				sprintf( message, "%d'%d\"", ((int)floor(profElem(inx).dist+0.5))/12, ((int)floor(profElem(inx).dist+0.5))%12 );
+				sprintf( message, "%d'%0.1f\"", (int)floor((profElem(inx).dist)/12.0), round(fmod(profElem(inx).dist,12.0)*10.0)/10.0 );
 		} else {
 			if (PutDim(prof.totalD) > 10000)
-				sprintf( message, "%0.0fm", (PutDim(profElem(inx).dist)+50)/100.0 );
+				sprintf( message, "%0.1fm", (round(PutDim(profElem(inx).dist)/10.0)/10.0) );
 			else if (PutDim(prof.totalD) > 100)
-				sprintf( message, "%0.1fm", (PutDim(profElem(inx).dist)+5)/100.0 );
+				sprintf( message, "%0.2fm", (round(PutDim(profElem(inx).dist))/100.0) );
 			else
-				sprintf( message, "%0.2fm", (PutDim(profElem(inx).dist)+0.5)/100.0 );
+				sprintf( message, "%0.3fm", (round(PutDim(profElem(inx).dist)*10.0))/1000.0 );
 		}
 		DrawTextSize( &mainD, message, fp, fontSize, FALSE, &textsize );
 		pl.x = pb.x-(textsize.x/2)/prof.scaleX*D->scale;
 		pl.y = prof.minE-(LABELH+3.0/mainD.dpi)/prof.scaleY*D->scale;
 		DrawString( D, pl, 0.0, message, fp, fontSize*D->scale, borderColor );
-		sprintf( message, "%0.1f", PutDim(profElem(inx).elev) );
+		sprintf( message, "%0.2f", round(PutDim(profElem(inx).elev)*100.0)/100.0 );
 		if (printVert) {
 			pl.x = pt.x + LABELH/2.0/prof.scaleX*D->scale;
 			pl.y = pt.y + 2.0/mainD.dpi/prof.scaleY*D->scale;
@@ -348,7 +352,10 @@ static void RedrawProfileW( void )
 	POS_T w;
 	coOrd textsize;
 	char *pTestString;
+	static int delayUpdate = 1;
 
+	if (delayUpdate)
+		wDrawDelayUpdate( screenProfileD.d, TRUE );
 	wDrawClear( screenProfileD.d );
 	wDrawGetSize( screenProfileD.d, &ww, &hh );
 	fp = wStandardFont(F_HELV, FALSE, FALSE);
@@ -395,8 +402,10 @@ static void RedrawProfileW( void )
 		size.x -= PBR(screenProfileFontSize);
 		size.y -= PBT;
 	}
-	if ( size.x < 0.1 || size.y < 0.1 )
+	if ( size.x < 0.1 || size.y < 0.1 ) {
+		wDrawDelayUpdate( screenProfileD.d, FALSE );
 		return;
+	}
 
 	/* Calculate range of data values */
 	if (profElem_da.cnt<=0) {
@@ -469,6 +478,7 @@ static void RedrawProfileW( void )
 		FALSE
 #endif
 		 );
+	wDrawDelayUpdate( screenProfileD.d, FALSE );
 }
 
 
@@ -668,34 +678,34 @@ static void SelProfileW(
 		}
 		if (inx >= profElem_da.cnt)
 			inx = profElem_da.cnt-1;
-		sprintf(message, _("Elev = %0.1f"), PutDim(elev) );
+		sprintf(message, _("Elev = %0.1f"), round(PutDim(elev)*10.0)/10.0 );
 		ParamLoadMessage( &profilePG, I_PROFILEMSG, message );
 		oldElev = elev;
-		ProfileTempDraw( inx, elev );
+		RedrawProfileW();
 		break;
 	case C_MOVE:
 		if ( inx < 0 )
 			break;
-		ProfileTempDraw( inx, oldElev );
 		if (profElem_da.cnt == 1 ) {
-			sprintf(message, _("Elev = %0.1f"), PutDim(elev) );
+			sprintf(message, _("Elev = %0.1f"), round(PutDim(elev)*10.0)/10.0 );
 		} else if (inx == 0) {
 			sprintf( message, _("Elev=%0.2f %0.1f%%"),
-				PutDim(elev),
-				fabs( profElem(inx+1).elev-elev ) / (profElem(inx+1).dist-profElem(inx).dist) * 100.0 );
+				round(PutDim(elev)*100.0)/100.0,
+				round(fabs(((profElem(inx+1).elev-elev ) / (profElem(inx+1).dist-profElem(inx).dist)) * 1000.0))/10.0 );
 		} else if (inx == profElem_da.cnt-1) {
 			sprintf( message, _("%0.1f%% Elev = %0.2f"),
-				fabs( profElem(inx-1).elev-elev ) / (profElem(inx).dist-profElem(inx-1).dist) * 100.0,
-				PutDim(elev) );
+				round(fabs(((profElem(inx-1).elev-elev ) / (profElem(inx).dist-profElem(inx-1).dist)) * 1000.0))/10.0,
+				round(PutDim(elev)*100.0)/100.0 );
 		} else {
 			sprintf( message, _("%0.1f%% Elev = %0.2f %0.1f%%"),
-				fabs( profElem(inx-1).elev-elev ) / (profElem(inx).dist-profElem(inx-1).dist) * 100.0,
-				PutDim(elev),
-				fabs( profElem(inx+1).elev-elev ) / (profElem(inx+1).dist-profElem(inx).dist) * 100.0 );
+				round(fabs((( profElem(inx-1).elev-elev ) / (profElem(inx).dist-profElem(inx-1).dist)) * 1000.0))/10.0,
+				round(PutDim(elev)*100.0)/100.0,
+				round(fabs( ( profElem(inx+1).elev-elev ) / (profElem(inx+1).dist-profElem(inx).dist) ) * 1000.0)/10.0 );
 		}
 		ParamLoadMessage( &profilePG, I_PROFILEMSG, message );
 		oldElev = elev;
-		ProfileTempDraw( inx, oldElev );
+		profElem(inx).elev = oldElev;
+		RedrawProfileW();
 		break;
 	case C_UP:
 		if (profileUndo == FALSE) {
@@ -1051,7 +1061,7 @@ static void ChkElev( track_p trk, EPINX_T ep, EPINX_T ep2, DIST_T dist, BOOL_T *
 		if (GetTrkEndElevMode(trk,epDefElev) == ELEV_DEF)
 			p->elev = GetTrkEndElevHeight(trk,epDefElev);
 		else
-			ComputeElev( trk, epDefElev, TRUE, &p->elev, NULL );
+			ComputeElev( trk, epDefElev, TRUE, &p->elev, NULL, TRUE );
 		p->defined = *defined;
 		*defined = TRUE;
 	} else if (undefined) {
@@ -1084,7 +1094,7 @@ static void ComputeProfElem( void )
 			ep2 = pathEndEp;
 		} else {
 			ep2 = GetNextTrkOnPath( trk, ep );
-			PASSERT( "computeProfElem", ep2 >= 0, NOP );
+			//PASSERT( "computeProfElem", ep2 >= 0, NOP );
 		}
 		dist += GetTrkLength( trk, ep, ep2 );
 		ChkElev( trk, ep2, ep, dist, &defined );
@@ -1270,7 +1280,7 @@ static void ProfileSubCommand( wBool_t set, void* pcmd )
 	switch (cmd) {
 	case 0:
 		/* define */
-		ComputeElev( profilePopupTrk, profilePopupEp, TRUE, &elev, NULL );
+		ComputeElev( profilePopupTrk, profilePopupEp, TRUE, &elev, NULL, TRUE );
 		mode = ELEV_DEF|ELEV_VISIBLE;
 		break;
 	case 1:
@@ -1304,7 +1314,7 @@ static STATUS_T CmdProfile( wAction_t action, coOrd pos )
 			profileColorDefinedProfile = drawColorBlue;
 			profileColorUndefinedProfile = drawColorRed;
 			profileColorFill = drawColorAqua;
-			DrawTextSize( &mainD, "999", wStandardFont( F_HELV, FALSE, FALSE ), screenProfileFontSize, FALSE, &textsize );
+			DrawTextSize( &mainD, "999.9", wStandardFont( F_HELV, FALSE, FALSE ), screenProfileFontSize, FALSE, &textsize );
 			labelH = textsize.y;
 			labelW = textsize.x;
 			profileW = ParamCreateDialog( &profilePG, MakeWindowTitle(_("Profile")), _("Done"), DoProfileDone, (paramActionCancelProc)Reset, TRUE, NULL, F_RESIZE, NULL );

@@ -53,6 +53,7 @@ typedef struct {
 static struct {
 		STATE_T state;
 		int joinMoveState;
+		BOOL_T cornuMode;
 		struct {
 				TRKTYP_T realType;
 				track_p trk;
@@ -396,6 +397,12 @@ static STATUS_T DoMoveToJoin( coOrd pos )
 			return C_CONTINUE;
 		if (!CheckTrackLayer( Dj.inp[Dj.joinMoveState].trk ) )
 			return C_CONTINUE;
+		if ( Dj.joinMoveState == 1 ) {
+			if (GetTrkScale(Dj.inp[0].trk) != GetTrkScale(Dj.inp[1].trk)) {
+				ErrorMessage( MSG_JOIN_GAUGE );
+				return C_CONTINUE;  //Match Gauge
+			}
+		}
 		Dj.inp[Dj.joinMoveState].params.ep = PickUnconnectedEndPoint( pos, Dj.inp[Dj.joinMoveState].trk ); /* CHECKME */
 		if ( Dj.inp[Dj.joinMoveState].params.ep == -1 ) {
 #ifdef LATER
@@ -461,16 +468,21 @@ static STATUS_T CmdJoin(
 			InfoMessage( _("Left click - join with track, Shift Left click - move to join") );
 		Dj.state = 0;
 		Dj.joinMoveState = 0;
+		Dj.cornuMode = FALSE;
 		/*ParamGroupRecord( &easementPG );*/
 		if (easementVal < 0)
 			return CmdCornu(action, pos);
+
 		return C_CONTINUE;
 
 	case C_DOWN:
-		if ( (Dj.state == 0 && (MyGetKeyState() & WKEY_SHIFT) != 0) || Dj.joinMoveState != 0 )
+
+		if ( !Dj.cornuMode && ((Dj.state == 0 && (MyGetKeyState() & WKEY_SHIFT) != 0) || Dj.joinMoveState != 0) )
 			return DoMoveToJoin( pos );
-		if (easementVal < 0.0)
+		if (easementVal < 0.0) {
+			Dj.cornuMode = TRUE;
 			return CmdCornu(action, pos);
+		}
 
 		DYNARR_SET( trkSeg_t, tempSegs_da, 3 );
 		tempSegs(0).color = drawColorBlack;
@@ -502,6 +514,10 @@ LOG( log_join, 1, ("JOIN: 1st track %d @[%0.3f %0.3f]\n",
 				return C_CONTINUE;
 			if (!CheckTrackLayer( Dj.inp[1].trk ) )
 				return C_CONTINUE;
+			if ( GetTrkScale(Dj.inp[1].trk) != GetTrkScale(Dj.inp[0].trk)) {
+				ErrorMessage( MSG_JOIN_GAUGE);
+				return C_CONTINUE;		//Reject different Gauges
+			}
 			Dj.inp[1].pos = pos;
 			if (!GetTrackParams( PARAMS_2ND_JOIN, Dj.inp[1].trk, pos, &Dj.inp[1].params ))
 				return C_CONTINUE;
@@ -567,7 +583,7 @@ LOG( log_join, 3, ("P1=[%0.3f %0.3f]\n", pos.x, pos.y ) )
 		if (Dj.state != 2)
 			return C_CONTINUE;
 
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, drawColorBlack );
+		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, drawColorWhite );
 		tempSegs_da.cnt = 0;
 		tempSegs(0).color = drawColorBlack;
 		ok = FALSE;
@@ -815,7 +831,7 @@ errorReturn:
 			InfoMessage( _("Select 2nd track") );
 			return C_CONTINUE;
 		}
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, drawColorBlack );
+		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, drawColorWhite );
 		tempSegs(0).color = drawColorBlack;
 		tempSegs_da.cnt = 0;
 		if (Dj.jRes.type == curveTypeNone) {

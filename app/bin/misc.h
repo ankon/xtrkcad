@@ -136,6 +136,7 @@ extern long programMode;
 #define C_TEXT			wActionText
 #define C_WUP			wActionWheelUp
 #define C_WDOWN			wActionWheelDown
+#define C_LDOUBLE       wActionLDownDouble
 #define C_INIT			(wActionLast+1)
 #define C_START			(wActionLast+2)
 #define C_REDRAW		(wActionLast+3)
@@ -146,6 +147,7 @@ extern long programMode;
 #define C_RCLICK		(wActionLast+8)
 #define C_CMDMENU		(wActionLast+9)
 #define C_FINISH		(wActionLast+10)
+#define C_UPDATE        (wActionLast+11)
 
 #define C_CONTINUE		(100)
 #define C_TERMINATE		(101)
@@ -189,6 +191,7 @@ extern wButton_p undoB;
 extern wButton_p redoB;
 extern wButton_p zoomUpB;			/** ZoomUp button on toolbar */
 extern wButton_p zoomDownB;		/** ZoomDown button on toolbar */
+extern wButton_p backgroundB;		/** background visibility control */
 // extern wButton_p easementB;
 extern wIndex_t checkPtMark;
 extern wMenu_p demoM;
@@ -234,6 +237,7 @@ void CheckRoomSize( BOOL_T );
 const char * GetBalloonHelpStr( char* );
 void EnableCommands( void );
 void Reset( void );
+BOOL_T IsCurCommandSticky(void);
 void ResetIfNotSticky( void );
 wBool_t DoCurCommand( wAction_t, coOrd );
 void ConfirmReset( BOOL_T );
@@ -279,11 +283,13 @@ void InitDebug( char *, long * );
 #define CHANGE_MAIN		(1<<2)
 #define CHANGE_MAP		(1<<4)
 #define CHANGE_GRID		(1<<5)
+#define CHANGE_BACKGROUND (1<<6)
 #define CHANGE_UNITS	(1<<7)
 #define CHANGE_TOOLBAR	(1<<8)
 #define CHANGE_CMDOPT	(1<<9)
 #define CHANGE_LIMITS	(1<<10)
-#define CHANGE_ALL		(CHANGE_SCALE|CHANGE_PARAMS|CHANGE_MAIN|CHANGE_MAP|CHANGE_UNITS|CHANGE_TOOLBAR|CHANGE_CMDOPT)
+#define CHANGE_SIGNAL   (1<<11)
+#define CHANGE_ALL		(CHANGE_SCALE|CHANGE_PARAMS|CHANGE_MAIN|CHANGE_MAP|CHANGE_UNITS|CHANGE_TOOLBAR|CHANGE_CMDOPT|CHANGE_SIGNAL|CHANGE_BACKGROUND)
 typedef void (*changeNotificationCallBack_t)( long );
 void RegisterChangeNotification( changeNotificationCallBack_t );
 void DoChangeNotification( long );
@@ -315,6 +321,7 @@ addButtonCallBack_t ColorInit( void );
 addButtonCallBack_t PrefInit( void );
 addButtonCallBack_t LayoutInit( void );
 addButtonCallBack_t DisplayInit( void );
+addButtonCallBack_t SignalInit( void );
 addButtonCallBack_t CmdoptInit( void );
 addButtonCallBack_t OutputBitMapInit( void );
 addButtonCallBack_t CustomMgrInit( void );
@@ -342,7 +349,10 @@ void EnumerateEnd(void);
 
 /* cnote.c */
 void DoNote( void );
+char * ReadMultilineText(size_t textLength);
 BOOL_T WriteMainNote( FILE * );
+
+void ReadMainNote(char * line);
 
 /* dbench.c */
 long GetBenchData( long, long );
@@ -413,10 +423,13 @@ void SwitchmotorMgmLoad( void );
 /* csignal.c */
 void InitCmdSignal ( wMenu_p menu );
 void SignalMgmLoad ( void );
+BOOL_T WriteSignalSystem(FILE *);
 /* ccontrol.c */
 void ControlMgmLoad ( void );
 void InitCmdControl ( wMenu_p menu );
 /* csensor.c */
 void SensorMgmLoad ( void );
 void InitCmdSensor ( wMenu_p menu );
+/* condition.c */
+BOOL_T WriteConditions(FILE *);
 #endif

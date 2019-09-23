@@ -1166,6 +1166,7 @@ EXPORT BOOL_T ReadSegs( void )
 		if ( *cp == '\n' || *cp == '#' ) {
 			continue;
 		}
+		if (subsegs) continue;
 		type = *cp++;
 		hasElev = FALSE;
 		noVersion = TRUE;
@@ -1379,7 +1380,7 @@ EXPORT BOOL_T ReadSegs( void )
 			s->type = type;
 			s->u.t.fontP = NULL;
 			char * expandedText;
-			if ( !GetArgs( cp, "lpf0fq", &rgb, &s->u.t.pos, &s->u.t.angle, &s->u.t.fontSize, &expandedText ) ) {
+			if ( !GetArgs( cp, "lpfdfq", &rgb, &s->u.t.pos, &s->u.t.angle, &s->u.t.boxed, &s->u.t.fontSize, &expandedText ) ) {
 				rc = FALSE;
 				/*??*/break;
 			}
@@ -1593,9 +1594,10 @@ EXPORT BOOL_T WriteSegsEnd(
 			break;
 		case SEG_TEXT: /* 0pf0fq */
 			escaped_text = ConvertToEscapedText(segs[i].u.t.string);
-			rc &= fprintf( f, "\t%c %ld %0.6f %0.6f %0.6f 0 %0.6f \"%s\"\n",
+			rc &= fprintf( f, "\t%c %ld %0.6f %0.6f %0.6f %d %0.6f \"%s\"\n",
 				segs[i].type, wDrawGetRGB(segs[i].color),
 				segs[i].u.t.pos.x, segs[i].u.t.pos.y, segs[i].u.t.angle,
+				segs[i].u.t.boxed,
 				segs[i].u.t.fontSize, escaped_text ) > 0;
 			MyFree(escaped_text);
 			break;
@@ -1792,7 +1794,7 @@ EXPORT void DrawSegsO(
                 }
                 break;
             }
-			continue;
+			// continue; Ensure tracks also drawn
 		}
 		switch (segPtr->type) {
 		case SEG_STRTRK:
@@ -1941,7 +1943,7 @@ EXPORT void DrawSegsO(
 			break;
 		case SEG_TEXT:
 			REORIGIN( p0, segPtr->u.t.pos, angle, orig )
-			DrawMultiString( d, p0, segPtr->u.t.string, segPtr->u.t.fontP, segPtr->u.t.fontSize, color1, NormalizeAngle(angle + segPtr->u.t.angle), NULL, NULL );
+			DrawMultiString( d, p0, segPtr->u.t.string, segPtr->u.t.fontP, segPtr->u.t.fontSize, color1, NormalizeAngle(angle + segPtr->u.t.angle), NULL, NULL, segPtr->u.t.boxed );
 			break;
 		case SEG_FILPOLY:
 			if ( (d->options&DC_GROUP) == 0 &&
@@ -1957,6 +1959,7 @@ EXPORT void DrawSegsO(
 				free(tempPts);
 				break;
 			} /* else fall thru */
+			/* no break */
 		case SEG_POLY:
 			if ( (d->options&DC_GROUP) ) {
 				DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
@@ -2003,7 +2006,8 @@ EXPORT void DrawSegs(
 		DIST_T trackGauge,
 		wDrawColor color )
 {
-	DrawSegsO( d, NULL, orig, angle, segPtr, segCnt, trackGauge, color, 0 );
+
+	DrawSegsO( d, NULL, orig, angle, segPtr, segCnt, trackGauge, color, DTS_LEFT|DTS_RIGHT );
 }
 
 /*
@@ -2031,10 +2035,61 @@ EXPORT void CleanSegs(dynArr_t * seg_p) {
 	seg_p->max = 0;
 }
 
+
+/*
+ * Copy Segs from one array to another
+ */
+EXPORT void AppendSegs(dynArr_t * seg_to, dynArr_t * seg_from) {
+	if (seg_from->cnt ==0) return;
+	int j = 0;
+	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
+	for (int i=0; i<seg_from->cnt;i++,j++) {
+		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_p to_p = &DYNARR_N(trkSeg_t, * seg_to,i);
+		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
+		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
+			if (from_p->bezSegs.ptr) {
+				to_p->bezSegs.ptr = memdup(from_p->bezSegs.ptr,from_p->bezSegs.cnt*sizeof(trkSeg_t));
+			}
+		}
+		if (from_p->type == SEG_POLY || from_p->type == SEG_FILPOLY) {
+			if (from_p->u.p.pts) {
+				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(coOrd));
+			}
+		}
+	}
+}
+
+EXPORT void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd orig, coOrd rotateOrig, ANGLE_T angle) {
+	if (seg_from->cnt ==0) return;
+	int j = 0;
+	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
+	for (int i=0; i<seg_from->cnt;i++,j++) {
+		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_p to_p = &DYNARR_N(trkSeg_t, * seg_to,i);
+		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
+		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
+			if (from_p->bezSegs.ptr) {
+				to_p->bezSegs.ptr = memdup(from_p->bezSegs.ptr,from_p->bezSegs.cnt*sizeof(trkSeg_t));
+			}
+		}
+		if (from_p->type == SEG_POLY || from_p->type == SEG_FILPOLY) {
+			if (from_p->u.p.pts) {
+				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(coOrd));
+			}
+		}
+		RotateSegs(1,to_p,rotateOrig,angle);
+		coOrd move;
+		move.x = orig.x - rotateOrig.x;
+		move.y = orig.y - rotateOrig.y;
+		MoveSegs(1,to_p,move);
+	}
+}
+
 EXPORT void CopyPoly(trkSeg_p p, wIndex_t segCnt) {
 	coOrd * newPts;
 	for (int i=0;i<segCnt;i++,p++) {
-		if (p->type == SEG_POLY || p->type == SEG_FILPOLY) {
+		if ((p->type == SEG_POLY) || (p->type == SEG_FILPOLY)) {
 			newPts = memdup( p->u.p.pts, p->u.p.cnt*sizeof (coOrd) );
 			p->u.p.pts = newPts;
 		}

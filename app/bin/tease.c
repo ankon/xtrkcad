@@ -483,6 +483,20 @@ static DIST_T GetLengthJoint( track_p trk )
 		return fabs( d0-d1 );
 }
 
+static DIST_T GetFlexLengthJoint( track_p trk )
+{
+	struct extraData *xx;
+	DIST_T d0, d1, d3;
+	xx = GetTrkExtraData(trk);
+	d0 = JoinD( xx->l0, xx->R+(GetTrkGauge(trk)/2.0), xx->L );
+	d1 = JoinD( xx->l1, xx->R+(GetTrkGauge(trk)/2.0), xx->L );
+	d3 = JoinD( xx->l1, xx->R-(GetTrkGauge(trk)/2.0), xx->L );
+	if (xx->Scurve) {
+		return d0+d3;
+	} else
+		return fabs( d0-d1 );
+}
+
 
 static struct {
 		coOrd endPt[2];
@@ -523,7 +537,7 @@ static void UpdateJoint( track_p trk, int inx, descData_p descUpd, BOOL_T final 
 	case Z1:
 		ep = (inx==Z0?0:1);
 		UpdateTrkEndElev( trk, ep, GetTrkEndElevUnmaskedMode(trk,ep), jointData.elev[ep], NULL );
-		ComputeElev( trk, 1-ep, FALSE, &jointData.elev[1-ep], NULL );
+		ComputeElev( trk, 1-ep, FALSE, &jointData.elev[1-ep], NULL, TRUE );
 		if ( jointData.length > minLength )
 			jointData.grade = fabs( (jointData.elev[0]-jointData.elev[1])/jointData.length )*100.0;
 		else
@@ -570,8 +584,8 @@ static void DescribeJoint(
 	jointData.l0 = xx->l0;
 	jointData.l1 = xx->l1;
 	jointData.layerNumber = GetTrkLayer(trk);
-	ComputeElev( trk, 0, FALSE, &jointData.elev[0], NULL );
-	ComputeElev( trk, 1, FALSE, &jointData.elev[1], NULL );
+	ComputeElev( trk, 0, FALSE, &jointData.elev[0], NULL, FALSE );
+	ComputeElev( trk, 1, FALSE, &jointData.elev[1], NULL, FALSE );
 	if ( jointData.length > minLength )
 		jointData.grade = fabs( (jointData.elev[0]-jointData.elev[1])/jointData.length )*100.0;
 	else
@@ -748,6 +762,10 @@ static void DrawJointSegment(
 	}
 
 	widthOptions |= DTS_RIGHT|DTS_LEFT|DTS_TIES;
+	if (d->options&DC_BLOCK_LEFT)
+		widthOptions |= DTS_BLOCK_LEFT;
+	if (d->options&DC_BLOCK_RIGHT)
+		widthOptions |= DTS_BLOCK_RIGHT;
 	GetJointPos( &p0, NULL, l0, R, L, P, A, N );
 	for (i=1; i<=cnt1; i++) {
 		a0 += a1;
@@ -831,20 +849,6 @@ EXPORT void DrawJointTrack(
 		return;
 	}
 LOG( log_ease, 4, ( "DJT( (X%0.3f Y%0.3f A%0.3f) \n", pos.x, pos.y, angle ) )
-#ifdef LATER
-	scale2rail = (d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale;
-
-	if (options&DTS_THICK2)
-		width = 2;
-	if (options&DTS_THICK3)
-		width = 3;
-#ifdef WINDOWS
-	width *= (wDrawWidth)(d->dpi/mainD.dpi);
-#else
-	if (d->options&DC_PRINT)
-		width *= 300/75;
-#endif
-#endif
 	if (color == wDrawColorBlack)
 		color = normalColor;
 	if (!Scurve) {
@@ -865,7 +869,7 @@ LOG( log_ease, 4, ( "DJT( (X%0.3f Y%0.3f A%0.3f) \n", pos.x, pos.y, angle ) )
 		DrawJointSegment( d, cnt, 0, l1, R, L, pos,
 						angle+180, negate, trackGauge, color, options, trk );
 	}
-	if ( (d->funcs->options & wDrawOptTemp) == 0 && (d->options&DC_QUICK) == 0 ) {
+	if ( (d->funcs->options & wDrawOptTemp) == 0 && (d->options&(DC_QUICK|DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) == 0 ) {
 		DrawEndPt( d, trk, ep0, color );
 		DrawEndPt( d, trk, ep1, color );
 	}
@@ -1225,14 +1229,16 @@ static BOOL_T TraverseJointTrack(
 static BOOL_T EnumerateJoint( track_p trk )
 {
 	if (trk != NULL) {
-		ScaleLengthIncrement( GetTrkScale(trk), GetLengthJoint(trk) );
+		ScaleLengthIncrement( GetTrkScale(trk), GetFlexLengthJoint(trk) );
 	}
 	return TRUE;
 }
 
-static BOOL_T TrimJoint( track_p trk, EPINX_T ep, DIST_T maxX )
+static BOOL_T TrimJoint( track_p trk, EPINX_T ep, DIST_T maxX, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	DeleteTrack( trk, FALSE );
+	MainRedraw();
+	MapRedraw();
 	return TRUE;
 }
 
@@ -1287,6 +1293,8 @@ static BOOL_T MergeJoint(
 		ConnectTracks( trk0, ep0, trk2, ep2 );
 	}
 	DrawNewTrack( trk0 );
+	MainRedraw();
+	MapRedraw();
 	return TRUE;
 }
 
@@ -1300,7 +1308,7 @@ static BOOL_T GetParamsJoint( int inx, track_p trk, coOrd pos, trackParams_t * p
 	params->lineOrig = GetTrkEndPos(trk,params->ep);
 	params->lineEnd = params->lineOrig;
 	params->angle = GetTrkEndAngle(trk,params->ep);
-	params->len = 0.0;
+	params->len = GetLengthJoint(trk);
 	params->arcR = 0.0;
 	return TRUE;
 }
