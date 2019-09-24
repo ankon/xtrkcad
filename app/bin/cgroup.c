@@ -1501,7 +1501,9 @@ groupSimpleTurnout:
 					trackCount--;
 				}
 			}
+
 			trk = NewCompound( T_TURNOUT, 0, orig, 0.0, to->title, tempEndPts_da.cnt, &tempEndPts(0), NULL, pathLen, (char *)path, trackSegs_da.cnt, &trackSegs(0) );
+
 			SetTrkVisible( trk, TRUE );
 
 			SetTrkVisible( trk, TRUE );

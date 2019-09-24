@@ -1371,7 +1371,7 @@ wBool_t FindEndIntersection(coOrd base, coOrd orig, ANGLE_T angle, track_p * t1,
 			coOrd pos2;
 			pos2 = pos1;
 			track_p tt;
-			if ((tt=OnTrackIgnore(&pos2,FALSE,TRUE,ts))!=NULL) {
+			if ((tt=OnTrackIgnore(&pos2,FALSE,TRUE,TRUE, ts))!=NULL) {
 				if (!GetTrkSelected(tt)) {							//Ignore if new track is selected
 					EPINX_T epp = PickUnconnectedEndPointSilent(pos2, tt);
 					if (epp>=0) {
@@ -1992,6 +1992,13 @@ STATUS_T CmdMoveDescription(
 				} else
 					DrawTrack(trk,&mainD,wDrawColorBlue);
 			}
+			d = BlockDescriptionDistance(pos, trk1);
+			if ( d < dd ) {
+				dd = d;
+				trk = trk1;
+				ep = -1;
+				mode = 5;
+			}
 		}
 		MainRedraw();
 		break;
@@ -2028,6 +2035,8 @@ STATUS_T CmdMoveDescription(
 				return CornuDescriptionMove( trk, action, pos );
 			case 4:
 				return BezierDescriptionMove( trk, action, pos );
+			case 5:
+				return BlockDescriptionMove( trk, action, pos);
 			}
 		}
 		hidden = FALSE;

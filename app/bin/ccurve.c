@@ -248,8 +248,7 @@ EXPORT STATUS_T CreateCurve(
 			if (Da.trk) message( _("Tangent Locked: Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			else message( _("Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			tempSegs(1).u.c.center = pos;
-			DrawArrowHeads( &tempSegs(2), pos0, FindAngle(pos0,pos)+90, TRUE, wDrawColorBlack );
-			tempSegs_da.cnt = 7;
+			tempSegs_da.cnt += DrawArrowHeads( &tempSegs(2), pos0, FindAngle(pos0,pos)+90, TRUE, wDrawColorBlack );
 			break;
 		case crvCmdFromCenter:
 			message( _("Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );

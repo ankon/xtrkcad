@@ -1212,7 +1212,7 @@ static BOOL_T ComputeCurve(
 
 #ifndef MKTURNOUT
 /* For Bezier Segs we need to duplicate the subSegs Array as well */
-void AppendSegs(dynArr_t * target, dynArr_t * source) {
+void AppendBezSegs(dynArr_t * target, dynArr_t * source) {
 
 #define sourceSegs(N) DYNARR_N( trkSeg_t, *source, N )
 #define targetSegs(N) DYNARR_N( trkSeg_t, *target, N )
@@ -1794,7 +1794,7 @@ LogPrintf( "ctoDes1: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f), EP(%f,%f) RP0(%f,%f)
 
 					Toe2Seg = cornuSegs_da.cnt+Toe1Seg;
 					/* Add to second cornu to tempSegs array */
-					AppendSegs(&tempSegs_da,&cornuSegs_da);
+					AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 					/* Get ready to reuse cornuSegs array*/
 					ClearSegs(&cornuSegs_da);
 				} else {
@@ -1837,7 +1837,7 @@ LogPrintf( "ctoDes1: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f), EP(%f,%f) RP0(%f,%f)
 
 				CenterEndSeg = cornuSegs_da.cnt+Toe2Seg;
 				/* Add to second cornu to tempSegs array */
-				AppendSegs(&tempSegs_da,&cornuSegs_da);
+				AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 				/* Get ready to reuse cornuSegs array*/
 				ClearSegs(&cornuSegs_da);
 			} else {
@@ -1882,7 +1882,7 @@ LogPrintf( "ctoDes2: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f) EP(%f,%f) RP0(%f,%f) 
 			LeftEndSeg = cornuSegs_da.cnt+CenterEndSeg;
 
 			/* Add to second cornu to tempSegs array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 			/* Get ready to reuse cornuSegs array*/
 			ClearSegs(&cornuSegs_da);
 
@@ -1924,7 +1924,7 @@ LogPrintf( "ctoDes2: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f) EP(%f,%f) RP0(%f,%f) 
 			RightEndSeg = cornuSegs_da.cnt+LeftEndSeg;
 
 			/*Add Third Part to tempSegs Array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 			/* Safety - clear out cornu Array */
 			ClearSegs(&cornuSegs_da);
 
@@ -2294,7 +2294,7 @@ LogPrintf( "ctoDes2: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f) EP(%f,%f) RP0(%f,%f) 
 			int OuterEndSeg = cornuSegs_da.cnt + ToeSeg;
 
 			/* Add to second cornu to tempSegs array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 
 			/* Get ready to reuse cornuSegs array*/
 			ClearSegs(&cornuSegs_da);
@@ -2337,7 +2337,7 @@ LogPrintf( "ctoDes3: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f) EP(%f,%f) RP0(%f,%f) 
 			int InnerEndSeg = cornuSegs_da.cnt + OuterEndSeg;
 
 			/*Add Third Part to tempSegs Array */
-			AppendSegs(&tempSegs_da,&cornuSegs_da);
+			AppendBezSegs(&tempSegs_da,&cornuSegs_da);
 
 
 			/* Safety - clear out cornu Array */

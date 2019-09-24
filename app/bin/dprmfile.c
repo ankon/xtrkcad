@@ -105,6 +105,8 @@ void ParamFileListLoad(int paramFileCnt,  dynArr_t *paramFiles)
 						  DynStringToCStr(&description),
 						  indicatorIcons[paramFileInfo.trackState],
 						  (void*)(intptr_t)fileInx);
+
+			SetCurrentPath( PARAMETERPATHKEY, paramFileInfo(fileInx).name);
 		}
 	}
 	wListSetIndex(paramFileL, listInx);
