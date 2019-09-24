@@ -124,6 +124,7 @@ EXPORT wDrawColor elevColorIgnore;
 EXPORT wDrawColor elevColorDefined;
 EXPORT wDrawColor profilePathColor;
 EXPORT wDrawColor exceptionColor;
+EXPORT wDrawColor blockColor;
 
 static wFont_p rulerFp;
 

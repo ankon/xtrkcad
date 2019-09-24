@@ -148,6 +148,7 @@
 #define ACCL_STICKY		(WALT+WCTL+'k')
 #define ACCL_PREFERENCES		(WALT+WCTL+'p')
 #define ACCL_COLORW		(WALT+WCTL+'c')
+#define ACCL_SIGNALW    (0)
 
 /* macroM */
 #define ACCL_RECORD		(WALT+WCTL+'r')

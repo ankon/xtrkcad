@@ -519,6 +519,8 @@ BOOL_T CallCornuM(dynArr_t extra_points, BOOL_T end[2], coOrd pos[2], cornuParm_
 	Da.bezc = new_bezctx_xtrkcad(array_p,ends,spots);
 
 	coOrd pos0 = pos[0];
+	type[0] = SPIRO_OPEN_CONTOUR;
+
 
 	if (end[0]) {
 		type[0] = SPIRO_OPEN_CONTOUR;
@@ -1002,6 +1004,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 		Da.selectEndPoint = -1;
 		Da.selectMidPoint = -1;
 		Da.selectEndHandle = -1;
+
 		for (int i=0;i<2;i++) {
 			d = FindDistance(Da.pos[i],pos);
 			if (d < dd) {
@@ -2023,6 +2026,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 	Da.trackGauge = trackGauge;
 	Da.selectTrack = NULL;
 
+	
 	switch (action&0xFF) {
 
 	case C_START:
@@ -2155,6 +2159,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 					Da.ep[0] = ep;
 				}
 				Da.state = POS_1;
+
 				Da.selectEndPoint = 0;        //Select first end point
 				Da.ep1Segs_da_cnt = createEndPoint(Da.ep1Segs, Da.pos[0], FALSE, !QueryTrack(Da.trk[0],Q_IS_CORNU),QueryTrack(Da.trk[0],Q_CORNU_CAN_MODIFY),
 						Da.trk[0]!=NULL,Da.angle[0],Da.radius[0],Da.center[0],NULL);
@@ -2790,7 +2795,7 @@ static STATUS_T CmdConvertFrom(
 #include "bitmaps/convertfr.xpm"
 
 EXPORT void InitCmdCornu( wMenu_p menu )
-{	
+{
 	ButtonGroupBegin( _("Convert"), "cmdConvertSetCmd", _("Convert") );
 	AddMenuButton( menu, CmdConvertTo, "cmdConvertTo", _("Convert To Cornu"), wIconCreatePixMap(convertto_xpm), LEVEL0_50, IC_STICKY|IC_LCLICK|IC_POPUP2,ACCL_CONVERTTO, NULL );
 	AddMenuButton( menu, CmdConvertFrom, "cmdConvertFrom", _("Convert From Cornu"), wIconCreatePixMap(convertfr_xpm), LEVEL0_50, IC_STICKY|IC_LCLICK|IC_POPUP2,ACCL_CONVERTFR, NULL );

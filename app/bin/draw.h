@@ -36,6 +36,8 @@
 #define DC_CENTERLINE	(1<<8)
 #define DC_SEGTRACK		(1<<9)
 #define DC_TIES			(1<<10)
+#define DC_BLOCK_LEFT   (1<<11)
+#define DC_BLOCK_RIGHT  (1<<12)
 
 #define INIT_MAIN_SCALE (8.0)
 #define INIT_MAP_SCALE	(64.0)

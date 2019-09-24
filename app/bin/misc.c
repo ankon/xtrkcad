@@ -588,7 +588,15 @@ static void ChkLoad(void) {
 	Confirm(_("Load"), DoLoad);
 }
 
-static void ChkRevert(void) {
+
+static void ChkExamples( void )
+{
+	Confirm(_("examples"), DoExamples);
+}
+
+static void ChkRevert( void )
+{
+
 	int rc;
 
 	if (changed) {
@@ -633,7 +641,9 @@ EXPORT void SaveState(void) {
 	SaveParamFileList();
 	ParamUpdatePrefs();
 
-	wPrefSetString("misc", "lastlayout", GetLayoutFullPath());
+
+	wPrefSetString( "misc", "lastlayout", GetLayoutFullPath());
+	wPrefSetInteger( "misc", "lastlayoutexample", bExample );
 
 	if (fileList_ml) {
 		strcpy(file, "file");
@@ -683,7 +693,9 @@ static void DoClearAfter(void) {
 	DoLayout(NULL);
 	checkPtMark = 0;
 	Reset();
-	DoChangeNotification( CHANGE_MAIN | CHANGE_MAP);
+
+	DoChangeNotification( CHANGE_MAIN|CHANGE_MAP );
+	bReadOnly = TRUE;
 	EnableCommands();
 	SetLayoutFullPath("");
 	SetWindowTitle();
@@ -1528,10 +1540,12 @@ EXPORT wIndex_t AddMenuButton(wMenu_p menu, procCommand_t command,
 			stickyLabels[stickyCnt - 1] = buttonGroupStickyLabel;
 		}
 		stickyLabels[stickyCnt] = NULL;
+
 		long stickyMask = 1L<<(stickyCnt-1);
 		commandList[cmdInx].stickyMask = stickyMask;
 		if ( ( commandList[cmdInx].options & IC_INITNOTSTICKY ) == 0 )
 			stickySet |= stickyMask;
+
 	}
 	if (buttonGroupPopupM) {
 		commandList[cmdInx].menu[0] = wMenuPushCreate(buttonGroupPopupM,
@@ -2373,6 +2387,9 @@ static void CreateMenus(void) {
 	MiscMenuItemCreate(optionM, NULL, "cmdSticky", _("Stic&ky ..."),
 			ACCL_STICKY, (void*) (wMenuCallBack_p) DoSticky, IC_MODETRAIN_TOO,
 			(void *) 0);
+	MiscMenuItemCreate(optionM, NULL, "cmdSigOpt", _("&Signal ..."),
+			ACCL_SIGNALW, (void*) SignalInit(), IC_MODETRAIN_TOO, (void*) 0);
+
 	if (extraButtons) {
 		menuPLs[menuPG.paramCnt].context = debugW;
 		MiscMenuItemCreate(optionM, NULL, "cmdDebug", _("&Debug ..."), 0,
@@ -2414,11 +2431,12 @@ static void CreateMenus(void) {
 	wMenuListAdd(messageList_ml, 0, _(MESSAGE_LIST_EMPTY), NULL);
 
 	/* tip of the day */
-	wMenuSeparatorCreate(helpM);
-	wMenuPushCreate(helpM, "cmdTip", _("Tip of the Day..."), 0,
-			(wMenuCallBack_p) ShowTip,
-			(void *) (SHOWTIP_FORCESHOW | SHOWTIP_NEXTTIP));
-	demoM = wMenuMenuCreate(helpM, "cmdDemo", _("&Demos"));
+
+	wMenuSeparatorCreate( helpM );
+	wMenuPushCreate( helpM, "cmdTip", _("Tip of the Day..."), 0, (wMenuCallBack_p)ShowTip, (void *)(SHOWTIP_FORCESHOW | SHOWTIP_NEXTTIP));
+	demoM = wMenuMenuCreate( helpM, "cmdDemo", _("&Demos") );
+	wMenuPushCreate( helpM, "cmdExamples", _("Examples..."), 0, (wMenuCallBack_p)ChkExamples, (void *)0);
+
 
 	/* about window */
 	wMenuSeparatorCreate(helpM);
@@ -2714,6 +2732,7 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	profilePathColor = drawColorPurple;
 	exceptionColor = wDrawFindColor(wRGB(255, 0, 128));
 	tieColor = wDrawFindColor(wRGB(255, 128, 0));
+	blockColor = drawColorPurple;
 
 	newToolbarMax = (1 << BG_COUNT) - 1;
 	wPrefGetInteger("misc", "toolbarset", &toolbarSet, newToolbarMax);
@@ -2852,7 +2871,10 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	if (!resumeWork) {
 		/* if work is not to be resumed and no filename was given on startup, load last layout */
 		if ((onStartup == 0) && (!initialFile || !strlen(initialFile))) {
+			long iExample;
 			initialFile = (char*)wPrefGetString("misc", "lastlayout");
+			wPrefGetInteger("misc", "lastlayoutexample", &iExample, 0);
+			bExample = (iExample == 1);
 		}
 
 		if (initialFile && strlen(initialFile)) {

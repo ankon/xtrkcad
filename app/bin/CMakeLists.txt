@@ -137,6 +137,7 @@ SET(SOURCES
 	trkseg.c
 	tstraigh.c
 	utility.c
+	condition.c
 	cJSON.c
 	archive.h
 	directory.h

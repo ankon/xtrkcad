@@ -665,6 +665,12 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
 
 
+	if (d->options&DC_BLOCK_LEFT)
+		widthOptions |= DTS_BLOCK_LEFT;
+	if (d->options&DC_BLOCK_RIGHT)
+		widthOptions |= DTS_BLOCK_RIGHT;
+
+
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
 	if (GetTrkWidth(t) == 3)
@@ -688,6 +694,7 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 				t, GetTrkGauge(t), color, widthOptions );
 	if ( (d->funcs->options & wDrawOptTemp) == 0 &&
 		 (d->options&DC_QUICK) == 0 &&
+		 (d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) ==0 &&
 		 (!IsCurveCircle(t)) ) {
 		DrawEndPt( d, t, 0, color );
 		DrawEndPt( d, t, 1, color );
@@ -1179,6 +1186,7 @@ static DIST_T GetLengthCurve( track_p trk )
 		a1 = 360.0;
 	else
 		GetCurveAngles( &a0, &a1, trk );
+
 	dist = rad*a1*2.0*M_PI/360.0;
 	if (xx->helixTurns>0)
 		dist += (xx->helixTurns-(xx->circle?1:0)) * xx->radius * 2.0 * M_PI;
