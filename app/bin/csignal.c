@@ -128,20 +128,6 @@ static paramGroup_t signalPG = { "Signal", 0, signalPLs, sizeof signalPLs/sizeof
 
 EXPORT dynArr_t signalData_da;       //HotBar Signals - These can be picked from but are not in Layout
 
-/* These are the normal Aspect Names that JMRI will recognize they are used in XTrackCAD if no Base Aspects are defined */
-typedef enum {ASPECT_NONE = -1,
-			ASPECT_DANGER,
-			ASPECT_PROCEED,
-			ASPECT_CAUTION,
-			ASPECT_FLASHCAUTION,
-			ASPECT_PRELIMINARYCAUTION,
-			ASPECT_FLASHPRELIMINARYCAUTION,
-			ASPECT_OFF,
-			ASPECT_ON,
-			ASPECT_CALLON,
-			ASPECT_SHUNT,
-			ASPECT_WARNING,
-			} baseAspects_e;
 
 static aspectType_t defaultAspectsMap[] = {
 		{N_("None"), ASPECT_NONE,0},
@@ -296,7 +282,7 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 	for (int i=0;i<sp->signalHeads.cnt-1;i++) {
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->signalHeads,i);
-		AppendTransformedSegs(&sp->currSegs,&head->headSegs,head->headPos,zero,0.0);
+		AppendTransformedSegs(&sp->currSegs,&head->headSegs[SIGNAL_DIAGRAM],head->headPos,zero,0.0);
 		int indIndex;
 		switch(display) {
 			case SIGNAL_DISPLAY_ELEV:
@@ -373,7 +359,7 @@ void setAspect(track_p t, signalAspect_t a) {
 
 
 
-static void ComputeSignalBoundingBox (track_p t, int display )
+static void ComputeSignalBoundingBox (track_p t, Signal_Look_e display )
 {
     coOrd lo, hi, lo2, hi2;
     signalData_p xx = getSignalData(t);
@@ -538,7 +524,7 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
             xx->angle = signalProperties.orient;
         }
         if (pChanged || oChanged) { 
-            ComputeSignalBoundingBox( trk );
+            ComputeSignalBoundingBox( trk, SignalDisplay );
             DrawNewTrack( trk );
         }
         break;
@@ -561,7 +547,7 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
         case OR:
         	xx->orig.x = signalProperties.pos.x - GetTrkEndPos(xx->track,0).x;
 			xx->orig.y = signalProperties.pos.y - GetTrkEndPos(xx->track,0).y;
-			ComputeSignalBoundingBox( trk );
+			ComputeSignalBoundingBox( trk, SignalDisplay );
         	break;
         case HN: break;
         case AS: break;
@@ -628,7 +614,7 @@ static void DeleteSignal ( track_p trk )
     MyFree(xx->signalHeads.ptr); xx->signalHeads.ptr = NULL;
 }
 
-int WriteStaticSegs(FILE * f, dynArr_t * staticSegs[3]) {
+int WriteStaticSegs(FILE * f, dynArr_t * staticSegs) {
     int rc = 0;
 	for (int i=0;i<3;i++) {
     	char * disp;
@@ -642,13 +628,13 @@ int WriteStaticSegs(FILE * f, dynArr_t * staticSegs[3]) {
     		default:
     			disp = "DIAG";
     	}
-    	rc &= fprint(f, "DISPLAY \"%s\"\n",disp);
-    	rc &= WriteSegs(f,staticSegs[i]->cnt,staticSegs[i]->ptr);
+    	rc &= fprintf(f, "DISPLAY \"%s\"\n",disp);
+    	rc &= WriteSegs(f,staticSegs[i].cnt,staticSegs[i].ptr);
     }
     return rc;
 }
 
-static BOOL_T WriteSignal ( FILE * f,track_p t )
+static BOOL_T WriteSignal ( track_p t, FILE * f )
 {
     BOOL_T rc = TRUE;
     wIndex_t ia,ih,im;
@@ -657,7 +643,12 @@ static BOOL_T WriteSignal ( FILE * f,track_p t )
                   GetTrkIndex(t), GetTrkLayer(t), GetTrkScaleName(t), 
                   GetTrkVisible(t), xx->orig.x, xx->orig.y, xx->angle, 
                   xx->signalHeads.cnt, xx->signalName)>0;
-    rc &= WriteStaticSegs(f, &xx->staticSignalSegs);
+
+    for (int i=0;i<3;i++) {
+    	if (xx->staticSignalSegs[i].cnt == 0) continue;
+    	rc &= fprintf(f, "\tAPPEARANCE %d \n",i)>0;
+    	rc &= WriteStaticSegs(f, &xx->staticSignalSegs[i]);
+    }
 
     for (ih = 0; ih < xx->signalHeads.cnt; ih++) {
     	signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,ih);
@@ -725,6 +716,10 @@ static BOOL_T ReadSignalSystemParam ( char * line ) {
 	return TRUE;
 }
 
+static BOOL_T ReadSignalPostParam ( char * line ) {
+	return TRUE;
+}
+
 static dynArr_t signalDefs_da;
 
 signalInfo_t * FindSignalDef(char* scale, char * name) {
@@ -739,7 +734,7 @@ signalInfo_t * FindSignalDef(char* scale, char * name) {
 		si = DYNARR_N(signalInfo_t *, signalDefs_da,i);
 		if ( IsParamValid(si->paramFileIndex) &&
 			(scaleInx == -1 || si->scaleInx == scaleInx ) &&
-			strcmp( si->title, title ) == 0 ) {
+			strcmp( si->title, name ) == 0 ) {
 				return si;
 		}
 	}
@@ -797,10 +792,18 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 	ht->headTypeName = typename;
 	CleanSegs(&tempSegs_da);
 	while (isspace((unsigned char)*cp)) cp++;
-	if ( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
+
+	while ( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
+		Signal_Look_e appearanceType = 0;
+		GetArgs(cp+11,"d",&appearanceType); //Ignore issues - overwrite Diagram
 		ReadSegs();
 		AppendSegs(&ht->headSegs,&tempSegs_da);
+		if ((cp = GetNextLine()) == NULL ) break;
+		while (isspace((unsigned char)*cp)) cp++;
+		if ( strncmp( cp, "APPEARANCE", 10 ) == 0 ) break;
 	}
+	ReadSegs();
+	AppendSegs(&ht->headSegs,&tempSegs_da);
 	while ( (cp = GetNextLine()) != NULL ) {
 		while (isspace((unsigned char)*cp)) cp++;
 		if ( strncmp( cp, "ENDHEADTYPE", 11 ) == 0 ) break;
@@ -934,6 +937,12 @@ static void ReadSignal ( char * line )
         if ( *cp == '\n' || *cp == '#' ) {
             continue;
         }
+        if( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
+			Signal_Look_e appearanceType = 0;
+			GetArgs(cp+11,"d",&appearanceType);   //Ignore issues - overwrite Diagram
+			ReadSegs();
+			AppendSegs(&xx->staticSignalSegs[appearanceType],&tempSegs_da);
+        }
         if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
         	char *aspname = NULL, *baseaspect = NULL, *aspscript = NULL;
         	if (paramVersion < 11) {
@@ -1019,7 +1028,7 @@ static void ReadSignal ( char * line )
     SetTrkVisible(trk, visible);
     SetTrkScale(trk, LookupScale( scale ));
     SetTrkLayer(trk, layer);
-    ComputeSignalBoundingBox(trk);
+    ComputeSignalBoundingBox(trk,SignalDisplay);
 }
 
 static void MoveSignal (track_p trk, coOrd orig )
@@ -1027,7 +1036,7 @@ static void MoveSignal (track_p trk, coOrd orig )
     signalData_p xx = getSignalData ( trk );
     xx->orig.x += orig.x;
     xx->orig.y += orig.y;
-    ComputeSignalBoundingBox(trk);
+    ComputeSignalBoundingBox(trk, SignalDisplay);
 }
 
 static void RotateSignal (track_p trk, coOrd orig, ANGLE_T angle ) 
@@ -1035,14 +1044,14 @@ static void RotateSignal (track_p trk, coOrd orig, ANGLE_T angle )
     signalData_p xx = getSignalData ( trk );
     Rotate(&(xx->orig), orig, angle);
     xx->angle = NormalizeAngle(xx->angle + angle);
-    ComputeSignalBoundingBox(trk);
+    ComputeSignalBoundingBox(trk, SignalDisplay);
 }
 
 static void RescaleSignal (track_p trk, FLOAT_T ratio ) 
 {
 	signalData_p xx = getSignalData ( trk );
 
-	ComputeSignalBoundingBox(trk);
+	ComputeSignalBoundingBox(trk, SignalDisplay);
 }
 
 static void FlipSignal (track_p trk, coOrd orig, ANGLE_T angle )
@@ -1050,7 +1059,7 @@ static void FlipSignal (track_p trk, coOrd orig, ANGLE_T angle )
     signalData_p xx = getSignalData ( trk );
     FlipPoint(&(xx->orig), orig, angle);
     xx->angle = NormalizeAngle(2*angle - xx->angle);
-    ComputeSignalBoundingBox(trk);
+    ComputeSignalBoundingBox(trk, SignalDisplay);
 }
 
 
@@ -1491,7 +1500,7 @@ static void SignalEditOk ( void * junk )
     }
     UndoEnd();
     DoRedraw();
-    ComputeSignalBoundingBox(trk);
+    ComputeSignalBoundingBox(trk, SignalDisplay);
     wHide( signalEditW );
 }
 
@@ -1854,7 +1863,7 @@ EXPORT track_p NewSignal(
 		char * plate,
 		track_p track,
 		EPINX_T ep,
-		dynArr_t segs,
+		dynArr_t staticSegs[],
 		dynArr_t heads,
 		dynArr_t aspects,
 		dynArr_t groups
@@ -1869,7 +1878,9 @@ EXPORT track_p NewSignal(
 	xx->angle = angle;
 	xx->signalName = MyStrdup(name);
 	xx->title = MyStrdup( title );
-	AppendSegs(&xx->staticSignalSegsElev,&segs);
+	for (int i=i;i<3;i++) {
+		AppendSegs(&xx->staticSignalSegs[i],&staticSegs[i]);
+	}
 	DYNARR_APPEND(signalAspect_t,xx->signalAspects,aspects.cnt);
 	for (int i=0;i<aspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,xx->signalAspects,i);
@@ -1887,7 +1898,7 @@ EXPORT track_p NewSignal(
 			hm->aspectMapHeadNumber = hm1->aspectMapHeadNumber;
 		}
 	}
-	DYNARR_APPEND(signalHead_t,xx->signalHeads,heads.cnt);
+	DYNARR_APPEND(signalHead_t,xx->signalHeads,5);
 	for (int i=0;i<heads.cnt;i++) {
 		signalHead_p h = &DYNARR_N(signalHead_t,xx->signalHeads,i);
 		signalHead_p h1 = &DYNARR_N(signalHead_t,heads,i);
@@ -1895,16 +1906,18 @@ EXPORT track_p NewSignal(
 		h->headPos= h1->headPos;
 		h->headTypeName = strdup(h1->headTypeName);
 		h->headType = FindHeadType(h1->headTypeName);
-		AppendSegs(&h->headSegs,&h1->headSegs);
+		for (int i=0;i<3;i++) {
+			AppendSegs(&h->headSegs[i],&h1->headSegs[i]);
+		}
 	}
-	DYNARR_APPEND(signalGroup_t,xx->signalGroups,groups.cnt);
-	for (int i=0;i<heads.cnt;i++) {
+	DYNARR_APPEND(signalGroup_t,xx->signalGroups,1);
+	for (int i=0;i<groups.cnt;i++) {
 		signalGroup_p g = &DYNARR_N(signalGroup_t,xx->signalGroups,i);
 		signalGroup_p g1 = &DYNARR_N(signalGroup_t,groups,i);
 		g->falseAppearanceName = strdup(g1->falseAppearanceName);
 		g->trackedAppearance = strdup(g1->trackedAppearance);
 		g->trackedHeadNumber = g1->trackedHeadNumber;
-		DYNARR_APPEND(signalGroupInstance_p,g->groupInstances,g1->groupInstances.cnt);
+		DYNARR_APPEND(signalGroupInstance_p,g->groupInstances,5);
 		for (int j=0;j<g1->groupInstances.cnt;j++) {
 			signalGroupInstance_p gi = &DYNARR_N(signalGroupInstance_t,g->groupInstances,j);
 			signalGroupInstance_p gi1 = &DYNARR_N(signalGroupInstance_t,g1->groupInstances,j);
@@ -1917,7 +1930,7 @@ EXPORT track_p NewSignal(
 	xx->ep = ep;
 	xx->plate = plate;
 	xx->barscale = curBarScale>0?curBarScale:-1;
-	ComputeSignalBoundingBox( trk );
+	ComputeSignalBoundingBox( trk, SignalDisplay );
 	xx->size.x = trk->hi.x-trk->lo.x;
 	xx->size.y = trk->hi.y-trk->lo.y;
 	SetDescriptionOrig( trk );
@@ -1935,11 +1948,11 @@ static void AddSignal( void )
 	UndoStart( _("Place Signal"), "newSignal" );
 	titleLen = strlen( curSignal->title );
 	trk = NewSignal(0, signalEditOrig, signalEditAngle, curSignal->title, signalEditName, signalEditLever, signalEditTrackConnected, signalEditEP,
-			curSignal->staticSignalSegsElev, curSignal->signalHeads, curSignal->signalAspects, curSignal->signalGroups);
+			&curSignal->staticSignalSegs[0], curSignal->signalHeads, curSignal->signalAspects, curSignal->signalGroups);
 	xx = GetTrkExtraData(trk);
 
 	SetTrkVisible( trk, TRUE );
-	ComputeSignalBoundingBox( trk );
+	ComputeSignalBoundingBox( trk, SignalDisplay );
 
 	SetDescriptionOrig( trk );
 	xx->descriptionOff = zero;
@@ -2010,7 +2023,7 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
 		for (int i=0;i<signal->signalHeads.cnt-1;i++) {
 			/* All Heads */
 			signalHead_p head = &DYNARR_N(signalHead_t,signal->signalHeads,i);
-			AppendTransformedSegs(&signal->currSegs,&head->headSegs,head->headPos,zero,0.0);
+			AppendTransformedSegs(&signal->currSegs,&head->headSegs[SignalDisplay],head->headPos,zero,0.0);
 			//Drawing is always Appearance 0
 			headType_p type = head->headType;
 			int pre_cnt = signal->currSegs.cnt;
@@ -2284,7 +2297,7 @@ EXPORT void AddHotBarSignals( void )
 		if (!( IsParamValid(sd->paramFileIndex)  &&
 			CompatibleScale( TRUE, sd->scaleInx, GetLayoutCurScale())))
 			continue;
-		AddHotBarElement( sd->signalName, sd->size, sd->orig, FALSE, sd->barscale, sd, CmdSignalHotBarProc );
+		AddHotBarElement( sd->signalName, sd->size, sd->orig, FALSE, FALSE, sd->barscale, sd, CmdSignalHotBarProc );
 	}
 }
 

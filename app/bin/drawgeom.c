@@ -1714,7 +1714,7 @@ STATUS_T DrawGeomOriginMove(
 
 				} else if (action>>8 == 108) {   //"l"
 					if (context->last_inx !=-1) {
-						context->rot_center = points(context->last_inx);
+						context->rot_center = points(context->last_inx).pt;
 					}
 
 				}
