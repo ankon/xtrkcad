@@ -163,7 +163,7 @@ STATUS_T DrawGeomMouse(
 	static wBool_t lock;
 	static coOrd pos0, pos0x, pos1, lastPos;
 	trkSeg_p segPtr;
-	pts_t *pts;
+	pts_t * pts;
 	int inx;
 	DIST_T width;
 	static int segCnt;
@@ -215,10 +215,7 @@ STATUS_T DrawGeomMouse(
 		break;
 		case OP_BOX:
 		case OP_FILLBOX:
-			for (int i=0; i<4;i++) {
-				pts[i].pt = tempSegs(0).u.p.pts[i].pt;
-				pts[i].pt_type = 0;
-			}
+			pts = tempSegs(0).u.p.pts;
 			a1 = FindAngle(pts[0].pt,pts[1].pt);
 			Translate(&pts[1].pt,pts[0].pt,a1,context->length);
 			a2 = FindAngle(pts[0].pt,pts[3].pt);

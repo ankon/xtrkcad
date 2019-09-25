@@ -552,7 +552,6 @@ static struct wFilSel_t * loadFile_fs = NULL;
 static struct wFilSel_t * saveFile_fs = NULL;
 static struct wFilSel_t * examplesFile_fs = NULL;
 
-
 static wWin_p checkPointingW;
 static paramData_t checkPointingPLs[] = {
    {    PD_MESSAGE, N_("Check Pointing") } };
@@ -720,16 +719,11 @@ int LoadTracks(
 
 	assert( fileName != NULL );
 	assert( cnt == 1 ); 
-
-    if ( bExample )
-        bReadOnly = TRUE;
-    else if ( access( fileName[0], W_OK ) == -1 )
-        bReadOnly = TRUE;
-    else
-        bReadOnly = FALSE;
-    if (ReadTrackFile( fileName[ 0 ], nameOfFile, TRUE, FALSE, TRUE )) {
-        if ( ! bExample )
-            wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );	paramVersion = -1;
+        
+	if ( ! bExample )
+		SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
+	bReadOnly = bExample;
+	paramVersion = -1;
         
 	wSetCursor( mainD.d, wCursorWait );
 	Reset();
@@ -829,6 +823,12 @@ int LoadTracks(
 		free(zip_input);
 
 	}
+	if ( bExample )
+		bReadOnly = TRUE;
+	else if ( access( fileName[0], W_OK ) == -1 )
+		bReadOnly = TRUE;
+	else
+		bReadOnly = FALSE;
 
 	if (loadXTC && ReadTrackFile( full_path, FindFilename( fileName[0]), TRUE, FALSE, TRUE )) {
 
@@ -842,7 +842,9 @@ int LoadTracks(
 			full_path = fileName[0];
 		}
 
-		wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
+		if ( ! bExample )
+			wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
+
 		ResolveIndex();
 #ifdef TIME_READTRACKFILE
 		time1 = wGetTimer();
@@ -1108,7 +1110,6 @@ EXPORT void DoLoad( void )
 		loadFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Open Tracks"),
 			sSourceFilePattern, LoadTracks, NULL );
 	bExample = FALSE;
-
 	wFilSelect( loadFile_fs, GetCurrentPath(LAYOUTPATHKEY));
 	SaveState();
 }
@@ -1124,6 +1125,7 @@ EXPORT void DoExamples( void )
 	bExample = TRUE;
 	sprintf( message, "%s" FILE_SEP_CHAR "examples" FILE_SEP_CHAR, libDir );
 	wFilSelect( examplesFile_fs, message );
+	SaveState();
 }
 
 
