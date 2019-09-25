@@ -44,6 +44,7 @@
 #include "track.h"
 #include "utility.h"
 #include "condition.h"
+#include "csignal.h"
 
 #ifndef TRACKDEP
 #ifndef FASTTRACK

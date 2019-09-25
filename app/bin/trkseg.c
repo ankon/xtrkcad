@@ -1949,41 +1949,20 @@ EXPORT void DrawSegsO(
 			break;
 		case SEG_FILPOLY:
 		case SEG_POLY:
-			if ( (d->options&DC_GROUP) == 0 &&
-				 d->funcs != &tempSegDrawFuncs ) {
-				/* Note: if we call tempSegDrawFillPoly we get a nasty bug
-				/+ because we don't make a private copy of p.pts */
-				coOrd *tempPts = malloc(sizeof(coOrd)*segPtr->u.p.cnt);
-				int *tempTypes = malloc(sizeof(int)*segPtr->u.p.cnt);
-//				coOrd tempPts[segPtr->u.p.cnt];
-				for (j=0;j<segPtr->u.p.cnt;j++) {
-					REORIGIN( tempPts[j], segPtr->u.p.pts[j].pt, angle, orig );
-					tempTypes[j] = segPtr->u.p.pts[j].pt_type;
-				}
-				DrawPoly( d, segPtr->u.p.cnt, tempPts, tempTypes, color1, (wDrawWidth)floor(segPtr->width*factor+0.5), segPtr->type==SEG_FILPOLY?1:0, segPtr->u.p.polyType==POLYLINE?1:0);
-				free(tempPts);
-				free(tempTypes);
-				break;
-			} /* else fall thru */
-			/* no break */
-		case SEG_POLY:
-			if ( (d->options&DC_GROUP) ) {
-				DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
-				tempPtr = &tempSegs(tempSegs_da.cnt-1);
-				memcpy( tempPtr, segPtr, sizeof segPtr[0] );
-				tempPtr->u.p.orig = orig;
-				tempPtr->u.p.angle = angle;
-				break;
-			}
-			REORIGIN( p0, segPtr->u.p.pts[0], angle, orig )
-			c = p0;
-			for (j=1; j<segPtr->u.p.cnt; j++) {
-				REORIGIN( p1, segPtr->u.p.pts[j], angle, orig );
-				DrawLine( d, p0, p1, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
-				p0 = p1;
-			}
-			DrawLine( d, p0, c, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
-			break;
+			;
+			/* Note: if we call tempSegDrawFillPoly we get a nasty bug
+			/+ because we don't make a private copy of p.pts */
+			coOrd *tempPts = malloc(sizeof(coOrd)*segPtr->u.p.cnt);
+			int *tempTypes = malloc(sizeof(int)*segPtr->u.p.cnt);
+            for (j=0;j<segPtr->u.p.cnt;j++) {
+                REORIGIN( tempPts[j], segPtr->u.p.pts[j].pt, angle, orig );
+                tempTypes[j] = segPtr->u.p.pts[j].pt_type;
+            }
+            BOOL_T fill = ((d->options&DC_GROUP) == 0 && (d->funcs != &tempSegDrawFuncs));
+            DrawPoly( d, segPtr->u.p.cnt, tempPts, tempTypes, color1, (wDrawWidth)floor(segPtr->width*factor+0.5), (fill && (segPtr->type==SEG_FILPOLY))?1:0, segPtr->u.p.polyType==POLYLINE?1:0);
+            free(tempPts);
+            free(tempTypes);
+            break;
 
 		case SEG_FILCRCL:
 			REORIGIN( c, segPtr->u.c.center, angle, orig )

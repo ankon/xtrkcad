@@ -83,6 +83,7 @@ SET(SOURCES
 	csnap.c
 	csplit.c
 	csignal.c
+	csignalparm.c
 	cstraigh.c
 	cstruct.c
 	cswitchmotor.c

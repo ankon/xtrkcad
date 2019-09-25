@@ -404,6 +404,7 @@ void IncrementLayerObjects(unsigned int index);
 
 /* doption.c */
 long GetDistanceFormat( void );
+addButtonCallBack_t SignalInit( void );
 
 /* ctrain.c */
 BOOL_T WriteCars( FILE * );

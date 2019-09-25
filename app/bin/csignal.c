@@ -716,34 +716,8 @@ static BOOL_T ReadSignalSystemParam ( char * line ) {
 	return TRUE;
 }
 
-static BOOL_T ReadSignalPostParam ( char * line ) {
-	return TRUE;
-}
-
 static dynArr_t signalDefs_da;
-
-signalInfo_t * FindSignalDef(char* scale, char * name) {
-	signalInfo_t * si = NULL;
-	SCALEINX_T scaleInx;
-	if ( scale )
-			scaleInx = LookupScale( scale );
-		else
-			scaleInx = -1;
-
-	for (int i=0;i<signalDefs_da.cnt;i++) {
-		si = DYNARR_N(signalInfo_t *, signalDefs_da,i);
-		if ( IsParamValid(si->paramFileIndex) &&
-			(scaleInx == -1 || si->scaleInx == scaleInx ) &&
-			strcmp( si->title, name ) == 0 ) {
-				return si;
-		}
-	}
-	return NULL;
-}
-
-
-
-
+static dynArr_t signalPostDefs_da;
 
 /*
  * Find Appearance in Array by Name
@@ -792,10 +766,9 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 	ht->headTypeName = typename;
 	CleanSegs(&tempSegs_da);
 	while (isspace((unsigned char)*cp)) cp++;
-
 	while ( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
-		Signal_Look_e appearanceType = 0;
-		GetArgs(cp+11,"d",&appearanceType); //Ignore issues - overwrite Diagram
+		char * appearanceType;
+		GetArgs(cp+11,"q",&appearanceType); //Ignore issues - overwrite Diagram
 		ReadSegs();
 		AppendSegs(&ht->headSegs,&tempSegs_da);
 		if ((cp = GetNextLine()) == NULL ) break;
@@ -937,11 +910,19 @@ static void ReadSignal ( char * line )
         if ( *cp == '\n' || *cp == '#' ) {
             continue;
         }
-        if( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
-			Signal_Look_e appearanceType = 0;
-			GetArgs(cp+11,"d",&appearanceType);   //Ignore issues - overwrite Diagram
+        if( strncmp( cp, "APPEARANCE", 11 ) != 0 ) {
+			char * dispname;
+			GetArgs(cp+12,"q",&dispname);
 			ReadSegs();
-			AppendSegs(&xx->staticSignalSegs[appearanceType],&tempSegs_da);
+			if (tempSegs_da.cnt>0) {
+				if (strncmp("PLAN",dispname,4) == 0) {
+					AppendSegs(&xx->staticSignalSegs[SIGNAL_DISPLAY_PLAN],&tempSegs_da);
+				} else if (strncmp("DIAG",dispname,4) == 0) {
+					AppendSegs(&xx->staticSignalSegs[SIGNAL_DISPLAY_DIAG],&tempSegs_da);
+				} else if (strncmp("ELEV",dispname,4) == 0) {
+					AppendSegs(&xx->staticSignalSegs[SIGNAL_DISPLAY_ELEV],&tempSegs_da);
+				}
+			}
         }
         if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
         	char *aspname = NULL, *baseaspect = NULL, *aspscript = NULL;

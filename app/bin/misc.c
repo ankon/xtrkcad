@@ -588,7 +588,6 @@ static void ChkLoad(void) {
 	Confirm(_("Load"), DoLoad);
 }
 
-
 static void ChkExamples( void )
 {
 	Confirm(_("examples"), DoExamples);
@@ -596,7 +595,6 @@ static void ChkExamples( void )
 
 static void ChkRevert( void )
 {
-
 	int rc;
 
 	if (changed) {
@@ -2436,7 +2434,6 @@ static void CreateMenus(void) {
 	wMenuPushCreate( helpM, "cmdTip", _("Tip of the Day..."), 0, (wMenuCallBack_p)ShowTip, (void *)(SHOWTIP_FORCESHOW | SHOWTIP_NEXTTIP));
 	demoM = wMenuMenuCreate( helpM, "cmdDemo", _("&Demos") );
 	wMenuPushCreate( helpM, "cmdExamples", _("Examples..."), 0, (wMenuCallBack_p)ChkExamples, (void *)0);
-
 
 	/* about window */
 	wMenuSeparatorCreate(helpM);

@@ -74,10 +74,9 @@ Note: the Profile selects the shortest path between the two selected tracks, whi
 
 Layers can be used to contain different groups of tracks or other features.  You might use one layer for the main-line, another of staging tracks and another of benchwork.\
 
-You can give each layer a name (by using the Manage|Layer dialog).  This name will be displayed as the Balloon Help for the corresponding Layer button, if you have Balloon Help enabled on the Options|Display dialog.
+You can give each layer a name (by using the "Manage|Layer" dialog).  This name will be displayed as the Balloon Help for the corresponding Layer button, if you have Balloon Help enabled on the "Options|Display" dialog.
 
-
-You can remove groups of buttons or the Hot Bar from the Main window to give you more room if you are not using some features.  Also, the number of Layer buttons displayed is controlled by the Manage|Layers dialog.
+You can remove groups of buttons or the Hot Bar from the Main window to give you more room if you are not using some features.  Also, the number of Layer buttons displayed is controlled by the "Manage|Layers" dialog.
 
 The size of the Map window is controlled by the overall size of the room (specified on the Layout dialog) and the Map Scale (on the Display dialog).  You can make the Map window larger (or smaller) by decreasing (or increasing) the Map Scale.\
 XTrackCad will prevent you from making the Map window too small or too large.
@@ -241,7 +240,7 @@ Then you can place the Helix and join to other tracks as you would a Circle trac
 Many objects on the layout have labels: Turnouts/Helix/Curved Titles, Track Lenghts, End-Point Elevations, Track Elevations and Cars.  \
 You can turn these labels on or off with the Label Enable toggle buttons on the Display options dialog.
 
-If you hold down the Control key when using the Rotate command, the rotation will be done in increments of 15°.
+If you hold down the Control key when using the Rotate command, the rotation will be done in increments of 15ï¿½.
 
 When using the Rotate command, Shift-Right-Click displays a menu allowing you to rotate by specific amounts or to align the selected objects with another object.
 
