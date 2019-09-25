@@ -282,17 +282,17 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 	for (int i=0;i<sp->signalHeads.cnt-1;i++) {
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->signalHeads,i);
-		AppendTransformedSegs(&sp->currSegs,&head->headSegs[SIGNAL_DIAGRAM],head->headPos,zero,0.0);
+		AppendTransformedSegs(&sp->currSegs,&head->headSegs[display],head->headPos,zero,0.0);
 		int indIndex;
 		switch(display) {
 			case SIGNAL_DISPLAY_ELEV:
 				indIndex = head->currentHeadAppearance;
 				break;
 			case SIGNAL_DISPLAY_DIAG:
-				indIndex = 0;
+				indIndex = 0;			//Indication 0 is Diagram
 				break;
 			default:
-				indIndex = -1;
+				indIndex = -1;			//Nothing for Plan
 		}
 		headType_p type = head->headType;
 		int pre_cnt = sp->currSegs.cnt;
@@ -628,7 +628,7 @@ int WriteStaticSegs(FILE * f, dynArr_t * staticSegs) {
     		default:
     			disp = "DIAG";
     	}
-    	rc &= fprintf(f, "DISPLAY \"%s\"\n",disp);
+    	rc &= fprintf(f, "VIEW \"%s\"\n",disp);
     	rc &= WriteSegs(f,staticSegs[i].cnt,staticSegs[i].ptr);
     }
     return rc;
@@ -646,7 +646,6 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
 
     for (int i=0;i<3;i++) {
     	if (xx->staticSignalSegs[i].cnt == 0) continue;
-    	rc &= fprintf(f, "\tAPPEARANCE %d \n",i)>0;
     	rc &= WriteStaticSegs(f, &xx->staticSignalSegs[i]);
     }
 
@@ -910,9 +909,9 @@ static void ReadSignal ( char * line )
         if ( *cp == '\n' || *cp == '#' ) {
             continue;
         }
-        if( strncmp( cp, "APPEARANCE", 11 ) != 0 ) {
+        if( strncmp( cp, "VIEW", 4 ) != 0 ) {
 			char * dispname;
-			GetArgs(cp+12,"q",&dispname);
+			GetArgs(cp+5,"q",&dispname);
 			ReadSegs();
 			if (tempSegs_da.cnt>0) {
 				if (strncmp("PLAN",dispname,4) == 0) {
@@ -921,9 +920,25 @@ static void ReadSignal ( char * line )
 					AppendSegs(&xx->staticSignalSegs[SIGNAL_DISPLAY_DIAG],&tempSegs_da);
 				} else if (strncmp("ELEV",dispname,4) == 0) {
 					AppendSegs(&xx->staticSignalSegs[SIGNAL_DISPLAY_ELEV],&tempSegs_da);
-				}
 			}
         }
+        if ( strncmp (cp, "HEAD", 4) == 0) {
+			char * headname, * diagramText;
+			coOrd headPos;
+			char * headType;
+			if (!GetArgs(cp+4, "qpdqq", &headname,&headPos,&headType,&diagramText)) return;
+			DYNARR_APPEND( signalHead_t, xx->signalHeads, 1 );
+			signalHead_p sh = &DYNARR_LAST( signalHead_t,xx->signalHeads);
+			sh->currentHeadAppearance = 0;
+			sh->headName = headname;
+			sh->headPos = headPos;
+			sh->headTypeName = headType;
+			sh->headType = FindHeadType(headType);
+			if (!sh->headType) ErrorMessage(MSG_SIGNAL_MISSING_HEADTYPE,name,headname,headType);
+			if (diagramText[0]) {
+				sh->diagramText = diagramText;    //Override for Matrix/Stencil
+			}
+		}
         if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
         	char *aspname = NULL, *baseaspect = NULL, *aspscript = NULL;
         	if (paramVersion < 11) {
@@ -961,23 +976,7 @@ static void ReadSignal ( char * line )
             }
 
         }
-        if ( strncmp (cp, "HEAD", 4) == 0) {
-        	char * headname, * diagramText;
-        	coOrd headPos;
-        	char * headType;
-        	if (!GetArgs(cp+4, "qpdqq", &headname,&headPos,&headType,&diagramText)) return;
-        	DYNARR_APPEND( signalHead_t, xx->signalHeads, 1 );
-        	signalHead_p sh = &DYNARR_LAST( signalHead_t,xx->signalHeads);
-        	sh->currentHeadAppearance = 0;
-        	sh->headName = headname;
-        	sh->headPos = headPos;
-        	sh->headTypeName = headType;
-        	sh->headType = FindHeadType(headType);
-        	if (!sh->headType) ErrorMessage(MSG_SIGNAL_MISSING_HEADTYPE,name,headname,headType);
-        	if (diagramText[0]) {
-        		sh->diagramText = diagramText;    //Override for Matrix/Stencil
-        	}
-        }
+
         if ( strncmp (cp, "GROUP", 5) == 0) {
 			int headId, groupHeadId;
 			char * defaultInd, * groupHeadInd;
@@ -2004,7 +2003,7 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
 		for (int i=0;i<signal->signalHeads.cnt-1;i++) {
 			/* All Heads */
 			signalHead_p head = &DYNARR_N(signalHead_t,signal->signalHeads,i);
-			AppendTransformedSegs(&signal->currSegs,&head->headSegs[SignalDisplay],head->headPos,zero,0.0);
+			AppendTransformedSegs(&signal->currSegs,&head->headSegs[SIGNAL_DISPLAY_DIAG],head->headPos,zero,0.0);
 			//Drawing is always Appearance 0
 			headType_p type = head->headType;
 			int pre_cnt = signal->currSegs.cnt;
