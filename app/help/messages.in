@@ -1504,23 +1504,23 @@ END
 
 # csignal.c
 MESSAGE MSG_SIGNAL_MISSING_HEADTYPE
-The specified HeadType %s definition is missing for Signal %s
+The Signal %s has a head %s with a headtype %s that doesn't exist
 HELP
-Either change to use an existing HeadType or add a new Headtype
+Fix the parm file
 END
 
 # csignal.c
 MESSAGE MSG_SIGNAL_MISSING_HEAD
-The Head %s definition is missing in Signal %s
+The Signal %s has a missing head %s specified which is specified in Aspect %s
 HELP
-Either change to use another Head or add a new Head
+Fix the parm file
 END
 
 # csignal.c
 MESSAGE MSG_SIGNAL_MISSING_APPEARANCE
-The Appearance %s definition is missing for Head %s in Signal %s
+The Signal %s has a missing Aspect %s in Head %s Aspect %s 
 HELP
-Either change to use an existing Appearance in the HeadType or a new HeadType with this Appearance
+Fix the parm file
 END
 
 # csignal.c
@@ -1538,9 +1538,51 @@ Move to a Track End Point
 END
 
 # csignal.c
+MESSAGE MSG_SIGNAL_MISSING_POST
+In Signal %s Post %s is missing
+HELP
+Correct the signal defintion, or load a parm file with the Post in it
+END
+
+# csignal.c
 MESSAGE MSG_SIGNAL_NO_SIGNAL
 No Signal selected to Modify
 Select a Signal
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_DUPLICATE_ASPECT
+The Signal %s has a duplicate Aspect %s 
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_GRP_ASPECT_INVALID
+Signal %s, Group %d is tracking an invalid Aspect %s 
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_GRP_GROUPHEAD_INVALID
+Signal %s, Group %d names an invalid Head %d  
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_GRP_IND_INVALID
+Signal %s, Group %d for Head %d names an invalid Indication %s  
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MSG_SIGNAL_MISSING_ASPECT_TYPE
+Signal %s, Aspect %s refers to a missing Type %s  
+HELP
+Fix the parm file
 END
 
 ############################################################
