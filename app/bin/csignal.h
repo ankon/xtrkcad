@@ -52,6 +52,8 @@ typedef enum {ASPECT_NONE = -1,
 			ASPECT_WARNING,
 			} signalBaseAspects_e;
 
+#define BaseAspectCount ASPECT_WARNING+1
+
 static const char * signalBaseAspectNames[] = {
 		"ASPECT_NONE",
 		"ASPECT_DANGER",
@@ -73,8 +75,6 @@ static const char * signalBaseAspectNames[] = {
 typedef struct signalAspectType_t {
 	char * aspectName;
 	signalBaseAspects_e baseAspect;
-	char * baseAspectName;
-	int speed;
 } signalAspectType_t, *signalAspectType_p;
 
 
@@ -218,9 +218,9 @@ typedef struct indicatorType_t {
 void FormatSignalParmTitle(long format,char * title );
 BOOL_T ReadSignalParam ( char * line );
 BOOL_T ReadSignalPost (char * line);
-signalParm_t * CreateSignalPost(char* scale, char * name);
+signalPost_p CreateSignalPost(char* scale, char * name);
 BOOL_T WriteSignalSystem(FILE * f);
-signalParm_t * FindSignalDef(char* scale, char * name);
+signalParm_p FindSignalDef(char* scale, char * name);
 BOOL_T ReadSignalParm(char* line);
 void SetSignalHead(track_p sig,int head, char* app);
 

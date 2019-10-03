@@ -1579,8 +1579,15 @@ Fix the parm file
 END
 
 # csignalparm.c
-MSG_SIGNAL_MISSING_ASPECT_TYPE
+MESSAGE MSG_SIGNAL_MISSING_ASPECT_TYPE
 Signal %s, Aspect %s refers to a missing Type %s  
+HELP
+Fix the parm file
+END
+
+#csignalparm.c
+MESSAGE MSG_SIGNAL_ASPECT_DUPLICATE
+Repeated Aspect %s with different Base Aspect %s from prior defined Base Aspect %s
 HELP
 Fix the parm file
 END

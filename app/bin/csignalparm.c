@@ -14,6 +14,8 @@
 #include "csignal.h"
 #include "compound.h"
 #include "paramfile.h"
+#include "messages.h"
+#include "fileio.h"
 
 /* Global Anchors for Definitional Objects*/
 static struct {
@@ -26,7 +28,7 @@ static struct {
 signalAspectType_p FindAspectType(char * name) {
 
 	for (int i=0;i<Da.signalAspectTypes.cnt;i++) {
-		signalAspect_p sa = DYNARR_N(signalAspect_t,Da.signalAspectTypes,i);
+		signalAspectType_p sa = &DYNARR_N(signalAspectType_t,Da.signalAspectTypes,i);
 		if ( strcmp( sa->aspectName, name ) == 0 ) {
 			return sa;
 		}
@@ -34,32 +36,39 @@ signalAspectType_p FindAspectType(char * name) {
 	return NULL;
 }
 
-int GetAspectSpeed(signalAspectType_p sat) { return sat->speed; }
-const char * GetBaseAspectName(signalAspectType_p sat) { return sat->baseAspectName; }
+const char * GetBaseAspectName(signalAspectType_p sat) { return signalBaseAspectNames[sat->baseAspect]; }
 char * GetAspectName(signalAspectType_p sat) {return sat->aspectName; }
+signalBaseAspects_e FindBaseAspectType(char * name) {
+	for (int i=0;i<BaseAspectCount;i++) {
+		if (strcmp(signalBaseAspectNames[i],name) == 0) {
+			return (signalBaseAspects_e)i;
+		}
+	}
+	return -1;
+}
 
-signalAspectType_p AddAspectType(char* name, signalBaseAspects_e base, int speed) {
+signalAspectType_p AddAspectType(char* name, char* base) {
 
 	signalAspectType_p sat = NULL;
 	for (int i=0;i<Da.signalAspectTypes.cnt;i++) {
 		signalAspectType_p sat1 = &DYNARR_N(signalAspectType_t,Da.signalAspectTypes,i);
 		if (strcmp(sat1->aspectName,name) == 0) {
+			if (strcmp(signalBaseAspectNames[sat1->baseAspect],base) !=0)
+				ErrorMessage(MSG_SIGNAL_ASPECT_DUPLICATE,name,base,signalBaseAspectNames[sat1->baseAspect]);
 			sat = sat1;
 			break;
 		}
 	}
 	if (!sat) {
-		DYNARR_APPEND(signalAspect_t,Da.signalAspectTypes,1);
-		sat = &DYNARR_LAST(signalAspect_t,Da.signalAspectTypes);
+		DYNARR_APPEND(signalAspectType_t,Da.signalAspectTypes,1);
+		sat = &DYNARR_LAST(signalAspectType_t,Da.signalAspectTypes);
+		sat->aspectName = name;
 	}
-	sat->aspectName = name;
-	sat->baseAspect = base;
-	sat->baseAspectName = signalBaseAspectNames[sat->baseAspect];
-	sat->speed = speed;
+	sat->baseAspect = FindBaseAspectType(base);
 	return sat;
 }
 
-EXPORT void FormatSignalTitle(
+EXPORT void FormatSignalParmTitle(
 		long format,
 		char * title )
 {
@@ -141,7 +150,7 @@ signalParm_p FindSignalParm(char* scale, char * name) {
 	for (int i=0;i<Da.signalParms.cnt;i++) {
 		si = &DYNARR_N(signalParm_t, Da.signalParms,i);
 		if ( IsParamValid(si->paramFileIndex) &&
-			(scaleInx == -1 || si->scaleInx == scaleInx || si->scaleInx = SCALE_ANY) &&
+			((scaleInx == -1) || (si->scaleInx == scaleInx) || (si->scaleInx == SCALE_ANY)) &&
 			strcmp( si->title, name ) == 0 ) {
 				return si;
 		}
@@ -164,9 +173,8 @@ signalParm_p CreateSignalParm(char* scale, char * name) {
 		si->heads.cnt = 0;
 		//wipe out
 	} else {
-		si = (signalParm_p)MyMalloc(sizeof(signalParm_t));
 		DYNARR_APPEND( signalParm_t, Da.signalParms, 10 );
-		DYNARR_LAST(signalParm_t, Da.signalParms) = si;
+		si = &DYNARR_LAST(signalParm_t, Da.signalParms);
 		si->title = MyStrdup( name );
 		si->scaleInx = LookupScale( scale );
 		si->barScale = curBarScale>0?curBarScale:-1;
@@ -197,7 +205,7 @@ int FindHeadNum(signalParm_p si, char * headname) {
 signalAspect_p FindAspectParm(signalParm_p si, char * name) {
 
 	for (int i=0;i<si->aspects.cnt;i++) {
-		signalAspect_p sa = DYNARR_N(signalAspect_t,si->aspects,i);
+		signalAspect_p sa = &DYNARR_N(signalAspect_t,si->aspects,i);
 		if ( strcmp( sa->aspectName, name ) == 0 ) {
 			return sa;
 		}
@@ -208,7 +216,128 @@ signalAspect_p FindAspectParm(signalParm_p si, char * name) {
 signalAspect_p GetAspectParm(signalParm_p si,int num) {
 	if (num<si->aspects.cnt)
 		return &DYNARR_N(signalAspect_t,si->aspects,num);
-	else return -1;
+	else return NULL;
+}
+
+/*********************************************************************************************/
+
+/*
+ * Signal Post
+ */
+
+signalPost_p FindSignalPost(char* scale, char * name) {
+	signalPost_t * sp = NULL;
+	SCALEINX_T scaleInx;
+	if ( scale )
+			scaleInx = LookupScale( scale );
+		else
+			scaleInx = -1;
+
+	for (int i=0;i<Da.signalPosts.cnt;i++) {
+		sp = &DYNARR_N(signalPost_t, Da.signalPosts,i);
+		if ( IsParamValid(sp->paramFileIndex) &&
+			(scaleInx == -1 || sp->scale == scaleInx || sp->scale == SCALE_ANY) &&
+			strcmp( sp->title, name ) == 0 ) {
+				return sp;
+		}
+	}
+	return NULL;
+}
+
+
+signalPost_p CreateSignalPost(char* scale, char * name) {
+
+	signalPost_p sp = NULL;
+
+	sp = FindSignalPost(scale, name);
+
+	if (!sp) {
+		for (int i=0;i<3;i++) {
+			CleanSegs(&sp->drawings[i]);
+		}
+		//wipe out
+	} else {
+		sp = (signalPost_p)MyMalloc(sizeof(signalPost_t));
+		DYNARR_APPEND(signalPost_t, Da.signalPosts, 1 );
+		sp = &DYNARR_LAST(signalPost_t, Da.signalPosts);
+		sp->title = MyStrdup(name);
+		sp->scale = LookupScale( scale );
+	}
+	return sp;
+
+}
+
+BOOL_T ReadSignalPost (char * line) {
+
+	signalPost_t *sp;
+	char *cp = 0;
+	char* name;
+	char* scale;
+	if (!GetArgs(line+6,"sq",&scale,&name)) return FALSE;
+
+	sp = CreateSignalPost(scale,name);
+
+	sp->name = name;
+	while ( (cp = GetNextLine()) != NULL ) {
+		if ( strncmp( cp, "END", 3 ) == 0 ) {
+			break;
+		}
+		if ( *cp == '\n' || *cp == '#' ) {
+			continue;
+		}
+		if ( strncmp( cp, "VIEW", 4) == 0) {
+			char * dispname;
+			if (!GetArgs(cp+5,"q",&dispname)) return FALSE;
+			ReadSegs();
+			if (tempSegs_da.cnt>0) {
+				if (strncmp("PLAN",dispname,4) == 0) {
+					AppendSegs(&sp->drawings[SIGNAL_DISPLAY_PLAN],&tempSegs_da);
+				} else if (strncmp("DIAG",dispname,4) == 0) {
+					AppendSegs(&sp->drawings[SIGNAL_DISPLAY_DIAG],&tempSegs_da);
+				} else if (strncmp("ELEV",dispname,4) == 0) {
+					AppendSegs(&sp->drawings[SIGNAL_DISPLAY_ELEV],&tempSegs_da);
+				}
+			}
+		}
+	}
+	return TRUE;
+
+}
+
+/*
+ * HeadType
+ */
+
+int FindAppearanceNum(signalHeadType_p headtype,char * name) {
+	for (int i=0;i<headtype->headAppearances.cnt;i++) {
+		Appearance_p ha = &DYNARR_N(Appearance_t,headtype->headAppearances,i);
+		if (strcmp(ha->appearanceName,name) == 0) return i;
+	}
+	return -1;
+
+}
+
+signalHeadType_p FindHeadType(char* name) {
+	for (int i=0;i<Da.signalHeadTypes.cnt;i++) {
+		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,Da.signalHeadTypes,i);
+		if (strcmp(ht->headTypeName,name) == 0) return ht;
+	}
+	return NULL;
+}
+
+/*
+ * SignalParm
+ */
+
+signalAspect_p SignalFindAspect(signalParm_p sig, char*name) {
+	for (int i=0;i<sig->aspects.cnt;i++) {
+		signalAspect_p sa = &DYNARR_N(signalAspect_t,sig->aspects,i);
+		if (strcmp(sa->aspectName, name) == 0) {
+			return sa;
+		}
+	}
+	return NULL;
+
 }
 
 BOOL_T ReadSignalParam ( char * line ) {
@@ -231,11 +360,11 @@ BOOL_T ReadSignalParam ( char * line ) {
 		if ( strncmp(cp, "POST", 4) == 0) {
 			char * postname;
 			if (!GetArgs(cp+4, "q", &postname)) return FALSE;
-			signalPost_t sp = FindSignalPost(scale,postname);
+			signalPost_p sp = FindSignalPost(scale,postname);
 			if (!sp)
 				ErrorMessage(MSG_SIGNAL_MISSING_POST,name,postname);
 			for (int i=0;i<3;i++) {
-				AppendSegs(&sig->staticSegs[i],sp->drawings[i]);
+				AppendSegs(&sig->staticSegs[i],&sp->drawings[i]);
 			}
 		}
 		if ( strncmp(cp, "VIEW", 4)==0) {
@@ -243,11 +372,11 @@ BOOL_T ReadSignalParam ( char * line ) {
 			if (!GetArgs(cp+4, "s", &viewname)) return FALSE;
 			ReadSegs();
 			if (strncmp(viewname,"PLAN", 4) ==0 )
-				AppendSegs(&sig->staticSegs[0],tempSegs_da);
+				AppendSegs(&sig->staticSegs[0],&tempSegs_da);
 			if (strncmp(viewname,"ELEV", 4) ==0 )
-				AppendSegs(&sig->staticSegs[1],tempSegs_da);
+				AppendSegs(&sig->staticSegs[1],&tempSegs_da);
 			if (strncmp(viewname,"DIAG", 4) ==0 )
-				AppendSegs(&sig->staticSegs[2],tempSegs_da);
+				AppendSegs(&sig->staticSegs[2],&tempSegs_da);
 		}
 		if ( strncmp (cp, "HEAD", 4) == 0) {
 			char * headname, * diagramText;
@@ -275,7 +404,7 @@ BOOL_T ReadSignalParam ( char * line ) {
 				DYNARR_APPEND( signalAspect_p *, sig->aspects, 1 );
 				signalAspect_p sa =  &DYNARR_LAST(signalAspect_t,sig->aspects);
 				sa->aspectName = aspname;
-				if ((sa->aspectType = FindAspectType(&aspectType)) == NULL)
+				if ((sa->aspectType = FindAspectType(aspectType)) == NULL)
 					ErrorMessage(MSG_SIGNAL_MISSING_ASPECT_TYPE,name,aspname,aspectType);
 				sa->aspectScript = aspscript;
 				while ( (cp = GetNextLine()) != NULL ) {
@@ -317,7 +446,7 @@ BOOL_T ReadSignalParam ( char * line ) {
 				if ( strncmp( cp, "TRACKASPECT", 11 ) == 0 ) {
 					char * groupAspect;
 					if (!GetArgs(cp+12,"s",&groupAspect)) return FALSE;
-					signalAspect_p sa = FindAspect(name,groupAspect);
+					signalAspect_p sa = SignalFindAspect(sig,groupAspect);
 					if (!sa) ErrorMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, name, sig->groups.cnt, groupAspect);
 					else {
 						DYNARR_APPEND(AspectList_t,sg->aspects,1);
@@ -332,11 +461,11 @@ BOOL_T ReadSignalParam ( char * line ) {
 					if (headNum > sig->heads.cnt)
 							ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, name, sig->groups.cnt, headNum );
 					else {
-						signalHead_t sh = DYNARR_N(signalHead_t,sig->heads,headNum);
-						if(FindAppearanceNum(sh, indOnName) == -1)
+						signalHead_p sh = &DYNARR_N(signalHead_t,sig->heads,headNum);
+						if(FindAppearanceNum(sh->headType, indOnName) == -1)
 							ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, sig->groups.cnt, indOnName);
 						else {
-							if(FindAppearanceNum(sh, indOffName) == -1)
+							if(FindAppearanceNum(sh->headType, indOffName) == -1)
 								ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, sig->groups.cnt, indOffName);
 							else {
 								DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
@@ -352,108 +481,9 @@ BOOL_T ReadSignalParam ( char * line ) {
 			}
 		}
 	}
-	SetTrkVisible(sig, visible);
-	SetTrkScale(sig, LookupScale( scale ));
-	SetTrkLayer(sig, layer);
-	ComputeSignalBoundingBox(sig,SignalDisplay)
 	return TRUE;
 }
 
-/*********************************************************************************************/
-
-/*
- * Signal Post
- */
-
-signalPost_p FindSignalPost(char* scale, char * name) {
-	signalPost_t * sp = NULL;
-	SCALEINX_T scaleInx;
-	if ( scale )
-			scaleInx = LookupScale( scale );
-		else
-			scaleInx = -1;
-
-	for (int i=0;i<Da.signalPosts.cnt;i++) {
-		sp = DYNARR_N(signalPost_t, Da.signalPosts,i);
-		if ( IsParamValid(sp->paramFileIndex) &&
-			(scaleInx == -1 || sp->scale == scaleInx || sp->scale = SCALE_ANY) &&
-			strcmp( sp->title, name ) == 0 ) {
-				return sp;
-		}
-	}
-	return NULL;
-}
-
-
-signalPost_p CreateSignalPost(char* scale, char * name) {
-
-	signalPost_p sp = NULL;
-
-	sp = FindSignalPost(scale, name);
-
-	if (!sp) {
-		for (int i=0;i<3;i++) {
-			CleanSegs(sp->drawings[i]);
-		}
-		//wipe out
-	} else {
-		sp = (signalPost_p)MyMalloc(sizeof(signalPost_t));
-		DYNARR_APPEND(signalPost_t, Da.signalPosts, 1 );
-		sp = DYNARR_LAST(signalPost_t, Da.signalPosts);
-		sp->title = MyStrdup( title );
-		sp->scale = LookupScale( scale );
-	}
-	return sp;
-
-}
-
-BOOL_T ReadSignalPost (char * line) {
-
-	signalPost_t *sp;
-	char *cp = 0;
-	if (!GetArgs(line+6,"sq",scale,&name)) return FALSE;
-
-	sp = CreateSignalPost(scale,name);
-
-	sp->name = strdup(name);
-	while ( (cp = GetNextLine()) != NULL ) {
-		if ( strncmp( cp, "END", 3 ) == 0 ) {
-			break;
-		}
-		if ( *cp == '\n' || *cp == '#' ) {
-			continue;
-		}
-		if ( strncmp( cp, "VIEW", 4) == 0) {
-			char * dispname;
-			if (!GetArgs(cp+5,"q",&dispname)) return FALSE;
-			ReadSegs();
-			if (tempSegs_da.cnt>0) {
-				if (strncmp("PLAN",dispname,4) == 0) {
-					AppendSegs(&sp->drawings[SIGNAL_DISPLAY_PLAN],&tempSegs_da);
-				} else if (strncmp("DIAG",dispname,4) == 0) {
-					AppendSegs(&sp->drawings[SIGNAL_DISPLAY_DIAG],&tempSegs_da);
-				} else if (strncmp("ELEV",dispname,4) == 0) {
-					AppendSegs(&sp->drawings[SIGNAL_DISPLAY_ELEV],&tempSegs_da);
-				}
-			}
-		}
-	}
-	return TRUE;
-
-}
-
-/*
- * HeadType
- */
-
-int FindAppearanceNum(signalHeadType_p headtype,char * name) {
-	for (int i=0;i<headtype->headAppearances.cnt;i++) {
-		Appearance_t ha = DYNARR_N(Appearance_t,headtype->headAppearances,i);
-		if (strcmp(ha->appearanceName,name) == 0) return i;
-	}
-	return -1;
-
-}
 
 
 
