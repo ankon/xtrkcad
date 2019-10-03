@@ -48,17 +48,31 @@ long FAR PASCAL _export pushEdit(
 	wControl_p b = mswMapIndex( inx );
 
 	switch (message) {
+	case WM_KILLFOCUS: //Lose Keyboard Focus
+		if (b->option && (BO_ENTER)) {
+			if (((wString_p)b)->action)
+				mswSetTrigger( (wControl_p)b, triggerStringReturn );
+		}
 	case WM_CHAR:
 		if ( b != NULL) {
 			switch( wParam ) {
-			case 0x1B:
+			case 0x0D: //Enter
 				if (b->option && (BO_ENTER)) {
-					if (((wString_p)b)->action)
-						mswSetTriggerReturn( (wControl_p)b, triggerStringReturn );
+					if (((wString_p)b)->action) {
+						mswSetTrigger( (wControl_p)b, triggerStringReturn );
+						return 0L;
+					}
 				}
-			case 0x0D:
-			case 0x09:
-				SetFocus( ((wControl_p)(b->parent))->hWnd ); 
+				break;
+			case 0x09:  //TAB
+				if (b->option && (BO_ENTER)) {
+					if (((wString_p)b)->action) {
+						//mswSetTrigger( (wControl_p)b, triggerStringReturn );
+						SetFocus( ((wControl_p)(b->parent))->hWnd );     //Cause WM_KILLFOCUS??
+					}
+				}
+			case 0x1B: //ESC
+				SetFocus( ((wControl_p)(b->parent))->hWnd ); 			//Cause WM_KILLFOCUS..
 				SendMessage( ((wControl_p)(b->parent))->hWnd, WM_CHAR,
 						wParam, lParam );
 				/*SendMessage( ((wControl_p)(b->parent))->hWnd, WM_COMMAND,
