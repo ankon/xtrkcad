@@ -130,61 +130,24 @@ EXPORT dynArr_t signalData_da;       //HotBar Signals - These can be picked from
 
 
 static signalAspectType_t defaultAspectsMap[] = {
-		{N_("None"), ASPECT_NONE,0},
-		{N_("Danger"), ASPECT_DANGER,0},
-		{N_("Proceed"), ASPECT_PROCEED,100},
-		{N_("Caution"), ASPECT_CAUTION,40},
-		{N_("Flash Caution"), ASPECT_FLASHCAUTION,40},
-		{N_("Preliminary Caution"), ASPECT_FLASHCAUTION, 75},
-		{N_("Flash Preliminary Caution"), ASPECT_PRELIMINARYCAUTION, 50},
-		{N_("Off"), ASPECT_OFF,15},
-		{N_("On"), ASPECT_ON,0},
-		{N_("Call-On"), ASPECT_CALLON,15},
-		{N_("Shunt"), ASPECT_SHUNT,15},
-		{N_("Warning"), ASPECT_WARNING,15},
+		{N_("None"), ASPECT_NONE},
+		{N_("Danger"), ASPECT_DANGER},
+		{N_("Proceed"), ASPECT_PROCEED},
+		{N_("Caution"), ASPECT_CAUTION},
+		{N_("Flash Caution"), ASPECT_FLASHCAUTION},
+		{N_("Preliminary Caution"), ASPECT_FLASHCAUTION},
+		{N_("Flash Preliminary Caution"), ASPECT_PRELIMINARYCAUTION},
+		{N_("Off"), ASPECT_OFF},
+		{N_("On"), ASPECT_ON},
+		{N_("Call-On"), ASPECT_CALLON},
+		{N_("Shunt"), ASPECT_SHUNT},
+		{N_("Warning"), ASPECT_WARNING},
 };
 
-static int getSpeedFromBaseAspect(signalBaseAspects_e aspect, char * aspectName) {
-	for (int i=0;i<sizeof(defaultAspectsMap);i++) {
-		if (aspect>0 && (aspect == defaultAspectsMap[aspect].baseAspect)) {
-			return defaultAspectsMap[aspect].speed;
-		}
-		else if (strncmp(aspectName,defaultAspectsMap[i].aspectName,strlen(defaultAspectsMap[i].aspectName)) ==0) {
-			return defaultAspectsMap[i].speed;
-		}
-	}
-	return 0;
-}
 
-signalBaseAspects_e getbaseAspect(char * aspectName, int * speed) {
-	signalBaseAspects_e baseAspect;
-	//Check additional Aspects
-	for (int i=0;i<signalSystem.extraAspectTypes.cnt;i++) {
-		signalAspectType_p as = &DYNARR_N(signalAspectType_t,signalSystem.extraAspectTypes,i);
-		if (strncmp(aspectName,as->aspectName,strlen(aspectName))==0) {
-			if (speed) *speed = getSpeedFromBaseAspect(as->baseAspect, NULL);
-			return as->baseAspect;
-		}
-	}
-	//Check BaseAspect Names//
-	if (speed) *speed = getSpeedFromBaseAspect(-1, aspectName);
-	return ASPECT_NONE;
-}
-
-
-static char * getNamefromBaseAspect(signalBaseAspects_e aspect) {
-	for (int i=0;i<sizeof(defaultAspectsMap);i++) {
-		if (aspect == defaultAspectsMap[aspect].baseAspect) {
-			return defaultAspectsMap[i].aspectName;
-		}
-	}
-	return defaultAspectsMap[0].aspectName;   /* Aspect_None */
-}
 
 
 #define headaspect(N) DYNARR_N( headAspectMap_t, headMap, N )
-
-
 
 static indicatorType_t defaultBaseIndicatorsMap[] =
 {
@@ -205,7 +168,7 @@ static indicatorType_t defaultBaseIndicatorsMap[] =
 
 
 static dynArr_t headTypes_da;			//Array of headTypes of all signals in use in the layout
-#define signalHeadType(N) DYNARR_N( headType_t, headTypes_da, N )
+#define signalHeadType(N) DYNARR_N( signalHeadType_t, headTypes_da, N )
 
 static dynArr_t signalHead_da;          //Array of active heads
 #define signalHead(N) DYNARR_N( signalHead_t, signalHead_da, N )
@@ -1761,7 +1724,7 @@ EXPORT track_p NewSignal(
 		signalAspect_p sa1 = &DYNARR_N(signalAspect_t,aspects,i);
 		sa->aspectName = strdup(sa1->aspectName);
 		sa->aspectScript = strdup(sa1->aspectScript);
-		sa->baseAspect = sa1->baseAspect;
+		sa->aspectType = sa1->aspectType;
 		for (int j=0;j<sa1->headMap.cnt;j++) {
 			DYNARR_APPEND(headAspectMap_t,sa->headMap,sa1->headMap.cnt);
 			headAspectMap_p hm = &DYNARR_N(headAspectMap_t,sa->headMap,j);
