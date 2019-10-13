@@ -430,7 +430,7 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 			case SEG_BENCH:
 			case SEG_TBLEDGE:
 				for (int i=0;i<2;i++) {
-					REORIGIN( drawData.endPt[i], segPtr->u.p.pts[i].pt, xx->angle, xx->orig );
+					REORIGIN( drawData.endPt[i], segPtr->u.l.pos[i], xx->angle, xx->orig );
 				}
 				drawDesc[E0].mode |= DESC_CHANGE;
 				drawDesc[E1].mode |= DESC_CHANGE;
@@ -866,6 +866,7 @@ static void DeleteDraw( track_p t )
 	if (xx->segs[0].type == SEG_POLY ||
 			xx->segs[0].type == SEG_FILPOLY) {
 		MyFree(xx->segs[0].u.p.pts);
+		xx->segs[0].u.p.pts = NULL;
 	}
 }
 
@@ -970,12 +971,12 @@ static paramData_t drawModPLs[] = {
 #define drawModRelAngle           1
 	{ PD_FLOAT, &drawModCmdContext.rel_angle, "Rel Angle", PDO_NORECORD|BO_ENTER, &r360_360, N_("Relative Angle") },
 #define drawModWidthPD		(drawModPLs[2])
-	{ PD_FLOAT, &drawModCmdContext.width, "Width", PDO_NORECORD|BO_ENTER, &r0_10000, N_("Width") },
+	{ PD_FLOAT, &drawModCmdContext.width, "Width", PDO_DIM|PDO_NORECORD|BO_ENTER, &r0_10000, N_("Width") },
 #define drawModHeightPD		(drawModPLs[3])
-	{ PD_FLOAT, &drawModCmdContext.height, "Height", PDO_NORECORD|BO_ENTER, &r0_10000, N_("Height") },
+	{ PD_FLOAT, &drawModCmdContext.height, "Height", PDO_DIM|PDO_NORECORD|BO_ENTER, &r0_10000, N_("Height") },
 #define drawModRadiusPD		(drawModPLs[4])
 #define drawModRadius           4
-	{ PD_FLOAT, &drawModCmdContext.radius, "Radius", PDO_NORECORD|BO_ENTER, &r10000_10000, N_("Radius") },
+	{ PD_FLOAT, &drawModCmdContext.radius, "Radius", PDO_DIM|PDO_NORECORD|BO_ENTER, &r10000_10000, N_("Radius") },
 #define drawModArcAnglePD		(drawModPLs[5])
 	{ PD_FLOAT, &drawModCmdContext.arc_angle, "ArcAngle", PDO_NORECORD|BO_ENTER, &r360_360, N_("Arc Angle") },
 #define drawModRotAnglePD		(drawModPLs[6])
@@ -1113,29 +1114,22 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 				infoSubst = TRUE;
 			break;
 			case SEG_CRVLIN:
-				if (!drawModCmdContext.circle) {
-					controls[0] = drawModArcAnglePD.control;
-					controls[1] = drawModRadiusPD.control;
-					controls[2] = NULL;
-					labels[0] = N_("Arc Ang");
-					labels[1] = N_("Radius");
-					ParamLoadControls( &drawModPG );
-					InfoSubstituteControls( controls, labels );
-					drawModArcAnglePD.option &= ~PDO_NORECORD;
-					drawModRadiusPD.option &= ~PDO_NORECORD;
-					infoSubst = TRUE;
-				break;
-				}
-			/* no break */
 			case SEG_FILCRCL:
 				controls[0] = drawModRadiusPD.control;
 				controls[1] = NULL;
 				labels[0] = N_("Radius");
+				if ((drawModCmdContext.type == SEG_CRVLIN) && xx->segs[0].u.c.a1>0.0 && xx->segs[0].u.c.a1 <360.0) {
+					controls[1] = drawModArcAnglePD.control;
+					controls[2] = NULL;
+					labels[1] = N_("Arc Angle");
+				}
 				ParamLoadControls( &drawModPG );
 				InfoSubstituteControls( controls, labels );
-				drawModRadiusPD.option &= ~PDO_NORECORD;
+				drawModArcAnglePD.option &= ~PDO_NORECORD;
+				if (drawModCmdContext.type == SEG_CRVLIN)
+					drawModArcAnglePD.option &= ~PDO_NORECORD;
 				infoSubst = TRUE;
-			break;
+				break;
 			default:
 				InfoSubstituteControls( NULL, NULL );
 				infoSubst = FALSE;
@@ -1331,6 +1325,9 @@ static BOOL_T QueryDraw( track_p trk, int query )
 		}
 		else
 			return FALSE;
+	case Q_IS_TEXT:
+		if (xx->segs[0].type== SEG_TEXT) return TRUE;
+		else return FALSE;
 	default:
 		return FALSE;
 	}
@@ -1677,7 +1674,6 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 	case wActionMove:
 	case wActionRDown:
 	case wActionRDrag:
-	case wActionText:
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		if (!((MyGetKeyState() & WKEY_SHIFT) != 0)) {
 			SnapPos( &pos );
@@ -1704,8 +1700,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 				labels[0] = N_("Radius");
 				ParamLoadControls( &drawPG );
 				InfoSubstituteControls( controls, labels );
-				drawLengthPD.option &= ~PDO_NORECORD;
-				drawAnglePD.option &= ~PDO_NORECORD;
+				drawRadiusPD.option &= ~PDO_NORECORD;
 				infoSubst = TRUE;
 				break;
 			case OP_CURVE1:
@@ -1777,7 +1772,9 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 		InfoSubstituteControls( NULL, NULL );
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		return DrawGeomMouse( action, pos, &drawCmdContext);
-
+	case C_TEXT:
+		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(action, pos);
+		return DrawGeomMouse( action, pos, &drawCmdContext);
 	case C_OK:
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		return DrawGeomMouse( (0x0D<<8|wActionText), pos, &drawCmdContext);

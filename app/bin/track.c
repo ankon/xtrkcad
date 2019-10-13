@@ -236,9 +236,21 @@ EXPORT BOOL_T CheckTrackLayer( track_p trk )
 	if (GetLayerFrozen( GetTrkLayer( trk ) ) ) {
 		ErrorMessage( MSG_CANT_MODIFY_FROZEN_TRK );
 		return FALSE;
-	} else {
+	} else if (GetLayerModule( GetTrkLayer( trk ) ) ) {
+		ErrorMessage( MSG_CANT_MODIFY_MODULE_TRK );
+		return FALSE;
+	} else
 		return TRUE;
-	}
+}
+
+EXPORT BOOL_T CheckTrackLayerSilent( track_p trk )
+{
+	if (GetLayerFrozen( GetTrkLayer( trk ) ) ) {
+		return FALSE;
+	} else if (GetLayerModule( GetTrkLayer( trk ) ) ) {
+		return FALSE;
+	} else
+		return TRUE;
 }
 
 /******************************************************************************
@@ -1637,12 +1649,14 @@ EXPORT DIST_T EndPtDescriptionDistance(
 		coOrd pos,
 		track_p trk,
 		EPINX_T ep,
+		coOrd *dpos,
 		BOOL_T show_hidden,
 		BOOL_T * hidden)
 {
 	elev_t *e;
 	coOrd pos1;
 	track_p trk1;
+	*dpos = pos;
 	if (hidden) *hidden = FALSE;
 	e = &trk->endPt[ep].elev;
 	if ((e->option&ELEV_MASK)==ELEV_NONE)
@@ -1659,6 +1673,7 @@ EXPORT DIST_T EndPtDescriptionDistance(
 	pos1 = GetTrkEndPos(trk,ep);
 	pos1.x += e->doff.x;
 	pos1.y += e->doff.y;
+	*dpos = pos1;
 	if (hidden) *hidden = !(e->option&ELEV_VISIBLE);
 	return FindDistance( pos1, pos );
 }
@@ -2474,6 +2489,7 @@ EXPORT void DrawCurvedTies(
 
 	if ( (!GetTrkVisible(trk)) && drawTunnel!=DRAW_TUNNEL_SOLID )
 		return;
+	if (GetTrkNoTies(trk)) return;	//No Ties for this Track
 	if (color == wDrawColorBlack)
 		color = tieColor;
 	len = 2*M_PI*r*a1/360.0;
@@ -2573,6 +2589,38 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) R%0.3f A%0.3f..%0.3f)\n",
 			 }
 		}
 	}
+	if (options & DTS_BRIDGE) {
+
+			ANGLE_T a2,a3;
+			coOrd pp0,pp1,pp2,pp3;
+
+			a2 = a0+R2D(trackGauge*1.0/r);
+			a3 = a1-R2D(trackGauge*2.0/r);
+
+			wDrawWidth width2 = (wDrawWidth)round((2.0 * d->dpi)/75.0);
+
+			DrawArc( d, p, r+(trackGauge*1.5), a2, a3, 0, width2, color );
+
+			PointOnCircle(&pp0,p,r+(trackGauge*1.5),a2);
+			PointOnCircle(&pp1,p,r+(trackGauge*1.5),a3+a2);
+
+			Translate( &pp2,pp0, a2-90+45, trackGauge);
+			DrawLine( d, pp0, pp2, width2, color );
+			Translate( &pp3,pp1, a2+a3+90-45, trackGauge);
+			DrawLine( d, pp1, pp3, width2, color );
+
+			DrawArc( d, p, r-(trackGauge*1.5), a2, a3, 0, width2, color );
+
+			PointOnCircle(&pp0,p,r-(trackGauge*1.5),a2);
+			PointOnCircle(&pp1,p,r-(trackGauge*1.5),a3+a2);
+
+			Translate( &pp2,pp0, a2-90-45, trackGauge);
+			DrawLine( d, pp0, pp2, width2, color );
+			Translate( &pp3,pp1, a2+a3+90+45, trackGauge);
+			DrawLine( d, pp1, pp3, width2, color );
+
+		}
+
 }
 
 
@@ -2598,6 +2646,7 @@ EXPORT void DrawStraightTies(
 	td = GetScaleTieData(GetTrkScale(trk));
 	if ( (!GetTrkVisible(trk)) && drawTunnel!=DRAW_TUNNEL_SOLID )
 		return;
+	if (GetTrkNoTies(trk)) return;	//No Ties for this Track
 	if ( color == wDrawColorBlack )
 		color = tieColor;
 	td = GetScaleTieData( GetTrkScale(trk) );
@@ -2715,6 +2764,32 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 			}
 		}
 	}
+	if (options & DTS_BRIDGE) {
+
+		coOrd pp2,pp3;
+		wDrawWidth width2 = (wDrawWidth)round((2.0 * d->dpi)/75.0);
+
+		Translate( &pp0, p0, angle+90, trackGauge*1.5 );
+		Translate( &pp1, p1, angle+90, trackGauge*1.5 );
+		Translate( &pp0, pp0, angle+180, trackGauge*1.5 );
+		Translate( &pp1, pp1, angle, trackGauge*1.5 );
+		DrawLine( d, pp0, pp1, width2, color );
+		Translate( &pp2,pp0, angle+90-45, trackGauge);
+		DrawLine( d, pp0, pp2, width2, color );
+		Translate( &pp3,pp1, angle+90+45, trackGauge);
+		DrawLine( d, pp1, pp3, width2, color );
+
+		Translate( &pp0, p0, angle-90, trackGauge*1.5 );
+		Translate( &pp1, p1, angle-90, trackGauge*1.5 );
+		Translate( &pp0, pp0, angle+180, trackGauge*1.5 );
+		Translate( &pp1, pp1, angle, trackGauge*1.5 );
+		DrawLine( d, pp0, pp1, width2, color );
+		Translate( &pp2,pp0, angle-90+45, trackGauge);
+		DrawLine( d, pp0, pp2, width2, color );
+		Translate( &pp3,pp1, angle-90-45, trackGauge);
+		DrawLine( d, pp1, pp3, width2, color );
+
+	}
 }
 
 
@@ -2775,7 +2850,11 @@ EXPORT void DrawTrack( track_cp trk, drawCmd_p d, wDrawColor color )
 		if (color == wDrawColorBlack) {
 			color = GetTrkColor( trk, d );
 		}
+		if (color == wDrawColorBlueHighlight) {
+			d->options |= DC_THICK;
+		}
 	}
+
 	if (d == &mapD && !GetLayerOnMap(curTrackLayer))
 		return;
 	if ( (IsTrack(trk)?(colorLayers&1):(colorLayers&2)) &&
@@ -2795,6 +2874,8 @@ EXPORT void DrawTrack( track_cp trk, drawCmd_p d, wDrawColor color )
 		d->options &= ~DC_TIES;
 	}
 	d->options &= ~DC_DASH;
+
+	d->options &= ~DC_THICK;
 
 	DrawTrackElev( trk, d, color!=wDrawColorWhite );
 }
@@ -3199,19 +3280,15 @@ EXPORT void HilightElevations( BOOL_T hilight )
 
 EXPORT void HilightSelectedEndPt( BOOL_T show, track_p trk, EPINX_T ep )
 {
-	static BOOL_T lastShow = FALSE;
-	static long lastRedraw = -1;
 	coOrd pos;
-	if (trk == NULL)
-		return;
-	if (currRedraw > lastRedraw) {
-		lastRedraw = currRedraw;
-		lastShow = FALSE;
-	}
-	if (lastShow != show) {
+	if (!trk || (ep==-1)) return;
+	pos = GetTrkEndPos( trk, ep );
+	if ( show == TRUE ) {
 		pos = GetTrkEndPos( trk, ep );
 		DrawFillCircle( &tempD, pos, 0.10*mainD.scale, selectedColor );
-		lastShow = show;
+	} else 	 {
+		pos = GetTrkEndPos( trk, ep );
+		DrawFillCircle( &tempD, pos, 0.10*mainD.scale, wDrawColorWhite );
 	}
 }
 

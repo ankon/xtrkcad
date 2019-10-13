@@ -135,6 +135,7 @@ static void ComputeBezierBoundingBox( track_p trk, struct extraData * xx )
 DIST_T BezierDescriptionDistance(
 		coOrd pos,
 		track_p trk,
+		coOrd * dpos,
 		BOOL_T show_hidden,
 		BOOL_T * hidden)
 {
@@ -151,6 +152,7 @@ DIST_T BezierDescriptionDistance(
 	p1.x = xx->bezierData.pos[0].x + ((xx->bezierData.pos[3].x-xx->bezierData.pos[0].x)/2) + offset.x;
 	p1.y = xx->bezierData.pos[0].y + ((xx->bezierData.pos[3].y-xx->bezierData.pos[0].y)/2) + offset.y;
 	if (hidden) *hidden = (GetTrkBits( trk ) & TB_HIDEDESC);
+	*dpos = p1;
 	return FindDistance( p1, pos );
 }
 
@@ -173,8 +175,8 @@ static void DrawBezierDescription(
     pos.x += xx->bezierData.descriptionOff.x;
     pos.y += xx->bezierData.descriptionOff.y;
     fp = wStandardFont( F_TIMES, FALSE, FALSE );
-    sprintf( message, _("Bezier Curve: length=%s min radius=%s"),
-				FormatDistance(xx->bezierData.length), FormatDistance(xx->bezierData.minCurveRadius));
+    sprintf( message, _("Bezier: len=%0.2f min_rad=%0.2f"),
+				xx->bezierData.length, xx->bezierData.minCurveRadius>10000?0.0:xx->bezierData.minCurveRadius);
     DrawBoxedString( BOX_BOX, d, pos, message, fp, (wFontSize_t)descriptionFontSize, color, 0.0 );
 }
 
@@ -481,7 +483,7 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
-	if (GetTrkWidth(t) == 3)
+	if ((GetTrkWidth(t) == 3) || (d->options & DC_THICK))
 		widthOptions |= DTS_THICK3;
 	
 
@@ -492,6 +494,8 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 		DrawBezierDescription( t, d, color );
 	}
 	DIST_T scale2rail = (d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale;
+	if (GetTrkBridge(t)) widthOptions |= DTS_BRIDGE;
+		else widthOptions &=~DTS_BRIDGE;
 	if ( tieDrawMode!=TIEDRAWMODE_NONE &&
 			 d!=&mapD &&
 			 (d->options&DC_TIES)!=0 &&
@@ -537,7 +541,7 @@ static BOOL_T WriteBezier( track_p t, FILE * f )
 	if ( ( GetTrkBits(t) & TB_HIDEDESC ) == 0 ) options |= 0x80;
 	rc &= fprintf(f, "%s %d %u %ld %ld %0.6f %s %d %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f 0 %0.6f %0.6f \n",
 		track?"BEZIER":"BZRLIN",GetTrkIndex(t), GetTrkLayer(t), (long)options, wDrawGetRGB(xx->bezierData.segsColor), xx->bezierData.segsWidth,
-                  GetTrkScaleName(t), GetTrkVisible(t),
+                  GetTrkScaleName(t), GetTrkVisible(t)|(GetTrkNoTies(t)?1<<2:0)|(GetTrkBridge(t)?1<<3:0),
 				  xx->bezierData.pos[0].x, xx->bezierData.pos[0].y,
 				  xx->bezierData.pos[1].x, xx->bezierData.pos[1].y,
 				  xx->bezierData.pos[2].x, xx->bezierData.pos[2].y,
@@ -574,7 +578,9 @@ static void ReadBezier( char * line )
 	else
 		t = NewTrack( index, T_BZRLIN, 0, sizeof *xx );
 	xx = GetTrkExtraData(t);
-	SetTrkVisible(t, visible);
+	SetTrkVisible(t, visible&2);
+	SetTrkNoTies(t,visible&4);
+	SetTrkBridge(t,visible&8);
 	SetTrkScale(t, LookupScale(scale));
 	SetTrkLayer(t, layer );
 	SetTrkWidth(t, (int)(options&0x0F));

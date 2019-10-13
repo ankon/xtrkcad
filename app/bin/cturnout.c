@@ -688,7 +688,7 @@ static void DrawTurnout(
 		widthOptions |= DTS_BLOCK_RIGHT;
 	if (GetTrkWidth(trk) == 2)
 		widthOptions |= DTS_THICK2;
-	if (GetTrkWidth(trk) == 3)
+	if ((GetTrkWidth(trk) == 3) || (d->options & DC_THICK))
 		widthOptions |= DTS_THICK3;
 	scale2rail = (d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale;
 	if ( tieDrawMode!=TIEDRAWMODE_NONE &&
@@ -2195,8 +2195,7 @@ static void PlaceTurnoutTrial(
 			 (trk1=GetTrkEndTrk(trk,ep0)) &&
 			 GetTrkType(trk1) == T_TURNOUT) &&
 		 ! GetLayerFrozen(GetTrkLayer(trk)) &&
-		   (GetTrkScale(trk) == curTurnout->scaleInx)  // Reject different scale/gauge tracks
-		 ) {
+		 ! GetLayerModule(GetTrkLayer(trk))) {
 		epPos = GetTrkEndPos( trk, ep0 );
 		d = FindDistance( pos, epPos );
 		if (d <= minLength)
@@ -2230,7 +2229,8 @@ LOG( log_turnout, 3, ( "placeTurnout T%d (%0.3f %0.3f) A%0.3f\n",
 			epAngle = NormalizeAngle( curTurnout->endPt[i].angle + angle );
 			conPos = epPos;
 			if ((trk = OnTrack(&conPos, FALSE, TRUE)) != NULL &&
-				!GetLayerFrozen(GetTrkLayer(trk)) ) {
+				!GetLayerFrozen(GetTrkLayer(trk)) &&
+				!GetLayerModule(GetTrkLayer(trk))) {
 				v->off = FindDistance( epPos, conPos );
 				v->angle = FindAngle( epPos, conPos );
 				if ( GetTrkType(trk) == T_TURNOUT ) {
@@ -2358,6 +2358,7 @@ static void AddTurnout( void )
 #define connection(N) DYNARR_N( junk_t, connection_da, N )
 #define leftover(N) DYNARR_N( junk_t, leftover_da, N )
 	BOOL_T visible;
+	BOOL_T no_ties;
 	BOOL_T noConnections;
 	coOrd p0, p1;
 
@@ -2393,9 +2394,9 @@ static void AddTurnout( void )
 		epPos = tempEndPts(i).pos;
 		if ((trk = OnTrack(&epPos, FALSE, TRUE)) != NULL &&    //Adjust epPos onto existing track
 			(!GetLayerFrozen(GetTrkLayer(trk))) &&
-			(!QueryTrack(trk,Q_CANNOT_PLACE_TURNOUT)) &&
-			 (GetTrkScale(trk) == curTurnout->scaleInx)  // Reject mismatched Scale/Gauge
-			 ) {
+			 (GetTrkScale(trk) == curTurnout->scaleInx) && // Reject mismatched Scale/Gauge
+			(!GetLayerModule(GetTrkLayer(trk)))  &&
+			(!QueryTrack(trk,Q_CANNOT_PLACE_TURNOUT)) ) {
 LOG( log_turnout, 1, ( "ep[%d] on T%d @(%0.3f %0.3f)\n",
 					i, GetTrkIndex(trk), epPos.x, epPos.y ) )
 			d = FindDistance( tempEndPts(i).pos, epPos );
@@ -2487,6 +2488,7 @@ LOG( log_turnout, 1, ( "   deleting leftover T%d\n",
 	/* Make the connections */
 
 	visible = FALSE;
+	no_ties = FALSE;
 	noConnections = TRUE;
 	AuditTracks( "addTurnout T%d before connection", GetTrkIndex(newTrk) );
 	for (i=0;i<curTurnout->endCnt;i++) {
@@ -2504,6 +2506,7 @@ LOG( log_turnout, 1, ( "   deleting leftover T%d\n",
 				DrawEndPt( &mainD, trk1, ep0, wDrawColorWhite );
 				ConnectTracks( newTrk, i, trk1, ep0 );
 				visible |= GetTrkVisible(trk1);
+				no_ties |= GetTrkNoTies(trk1);
 				DrawEndPt( &mainD, trk1, ep0, wDrawColorBlack );
 			}
 		}
@@ -2511,7 +2514,8 @@ LOG( log_turnout, 1, ( "   deleting leftover T%d\n",
 	if (noConnections)
 		visible = TRUE;
 	SetTrkVisible( newTrk, visible);
-
+	SetTrkNoTies(newTrk, no_ties);
+	SetTrkBridge(newTrk, FALSE);
 
 	AuditTracks( "addTurnout T%d before dealing with leftovers", GetTrkIndex(newTrk) );
 	/* deal with the leftovers */

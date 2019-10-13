@@ -45,6 +45,7 @@
 #define BG_COUNT		(13)
 #define BG_FILE			(14)
 #define BG_CONTROL		(15)
+#define BG_EXPORTIMPORT (16)
 #define BG_BIGGAP		(1<<8)
 extern int cmdGroup;
 
@@ -122,6 +123,7 @@ void InitCmdPan( wMenu_p menu);
 void InitCmdDelete( void );
 void InitCmdSplit( wMenu_p menu );
 void InitCmdTunnel( void );
+void InitCmdBridge( void );
 void InitCmdRuler( wMenu_p menu );
 
 void InitCmdParallel( wMenu_p menu );
