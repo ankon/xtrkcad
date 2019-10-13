@@ -174,7 +174,6 @@ static STATUS_T ModifyDraw(wAction_t action, coOrd pos) {
 		case C_UP:
 			rc = ModifyTrack( Dex.Trk, action, pos );
 			break;
-		case C_OK:
 		case C_TEXT:
 			//Delete or '0' - continues
 
@@ -187,9 +186,11 @@ static STATUS_T ModifyDraw(wAction_t action, coOrd pos) {
 					(action>>8 >= 48 && action>>8 <= 52)) return ModifyTrack( Dex.Trk, action, pos );
 			//Enter/Space does not
 			if (action>>8 !=32 && action>>8 != 13) return C_CONTINUE;
+			/*no break*/
+		case C_OK:
 			UndoStart( _("Modify Track"), "Modify( T%d[%d] )", GetTrkIndex(Dex.Trk), Dex.params.ep );
 			UndoModify( Dex.Trk );
-			rc = ModifyTrack( Dex.Trk, action, pos );
+			rc = ModifyTrack( Dex.Trk, C_TEXT | (13<<8), pos );
 			if (rc != C_CONTINUE) modifyDrawMode = FALSE;
 			UndoEnd();
 			break;
@@ -404,7 +405,7 @@ STATUS_T CmdModify(
 					}
 				}
 			}
-		} else if (((t=OnTrack(&pos,FALSE,FALSE))!= NULL) && !GetLayerFrozen( GetTrkLayer( t )) && QueryTrack( t, Q_IS_DRAW )) {
+		} else if (((t=OnTrack(&pos,FALSE,FALSE))!= NULL) && (!(GetLayerFrozen(GetTrkLayer(t)) && GetLayerModule(GetTrkLayer(t)))) && QueryTrack(t, Q_IS_DRAW )) {
 			DrawTrack( t, &mainD, wDrawColorBlue );
 			CreateEndAnchor(pos,FALSE);
 		}

@@ -131,6 +131,7 @@ typedef struct {
 #define Q_IS_POLY                       (26)
 #define Q_IS_DRAW					    (27)
 #define Q_IS_SIGNAL						(28)
+#define Q_IS_TEXT						(29)
 
 typedef struct {
 		track_p trk;							// IN Current Track OUT Next Track
@@ -447,6 +448,8 @@ void SetDebug( char * );
 #define TB_SHRTPATH		(1<<5)
 #define TB_HIDEDESC		(1<<6)
 #define TB_CARATTACHED	(1<<7)
+#define TB_NOTIES       (1<<8)
+#define TB_BRIDGE       (1<<9)
 #define TB_TEMPBITS		(TB_PROFILEPATH|TB_PROCESSED)
 
 /* track.c */
@@ -512,7 +515,11 @@ BOOL_T IsTrackDeleted( track_p );
 
 #define GetTrkSelected(T)		(GetTrkBits(T)&TB_SELECTED)
 #define GetTrkVisible(T)		(GetTrkBits(T)&TB_VISIBLE)
+#define GetTrkNoTies(T)			(GetTrkBits(T)&TB_NOTIES)
+#define GetTrkBridge(T)         (GetTrkBits(T)&TB_BRIDGE)
 #define SetTrkVisible(T,V)		((V)?SetTrkBits(T,TB_VISIBLE):ClrTrkBits(T,TB_VISIBLE))
+#define SetTrkNoTies(T,V)		((V)?SetTrkBits(T,TB_NOTIES):ClrTrkBits(T,TB_NOTIES))
+#define SetTrkBridge(T,V)		((V)?SetTrkBits(T,TB_BRIDGE):ClrTrkBits(T,TB_BRIDGE))
 int ClrAllTrkBits( int );
 
 void GetTrkEndElev( track_p trk, EPINX_T e, int *option, DIST_T *height );
@@ -533,6 +540,7 @@ void ClearElevPath( void );
 BOOL_T GetTrkOnElevPath( track_p, DIST_T * elev );
 void SetTrkLayer( track_p, int );
 BOOL_T CheckTrackLayer( track_p );
+BOOL_T CheckTrackLayerSilent(track_p);
 void CopyAttributes( track_p, track_p );
 
 #define GetTrkGauge( T )		GetScaleTrackGauge(GetTrkScale(T))
@@ -576,6 +584,7 @@ BOOL_T ComputeElev( track_p trk, EPINX_T ep, BOOL_T on_path, DIST_T * elev, DIST
 #define DTS_NOCENTER	(1<<5)
 #define DTS_BLOCK_LEFT  (1<<6)
 #define DTS_BLOCK_RIGHT (1<<7)
+#define DTS_BRIDGE      (1<<8)
 
 void DrawCurvedTies( drawCmd_p, track_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, wDrawColor );
 void DrawCurvedTrack( drawCmd_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, coOrd, coOrd, track_p, DIST_T, wDrawColor, long );
@@ -603,7 +612,7 @@ void UndrawNewTrack( track_cp );
 void DrawSelectedTracks( drawCmd_p );
 void HilightElevations( BOOL_T );
 void HilightSelectedEndPt( BOOL_T, track_p, EPINX_T );
-DIST_T EndPtDescriptionDistance( coOrd, track_p, EPINX_T, BOOL_T show_hidden, BOOL_T * hidden );
+DIST_T EndPtDescriptionDistance( coOrd, track_p, EPINX_T, coOrd *, BOOL_T show_hidden, BOOL_T * hidden );
 STATUS_T EndPtDescriptionMove( track_p, EPINX_T, wAction_t, coOrd );
 
 track_p FindTrack( TRKINX_T );
@@ -697,7 +706,7 @@ BOOL_T UpdateDescStraight( int, int, int, int, int, descData_p, long );
 
 		
 /* compound.c */
-DIST_T CompoundDescriptionDistance( coOrd, track_p, BOOL_T, BOOL_T * );
+DIST_T CompoundDescriptionDistance( coOrd, track_p, coOrd *, BOOL_T, BOOL_T * );
 STATUS_T CompoundDescriptionMove( track_p, wAction_t, coOrd );
 
 /* elev.c */

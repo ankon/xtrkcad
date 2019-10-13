@@ -362,6 +362,7 @@ void DrawCompoundDescription(
 DIST_T CompoundDescriptionDistance(
 		coOrd pos,
 		track_p trk,
+		coOrd * dpos,
 		BOOL_T show_hidden,
 		BOOL_T * hidden)
 {
@@ -378,6 +379,7 @@ DIST_T CompoundDescriptionDistance(
 	p1.x += xx->orig.x + offset.x;
 	p1.y += xx->orig.y + offset.y;
 	if (hidden) *hidden = (GetTrkBits( trk ) & TB_HIDEDESC);
+	*dpos = p1;
 	return FindDistance( p1, pos );
 }
 
@@ -939,6 +941,7 @@ void DeleteCompound(
 	struct extraData *xx = GetTrkExtraData(t);
 	FreeFilledDraw( xx->segCnt, xx->segs );
 	MyFree( xx->segs );
+	xx->segs = NULL;
 }
 
 
@@ -980,7 +983,7 @@ BOOL_T WriteCompound(
 	rc &= fprintf(f, "%s %d %d %ld %ld 0 %s %d %0.6f %0.6f 0 %0.6f \"%s\"\n",
 				GetTrkTypeName(t),
 				GetTrkIndex(t), GetTrkLayer(t), options, position,
-				GetTrkScaleName(t), GetTrkVisible(t),
+				GetTrkScaleName(t), GetTrkVisible(t)|(GetTrkNoTies(t)?1<<2:0),
 				xx->orig.x, xx->orig.y, xx->angle,
 				PutTitle(xtitle(xx)) )>0;
 	for (ep=0; ep<epCnt; ep++ )
@@ -1125,7 +1128,9 @@ void ReadCompound(
 	}
 	trk = NewCompound( trkType, index, orig, angle, title, 0, NULL, NULL, pathCnt, (char *)path, tempSegs_da.cnt, &tempSegs(0) );
 	SetEndPts( trk, 0 );
-	SetTrkVisible(trk, visible);
+	SetTrkVisible(trk, visible&2);
+	SetTrkNoTies(trk, visible&4);
+	SetTrkBridge(trk, visible&8);
 	SetTrkScale(trk, LookupScale( scale ));
 	SetTrkLayer(trk, layer);
 	SetTrkWidth(trk, (int)(options&3));

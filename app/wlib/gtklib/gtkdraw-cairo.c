@@ -535,7 +535,8 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 	cairo_fill(cairo);
 
 	gtkDrawDestroyCairoContext(cairo);
-	gtk_widget_queue_draw(GTK_WIDGET(bd->widget));
+	if (bd->widget)
+		gtk_widget_queue_draw(GTK_WIDGET(bd->widget));
 
 }
 
@@ -687,7 +688,8 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 	cairo_rel_line_to(cairo, 0, bd->h);
 	cairo_rel_line_to(cairo, -bd->w, 0);
 	cairo_fill(cairo);
-	gtk_widget_queue_draw(bd->widget);
+	if (bd->widget)
+		gtk_widget_queue_draw(bd->widget);
 	gtkDrawDestroyCairoContext(cairo);
 
 }
@@ -1292,6 +1294,7 @@ wDraw_p wBitMapCreate(          wPos_t w, wPos_t h, int arg )
 	bd->maxH = bd->h = h;
 
 	bd->pixmap = gdk_pixmap_new( gtkMainW->widget->window, w, h, -1 );
+	bd->widget = gtk_pixmap_new(bd->pixmap, NULL);
 	if ( bd->pixmap == NULL ) {
 		wNoticeEx( NT_ERROR, "CreateBitMap: pixmap_new failed", "Ok", NULL );
 		return FALSE;
