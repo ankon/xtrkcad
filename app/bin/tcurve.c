@@ -173,6 +173,7 @@ BOOL_T GetCurveMiddle( track_p trk, coOrd * pos )
 DIST_T CurveDescriptionDistance(
 		coOrd pos,
 		track_p trk,
+		coOrd * dpos,
 		BOOL_T show_hidden,
 		BOOL_T * hidden)
 {
@@ -196,6 +197,7 @@ DIST_T CurveDescriptionDistance(
 		Translate( &p1, xx->pos, a, xx->radius * ratio );
 	}
 	if (hidden) *hidden = (GetTrkBits( trk ) & TB_HIDEDESC);
+	*dpos = p1;
 	return FindDistance( p1, pos );
 }
 
@@ -237,15 +239,15 @@ static void DrawCurveDescription(
 		}
 		fp = wStandardFont( F_TIMES, FALSE, FALSE );
 		if (elevValid)
-			sprintf( message, _("Helix: turns=%ld length=%s grade=%0.1f%% sep=%s"),
+			sprintf( message, _("Helix: turns=%ld len=%0.2f grade=%0.1f%% sep=%0.2f"),
 				xx->helixTurns,
-				FormatDistance(dist),
+				dist,
 				grade*100.0,
-				FormatDistance(sep) );
+				sep );
 		else
-			sprintf( message, _("Helix: turns=%ld length=%s"),
+			sprintf( message, _("Helix: turns=%ld len=%0.2f"),
 				xx->helixTurns,
-				FormatDistance(dist) );
+				dist );
 		DrawBoxedString( BOX_BOX, d, pos, message, fp, (wFontSize_t)descriptionFontSize, color, 0.0 );
 	} else {
 		dist = trackGauge/2.0;
@@ -667,7 +669,7 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
-	if (GetTrkWidth(t) == 3)
+	if ((GetTrkWidth(t) == 3) || (d->options & DC_THICK))
 		widthOptions |= DTS_THICK3;
 	GetCurveAngles( &a0, &a1, t );
 	if (xx->circle) {
@@ -1597,6 +1599,7 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 					curveData->a0 = NormalizeAngle( a2-180-curveData->a1 );
 					curveData->negative = TRUE;
 				}
+				Translate(&curveData->pos2,curveData->curvePos,FindAngle(curveData->curvePos,pos2),curveData->curveRadius);
 				curveData->type = curveTypeCurve;
 			}
 		}
@@ -1620,6 +1623,7 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 			curveData->a0 = a1;
 			curveData->a1 = NormalizeAngle(a0-a1);
 		}
+		Translate(&curveData->pos2,curveData->curvePos,FindAngle(curveData->curvePos,pos2),curveData->curveRadius);
 		curveData->type = curveTypeCurve;
 		break;
 	case crvCmdFromChord:
@@ -1652,6 +1656,7 @@ LOG( log_curve, 3, ( "Straight: %0.3f < %0.3f\n", d0*sin(D2R(a1)), (4.0/75.0)*ma
 			curveData->a1 = NormalizeAngle(a0-a1);
 			curveData->negative = TRUE;
 		}
+		Translate(&curveData->pos2,curveData->curvePos,FindAngle(curveData->curvePos,pos2),curveData->curveRadius);
 		curveData->type = curveTypeCurve;
 		break;
 	}

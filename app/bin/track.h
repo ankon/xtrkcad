@@ -127,6 +127,7 @@ typedef struct {
 #define Q_ISTRAIN                       (25)
 #define Q_IS_POLY                       (26)
 #define Q_IS_DRAW					    (27)
+#define Q_IS_TEXT						(28)
 
 typedef struct {
 		track_p trk;							// IN Current Track OUT Next Track
@@ -512,6 +513,7 @@ void ClearElevPath( void );
 BOOL_T GetTrkOnElevPath( track_p, DIST_T * elev );
 void SetTrkLayer( track_p, int );
 BOOL_T CheckTrackLayer( track_p );
+BOOL_T CheckTrackLayerSilent(track_p);
 void CopyAttributes( track_p, track_p );
 
 #define GetTrkGauge( T )		GetScaleTrackGauge(GetTrkScale(T))
@@ -580,7 +582,7 @@ void UndrawNewTrack( track_cp );
 void DrawSelectedTracks( drawCmd_p );
 void HilightElevations( BOOL_T );
 void HilightSelectedEndPt( BOOL_T, track_p, EPINX_T );
-DIST_T EndPtDescriptionDistance( coOrd, track_p, EPINX_T, BOOL_T show_hidden, BOOL_T * hidden );
+DIST_T EndPtDescriptionDistance( coOrd, track_p, EPINX_T, coOrd *, BOOL_T show_hidden, BOOL_T * hidden );
 STATUS_T EndPtDescriptionMove( track_p, EPINX_T, wAction_t, coOrd );
 
 track_p FindTrack( TRKINX_T );
@@ -673,7 +675,7 @@ BOOL_T UpdateDescStraight( int, int, int, int, int, descData_p, long );
 
 		
 /* compound.c */
-DIST_T CompoundDescriptionDistance( coOrd, track_p, BOOL_T, BOOL_T * );
+DIST_T CompoundDescriptionDistance( coOrd, track_p, coOrd *, BOOL_T, BOOL_T * );
 STATUS_T CompoundDescriptionMove( track_p, wAction_t, coOrd );
 
 /* elev.c */

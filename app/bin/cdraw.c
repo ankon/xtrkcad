@@ -430,7 +430,7 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 			case SEG_BENCH:
 			case SEG_TBLEDGE:
 				for (int i=0;i<2;i++) {
-					REORIGIN( drawData.endPt[i], segPtr->u.p.pts[i].pt, xx->angle, xx->orig );
+					REORIGIN( drawData.endPt[i], segPtr->u.l.pos[i], xx->angle, xx->orig );
 				}
 				drawDesc[E0].mode |= DESC_CHANGE;
 				drawDesc[E1].mode |= DESC_CHANGE;
@@ -1325,6 +1325,9 @@ static BOOL_T QueryDraw( track_p trk, int query )
 		}
 		else
 			return FALSE;
+	case Q_IS_TEXT:
+		if (xx->segs[0].type== SEG_TEXT) return TRUE;
+		else return FALSE;
 	default:
 		return FALSE;
 	}
@@ -1671,7 +1674,6 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 	case wActionMove:
 	case wActionRDown:
 	case wActionRDrag:
-	case wActionText:
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		if (!((MyGetKeyState() & WKEY_SHIFT) != 0)) {
 			SnapPos( &pos );
@@ -1770,7 +1772,9 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 		InfoSubstituteControls( NULL, NULL );
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		return DrawGeomMouse( action, pos, &drawCmdContext);
-
+	case C_TEXT:
+		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(action, pos);
+		return DrawGeomMouse( action, pos, &drawCmdContext);
 	case C_OK:
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		return DrawGeomMouse( (0x0D<<8|wActionText), pos, &drawCmdContext);
