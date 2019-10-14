@@ -55,18 +55,18 @@ typedef enum {ASPECT_NONE = -1,
 #define BaseAspectCount ASPECT_WARNING+1
 
 static const char * signalBaseAspectNames[] = {
-		"ASPECT_NONE",
-		"ASPECT_DANGER",
-		"ASPECT_PROCEED",
-		"ASPECT_CAUTION",
-		"ASPECT_FLASHCAUTION",
-		"ASPECT_PRELIMINARYCAUTION",
-		"ASPECT_FLASHPRELIMINARYCAUTION",
-		"ASPECT_OFF",
-		"ASPECT_ON",
-		"ASPECT_CALLON",
-		"ASPECT_SHUNT",
-		"ASPECT_WARNING",
+		"NONE",
+		"DANGER",
+		"PROCEED",
+		"CAUTION",
+		"FLASHCAUTION",
+		"PRELIMINARYCAUTION",
+		"FLASHPRELIMINARYCAUTION",
+		"OFF",
+		"ON",
+		"CALLON",
+		"SHUNT",
+		"WARNING",
 };
 
 /*
@@ -92,12 +92,12 @@ typedef struct signalPost_t {
 /*
  * A Map from the Aspects from this Signal to all the Heads and the Appearances that they show
  */
+
 typedef struct headAspectMap_t {
 	int aspectMapHeadNumber;					//Which Head is that on this Signal
 	char * aspectMapHeadAppearance;				//Appearance name
 	int aspectMapHeadAppearanceNumber;		    //Which appearance is that on the head
 } headAspectMap_t, *headAspectMap_p;
-
 
 /*
  * An Aspect is an appearance by a Signal Mast to a driver of what he is allowed to do. It may be shown by using one or more Heads.
@@ -119,6 +119,7 @@ typedef struct signalHeadType_t {
 	dynArr_t headSegs;                  //Draw Segments that don't change for head (background, lamp body, etc)
 	dynArr_t headAppearances;	 		//All things the head can show
 	BOOL_T used;
+	SCALEINX_T headScale;
 	} signalHeadType_t, *signalHeadType_p;
 
 /*
@@ -139,7 +140,7 @@ typedef struct signalHead_t {
  * A Signal Parameter Record - this links together Posts, Aspects and Groups into a Signal that can be copied to the Layout
  */
 
-typedef enum {SIGNAL_DIAGRAM, SIGNAL_PLAN, SIGNAL_ELEVATION} Signal_Look_e;
+typedef enum {SIGNAL_DIAGRAM, SIGNAL_PLAN, SIGNAL_ELEVATION } SIGNAL_LOOK_e;
 
 
 typedef struct signalParm_t {

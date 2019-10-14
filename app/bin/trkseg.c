@@ -606,6 +606,8 @@ EXPORT void RescaleSegs(
 				s->u.p.pts[inx].pt.x *= scale_x;
 				s->u.p.pts[inx].pt.y *= scale_y;
 			}
+			s->u.p.orig.x *= scale_x;
+			s->u.p.orig.y *= scale_y;
 			break;
 		case SEG_JNTTRK:
 			s->u.j.pos.x *= scale_x;

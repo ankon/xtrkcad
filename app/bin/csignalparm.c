@@ -329,7 +329,7 @@ signalHeadType_p FindHeadType(char* name) {
  * SignalParm
  */
 
-signalAspect_p SignalFindAspect(signalParm_p sig, char*name) {
+signalAspect_p SignalParmFindAspect(signalParm_p sig, char*name) {
 	for (int i=0;i<sig->aspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,sig->aspects,i);
 		if (strcmp(sa->aspectName, name) == 0) {
@@ -340,10 +340,14 @@ signalAspect_p SignalFindAspect(signalParm_p sig, char*name) {
 
 }
 
+/*
+ * SIGNALITEM  - Something that can be copied to create a SIGNAL def in the layout
+ */
+
 BOOL_T ReadSignalParam ( char * line ) {
 	char scale[10];
 	char * name;
-	if (!GetArgs(line+6,"sq",scale,&name)) return FALSE;
+	if (!GetArgs(line+10,"sq",scale,&name)) return FALSE;
 
 	signalParm_t * sig;
 	char *cp;
@@ -446,7 +450,7 @@ BOOL_T ReadSignalParam ( char * line ) {
 				if ( strncmp( cp, "TRACKASPECT", 11 ) == 0 ) {
 					char * groupAspect;
 					if (!GetArgs(cp+12,"s",&groupAspect)) return FALSE;
-					signalAspect_p sa = SignalFindAspect(sig,groupAspect);
+					signalAspect_p sa = SignalParmFindAspect(sig,groupAspect);
 					if (!sa) ErrorMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, name, sig->groups.cnt, groupAspect);
 					else {
 						DYNARR_APPEND(AspectList_t,sg->aspects,1);
@@ -462,19 +466,15 @@ BOOL_T ReadSignalParam ( char * line ) {
 							ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, name, sig->groups.cnt, headNum );
 					else {
 						signalHead_p sh = &DYNARR_N(signalHead_t,sig->heads,headNum);
-						if(FindAppearanceNum(sh->headType, indOnName) == -1)
-							ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, sig->groups.cnt, indOnName);
+						if(FindAppearanceNum(sh->headType, indOffName) == -1)
+							ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, sig->groups.cnt, indOffName);
 						else {
-							if(FindAppearanceNum(sh->headType, indOffName) == -1)
-								ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, sig->groups.cnt, indOffName);
-							else {
-								DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
-								signalGroupInstance_p gi = &DYNARR_LAST(signalGroupInstance_t, sg->groupInstances);
-								gi->headId = headNum;
-								gi->appearanceOnName = indOnName;
-								gi->appearanceOffName = indOffName;
-								gi->conditions = conditions;    //Dont check yet
-							}
+							DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
+							signalGroupInstance_p gi = &DYNARR_LAST(signalGroupInstance_t, sg->groupInstances);
+							gi->headId = headNum;
+							gi->appearanceOnName = indOnName;
+							gi->appearanceOffName = indOffName;
+							gi->conditions = conditions;    //Dont check yet
 						}
 					}
 				}
