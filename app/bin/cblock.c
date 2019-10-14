@@ -647,10 +647,11 @@ static void ReadBlock ( char * line )
 		if (!GetArgs(line+6,"dqq",&index,&name,&script)) return;
 	}
 
-	xx->description_offset.x = xx->description_offset.y = 0.0;
+	coOrd desc_offset = zero;
 	if (cp) {
-		GetArgs( cp, "p", &xx->description_offset );
+		GetArgs( cp, "p", &desc_offset );
 	}
+
 	DYNARR_RESET( btrackinfo_p , blockTrk_da );
 	while ( (cp = GetNextLine()) != NULL ) {
 		while (isspace((unsigned char)*cp)) cp++;
@@ -674,9 +675,10 @@ static void ReadBlock ( char * line )
 		endPtP = &tempEndPts(ep);
 		SetTrkEndPoint( trk, ep, endPtP->pos, endPtP->angle );
 	}
-
-
 	xx = GetblockData( trk );
+
+	xx->description_offset = desc_offset;
+
 	LOG( log_block, 1, ("*** ReadBlock(): trk = %p (%d), xx = %p\n",trk,GetTrkIndex(trk),xx))
 	LOG( log_block, 1, ("*** ReadBlock(): name = %p, script = %p\n",name,script))
 	xx->name = name;
