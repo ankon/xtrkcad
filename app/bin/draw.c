@@ -86,6 +86,7 @@ EXPORT wDrawColor drawColorRed;
 EXPORT wDrawColor drawColorBlue;
 EXPORT wDrawColor drawColorGreen;
 EXPORT wDrawColor drawColorAqua;
+EXPORT wDrawColor drawColorBlueHighlight;
 EXPORT wDrawColor drawColorPowderedBlue;
 EXPORT wDrawColor drawColorPurple;
 EXPORT wDrawColor drawColorGold;
@@ -157,9 +158,9 @@ static int mousePositionx, mousePositiony;	/**< position of mouse pointer */
 
 static int delayUpdate = 1;
 
-static char xLabel[] = "X : ";
-static char yLabel[] = "Y : ";
-static char zoomLabel[] = "Zoom : ";
+static char xLabel[] = "X: ";
+static char yLabel[] = "Y: ";
+static char zoomLabel[] = "Zoom: ";
 
 static struct {
 		char * name;
@@ -471,13 +472,6 @@ EXPORT void DrawHilight( drawCmd_p d, coOrd p, coOrd s, BOOL_T add )
 	wPos_t x, y, w, h;
 	if (d == &mapD && !mapVisible)
 		return;
-#ifdef LATER
-	if (d->options&DC_TEMPSEGS) {
-		return;
-	}
-	if (d->options&DC_PRINT)
-		return;
-#endif
 	w = (wPos_t)((s.x/d->scale)*d->dpi+0.5);
 	h = (wPos_t)((s.y/d->scale)*d->dpi+0.5);
 	d->CoOrd2Pix(d,p,&x,&y);
@@ -1010,8 +1004,8 @@ EXPORT void InitInfoBar( void )
 	y -= 19; /* Kludge for MSW */
 #endif
 
-	infoD.pos_w = GetInfoPosWidth() + 2;
-	infoD.scale_w = wStatusGetWidth( "999:1" ) + wStatusGetWidth( zoomLabel ) + 6;
+	infoD.pos_w = GetInfoPosWidth();
+	infoD.scale_w = wStatusGetWidth( "999:1" ) + wStatusGetWidth( zoomLabel );
 	/* we do not use the count label for the moment */
 	infoD.count_w = 0;
 	infoD.info_w = width - 20 - infoD.pos_w*2 - infoD.scale_w - infoD.count_w - 45;      // Allow Window to resize down
@@ -1024,13 +1018,13 @@ EXPORT void InitInfoBar( void )
 		x = 2;
 		infoD.scale_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.scale_w, boxH );
 		infoD.scale_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarScale", infoD.scale_w-six, zoomLabel);
-		x += infoD.scale_w + 10;
+		x += infoD.scale_w + 2;
 		infoD.posX_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.pos_w, boxH );
 		infoD.posX_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarPosX", infoD.pos_w-six, xLabel );
-		x += infoD.pos_w + 5;
+		x += infoD.pos_w + 2;
 		infoD.posY_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.pos_w, boxH );
 		infoD.posY_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarPosY", infoD.pos_w-six, yLabel );
-		x += infoD.pos_w + 10;
+		x += infoD.pos_w + 2;
 		messageOrControlX = x+info_xm_offset;									//Remember Position
 		messageOrControlY = ym;
 		infoD.info_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.info_w, boxH );
@@ -1049,7 +1043,7 @@ static void SetInfoBar( void )
 	y = height - max(infoHeight,textHeight)-10;
 	newDistanceFormat = GetDistanceFormat();
 	if ( newDistanceFormat != oldDistanceFormat ) {
-		infoD.pos_w = GetInfoPosWidth() + 2;
+		infoD.pos_w = GetInfoPosWidth();
 		wBoxSetSize( infoD.posX_b, infoD.pos_w, infoHeight-3 );
 		wStatusSetWidth( infoD.posX_m, infoD.pos_w-six );
 		wBoxSetSize( infoD.posY_b, infoD.pos_w, infoHeight-3 );
@@ -1345,6 +1339,10 @@ lprintf("mainRedraw\n");
 	ConstraintOrig( &mainD.orig, mainD.size, FALSE );
 	tempD.orig = mainD.orig;
 	wDrawClear( mainD.d );
+
+	//mainD.d->option = 0;
+	//mainD.options = 0;
+	mainD.funcs->options = 0;		//Force MainD back from Temp
 
 	orig = mainD.orig;
 	size = mainD.size;
@@ -2736,7 +2734,7 @@ EXPORT void DrawInit( int initialZoom )
 
 #include "bitmaps/pan.xpm"
 
-static wMenu_p panPopupM;
+EXPORT static wMenu_p panPopupM;
 
 static STATUS_T CmdPan(
 		wAction_t action,
@@ -2850,12 +2848,13 @@ static STATUS_T CmdPan(
 			break;
 		} else if (panmode == PAN) {
 			panmode = NONE;
+			MapRedraw();
 		}
 		break;
 	case C_REDRAW:
 		if (panmode == ZOOM) {
 			if (base.x && base.y && size.x && size.y)
-				DrawHilight( &mainD, base, size, TRUE );
+				DrawHilight( &tempD, base, size, TRUE );
 		}
 		break;
 	case C_CANCEL:
@@ -2864,7 +2863,8 @@ static STATUS_T CmdPan(
 		return C_TERMINATE;
 	case C_TEXT:
 		panmode = NONE;
-		if ((action>>8) == 0x65) {     //"e"
+
+		if ((action>>8) == 'e') {     //"e"
 			scale_x = mapD.size.x/(mainD.size.x/mainD.scale);
 			scale_y = mapD.size.y/(mainD.size.y/mainD.scale);
 			if (scale_x<scale_y)
@@ -2881,21 +2881,28 @@ static STATUS_T CmdPan(
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 			MapRedraw();
 			MainRedraw();
-		}
-		if (((action>>8) == 0x30) || ((action>>8) == 0x6F)) {     //"0" or "o"
+		} else if (((action>>8) == '0') || ((action>>8) == 'o')) {     //"0" or "o"
 			mainD.orig = zero;
 			ConstraintOrig( &mainD.orig, mainD.size, TRUE);
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 			MapRedraw();
 			MainRedraw();
-		}
-		if ((action>>8) >= 0x31 && (action>>8) <= 0x39) {         //"1" to "9"
+		} else if ((action>>8) >= '1' && (action>>8) <= '9') {         //"1" to "9"
 			scale_x = (action>>8)&0x0F;
 			DoNewScale(scale_x);
 			MapRedraw();
 			MainRedraw();
+		} else if ((action>>8) == '@') {								// "@"
+			mainD.orig.x = pos.x - mainD.size.x/2.0;
+			mainD.orig.y = pos.y - mainD.size.y/2.0;
+			ConstraintOrig( &mainD.orig, mainD.size, TRUE);
+			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
+			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
+			MapRedraw();
+			MainRedraw();
 		}
+
 		if ((action>>8) == 0x0D) {
 			wSetCursor(mainD.d,defaultCursor);
 			return C_TERMINATE;
@@ -2912,7 +2919,7 @@ static STATUS_T CmdPan(
 
 	return C_CONTINUE;
 }
-static wMenuPush_p zoomExtents,panOrig;
+static wMenuPush_p zoomExtents,panOrig,panHere;
 static wMenuPush_p zoomLvl1,zoomLvl2,zoomLvl3,zoomLvl4,zoomLvl5,zoomLvl6,zoomLvl7,zoomLvl8,zoomLvl9;
 
 void panMenuEnter(int key) {
