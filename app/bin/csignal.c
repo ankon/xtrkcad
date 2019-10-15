@@ -644,6 +644,8 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
 
     for (int i=0;i<3;i++) {
     	if (xx->staticSignalSegs[i].cnt == 0) continue;
+    	char * type = i==0?"DIAGRAM":i==1?"ELEVATION":"PLAN";
+    	rc &= fprintf(f, "\tVIEW %s\n",type);
     	rc &= WriteStaticSegs(f, &xx->staticSignalSegs[i]);
     }
 
@@ -746,7 +748,7 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 	// Find if dup and overwrite it, if so //
 	for (int i=0;i<headTypes_da.cnt;i++) {
 		signalHeadType_p ht1 = &DYNARR_N(signalHeadType_t,headTypes_da,i);
-		if (strncmp(ht1->headTypeName,typename,50) ==0) {
+		if (strncmp(ht1->headTypeName,typename,50) ==0 && ht1->headScale == curr_scale) {  //What will it be?
 			ht = ht1;
 			CleanSegs(&ht->headSegs);
 			for (int i=0;i<ht->headAppearances.cnt;i++) {
@@ -764,7 +766,7 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 	}
 	//Fill out HeadType
 	ht->headTypeName = typename;
-	ht->headScale = GetLayoutCurScale();
+	ht->headScale = GetLayoutCurScale();                                                 //Now this scale
 	CleanSegs(&tempSegs_da);
 	while (isspace((unsigned char)*cp)) cp++;
 	while ( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
@@ -772,7 +774,8 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 		GetArgs(cp+11,"q",&appearanceType); //Ignore issues - overwrite Diagram
 		ReadSegs();
 		DIST_T ratio = GetScaleRatio(curr_scale)/GetScaleRatio(input_scale);
-		RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
+		if (ratio != 1.0)
+			RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
 		AppendSegs(&ht->headSegs,&tempSegs_da);
 		if ((cp = GetNextLine()) == NULL ) break;
 		while (isspace((unsigned char)*cp)) cp++;
@@ -825,13 +828,14 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 }
 
 /*
- * Look up HeadType in Array By Name
+ * Look up HeadType in Array By Name and Scale
  */
-static signalHeadType_p FindHeadType( char * name) {
+static signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
 	for (int i=0;i<headTypes_da.cnt-1;i++) {
 		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
 		if ((strlen(ht->headTypeName) == strlen(name))&&strncmp(name,ht->headTypeName,strlen(name))) {
-			return ht;
+			if (scale != -1 && ht->headScale == scale)
+				return ht;
 		}
 	}
 	return NULL;
@@ -906,7 +910,7 @@ void ReadSignal( char * line ) {
 
 	    if (*cp+7 == '6') {
 			if (!GetArgs(line+6,"dLsdpfdqdd",&index,&layer,scale, &visible, &orig,
-						 &angle, &numHeads, &name &trkIndex, &ep)) {
+						 &angle, &numHeads, &name, &trkIndex, &ep)) {
 				return;
 			}
 	    } else {
@@ -962,7 +966,7 @@ void ReadSignal( char * line ) {
 	        	sh->headName = headName;
 	        	sh->headTypeName = headType;
 	        	sh->headPos = pos;
-	        	if ((sh->headType = FindHeadType(headType))==NULL)
+	        	if ((sh->headType = FindHeadType(headType,xx->scaleInx))==NULL)
 	        		ErrorMessage(MSG_SIGNAL_MISSING_HEADTYPE,xx->signalName,headName,headType);
 	        	signalHeadType_p ht = sh->headType;
 	        	sh->currentHeadAppearance = 0;
@@ -1922,7 +1926,7 @@ EXPORT track_p NewSignal(
 		h->headName = strdup(h1->headName);
 		h->headPos= h1->headPos;
 		h->headTypeName = strdup(h1->headTypeName);
-		h->headType = FindHeadType(h1->headTypeName);
+		h->headType = FindHeadType(h1->headTypeName,GetLayoutCurScale());
 		for (int i=0;i<3;i++) {
 			AppendSegs(&h->headSegs[i],&h1->headSegs[i]);
 		}
