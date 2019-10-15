@@ -384,7 +384,7 @@ static void CarProtoDrawTruck(
 	RescalePts( sizeof wheelOutline/sizeof wheelOutline[0], p, ratio, ratio );
 	RotatePts( sizeof wheelOutline/sizeof wheelOutline[0], p, zero, angle );
 	MovePts( sizeof truckOutline/sizeof truckOutline[0], p, pos );
-	DrawFillPoly( d, sizeof truckOutline/sizeof truckOutline[0], p, color );
+	DrawPoly( d, sizeof truckOutline/sizeof truckOutline[0], p, NULL, color, 0, 1, 0);
 	pp.x = -70/2;
 	pp.y = 0;
 	memcpy( p, wheelOutline, sizeof wheelOutline );
@@ -393,7 +393,7 @@ static void CarProtoDrawTruck(
 	RescalePts( sizeof wheelOutline/sizeof wheelOutline[0], p, ratio, ratio );
 	RotatePts( sizeof wheelOutline/sizeof wheelOutline[0], p, zero, angle );
 	MovePts( sizeof wheelOutline/sizeof wheelOutline[0], p, pos );
-	DrawFillPoly( d, sizeof wheelOutline/sizeof wheelOutline[0], p, color );
+	DrawPoly( d, sizeof wheelOutline/sizeof wheelOutline[0], p, NULL, color, 0, 1, 0);
 	pp.x = 70/2;
 	memcpy( p, wheelOutline, sizeof wheelOutline );
 	RescalePts( sizeof wheelOutline/sizeof wheelOutline[0], p, 1.0, width/56.5 );
@@ -401,7 +401,7 @@ static void CarProtoDrawTruck(
 	RescalePts( sizeof wheelOutline/sizeof wheelOutline[0], p, ratio, ratio );
 	RotatePts( sizeof wheelOutline/sizeof wheelOutline[0], p, zero, angle );
 	MovePts( sizeof wheelOutline/sizeof wheelOutline[0], p, pos );
-	DrawFillPoly( d, sizeof wheelOutline/sizeof wheelOutline[0], p, color );
+	DrawPoly( d, sizeof wheelOutline/sizeof wheelOutline[0], p, NULL, color, 0, 1, 0 );
 }
 
 
@@ -438,22 +438,11 @@ static void CarProtoDrawCoupler(
 	pp.x = length-12.0;
 	pp.y = 0;
 /* TODO - if length > 6 then draw Sills */
-#ifdef FUTURE
-	if ( angle == 270.0 ) {
-		pos.x -= (length-12.0);
-		for ( inx=0; inx<sizeof couplerOutline/sizeof couplerOutline[0]; inx++ ) {
-			p[inx].x = -p[inx].x;
-			p[inx].y = -p[inx].y;
-		}
-	} else {
-		pos.x += (length-12.0);
-	}
-#endif
 	MovePts( sizeof couplerOutline/sizeof couplerOutline[0], p, pp );
 	RescalePts( sizeof couplerOutline/sizeof couplerOutline[0], p, ratio, ratio );
 	RotatePts( sizeof couplerOutline/sizeof couplerOutline[0], p, zero, angle-90.0 );
 	MovePts( sizeof couplerOutline/sizeof couplerOutline[0], p, pos );
-	DrawFillPoly( d, sizeof couplerOutline/sizeof couplerOutline[0], p, color );
+	DrawPoly( d, sizeof couplerOutline/sizeof couplerOutline[0], p, NULL, color, 0, 1 ,0 );
 }
 
 
@@ -496,7 +485,7 @@ static trkSeg_p carProtoSegPtr;
 static int carProtoSegCnt;
 
 
-static coOrd dummyOutlineSegPts[5];
+static pts_t dummyOutlineSegPts[5];
 static trkSeg_t dummyOutlineSegs;
 static void CarProtoDlgCreateDummyOutline(
 		int * segCntP,
@@ -507,7 +496,7 @@ static void CarProtoDlgCreateDummyOutline(
 		wDrawColor color )
 {
 	trkSeg_p segPtr;
-	coOrd * pts;
+	pts_t * pts;
 	DIST_T length2;
 
 	*segCntP = 1;
@@ -523,22 +512,22 @@ static void CarProtoDlgCreateDummyOutline(
 	segPtr->u.p.angle = 0;
 	length2 = length;
 	if ( isLoco ) {
-		pts->x = length;
-		pts->y = width/2.0;
+		pts->pt.x = length;
+		pts->pt.y = width/2.0;
 		pts++;
 		length2 -= width/2.0;
 	}
-	pts->x = length2;
-	pts->y = 0.0;
+	pts->pt.x = length2;
+	pts->pt.y = 0.0;
 	pts++;
-	pts->x = 0.0;
-	pts->y = 0.0;
+	pts->pt.x = 0.0;
+	pts->pt.y = 0.0;
 	pts++;
-	pts->x = 0.0;
-	pts->y = width;
+	pts->pt.x = 0.0;
+	pts->pt.y = width;
 	pts++;
-	pts->x = length2;
-	pts->y = width;
+	pts->pt.x = length2;
+	pts->pt.y = width;
 }
 
 
@@ -1714,7 +1703,7 @@ EXPORT void AddHotBarCarDesc( void )
 			orig = zero;
 			size.x = item1->dim.carLength;
 			size.y = item1->dim.carWidth;
-			AddHotBarElement( FormatCarTitle( item1, carHotbarContents[carHotbarModeInx] ), size, orig, FALSE, (60.0*12.0/curScaleRatio), (void*)(intptr_t)inx, CarItemHotbarProc );
+			AddHotBarElement( FormatCarTitle( item1, carHotbarContents[carHotbarModeInx] ), size, orig, FALSE, FALSE, (60.0*12.0/curScaleRatio), (void*)(intptr_t)inx, CarItemHotbarProc );
 		}
 		item0 = item1;
 	}
@@ -1850,7 +1839,7 @@ EXPORT void CarItemDraw(
 	wFont_p fp;
 	wDrawWidth width;
 	trkSeg_t simpleSegs[1];
-	coOrd simplePts[4];
+	pts_t simplePts[4];
 	int dir;
 	DIST_T rad;
 	static int couplerLineWidth = 3;
@@ -1858,10 +1847,10 @@ EXPORT void CarItemDraw(
 
 	CarItemSize( item, &size );
 	if ( d->scale >= ((d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale) ) {
-		simplePts[0].x = simplePts[3].x = -size.x/2.0;
-		simplePts[1].x = simplePts[2].x = size.x/2.0;
-		simplePts[0].y = simplePts[1].y = -size.y/2.0;
-		simplePts[2].y = simplePts[3].y = size.y/2.0;
+		simplePts[0].pt.x = simplePts[3].pt.x = -size.x/2.0;
+		simplePts[1].pt.x = simplePts[2].pt.x = size.x/2.0;
+		simplePts[0].pt.y = simplePts[1].pt.y = -size.y/2.0;
+		simplePts[2].pt.y = simplePts[3].pt.y = size.y/2.0;
 		simpleSegs[0].type = SEG_FILPOLY;
 		simpleSegs[0].color = item->color;
 		simpleSegs[0].width = 0;
@@ -4413,7 +4402,7 @@ static void CarInvDlgSaveText( void )
 {
 	if ( carInvSaveText_fs == NULL )
 		carInvSaveText_fs = wFilSelCreate( mainW, FS_SAVE, 0, _("List Cars"),
-				"Text|*.txt", CarInvSaveText, NULL );
+				"Text (*.txt)|*.txt", CarInvSaveText, NULL );
 	wFilSelect( carInvSaveText_fs, GetCurrentPath(CARSPATHKEY));
 }
 
@@ -4698,7 +4687,7 @@ static void CarInvDlgImportCsv( void )
 {
 	if ( carInvImportCsv_fs == NULL )
 		carInvImportCsv_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Import Cars"),
-				_("Comma-Separated-Values|*.csv"), CarInvImportCsv, NULL );
+				_("Comma-Separated-Values (*.csv)|*.csv"), CarInvImportCsv, NULL );
 	wFilSelect( carInvImportCsv_fs, GetCurrentPath(CARSPATHKEY));
 }
 
@@ -4820,7 +4809,7 @@ static void CarInvDlgExportCsv( void )
 		return;
 	if ( carInvExportCsv_fs == NULL )
 		carInvExportCsv_fs = wFilSelCreate( mainW, FS_SAVE, 0, _("Export Cars"),
-				_("Comma-Separated-Values|*.csv"), CarInvExportCsv, NULL );
+				_("Comma-Separated-Values (*.csv)|*.csv"), CarInvExportCsv, NULL );
 	wFilSelect( carInvExportCsv_fs, GetCurrentPath(CARSPATHKEY));
 }
 

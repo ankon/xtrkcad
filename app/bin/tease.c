@@ -62,6 +62,9 @@ do 'testjoin psplot 10 10 40 1 | lpr -Ppostscript'
 
 #include <math.h>
 
+#include "common.h"
+#include "track.h"
+#include "tcornu.h"
 #include "ccurve.h"
 #include "cselect.h"
 #include "cstraigh.h"
@@ -72,7 +75,6 @@ do 'testjoin psplot 10 10 40 1 | lpr -Ppostscript'
 #include "layout.h"
 #include "messages.h"
 #include "param.h"
-#include "track.h"
 #include "utility.h"
 
 static TRKTYP_T T_EASEMENT = -1;
@@ -762,6 +764,8 @@ static void DrawJointSegment(
 	}
 
 	widthOptions |= DTS_RIGHT|DTS_LEFT|DTS_TIES;
+	if (GetTrkBridge(trk)) widthOptions |= DTS_BRIDGE;
+		else widthOptions &=~DTS_BRIDGE;
 	GetJointPos( &p0, NULL, l0, R, L, P, A, N );
 	for (i=1; i<=cnt1; i++) {
 		a0 += a1;
@@ -951,7 +955,7 @@ static void ReadJoint(
 		return;
 	trk = NewTrack( index, T_EASEMENT, 0, sizeof e );
 	xx = GetTrkExtraData(trk);
-	SetTrkVisible(trk, visible);
+	SetTrkVisible(trk, visible&2);
 	SetTrkScale(trk, LookupScale(scale));
 	SetTrkLayer(trk, layer);
 	SetTrkWidth(trk, (int)(options&3));
@@ -1244,7 +1248,7 @@ static BOOL_T EnumerateJoint( track_p trk )
 	return TRUE;
 }
 
-static BOOL_T TrimJoint( track_p trk, EPINX_T ep, DIST_T maxX )
+static BOOL_T TrimJoint( track_p trk, EPINX_T ep, DIST_T maxX, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	DeleteTrack( trk, FALSE );
 	MainRedraw();
@@ -1721,9 +1725,28 @@ LOG( log_ease, 1, ( "   EASE R%0.3f..%0.3f L%0.3f..%0.3f\n",
 		ConnectTracks( trk0, ep0, trk1, ep1 );
 	} else {
 		/* Connect with transition-curve */
-		joint = NewJoint( GetTrkEndPos(trk0,ep0), GetTrkEndAngle(trk0,ep0),
+		if (easementVal<0.0) {   //Cornu Easements
+			coOrd pos[2];
+			pos[0] = GetTrkEndPos(trk0,ep0);
+			pos[1] = GetTrkEndPos(trk1,ep1);
+			DIST_T radius[2];
+			trackParams_t params0, params1;
+			GetTrackParams(PARAMS_CORNU,trk0,pos0,&params0);
+			GetTrackParams(PARAMS_CORNU,trk1,pos1,&params1);
+			radius[0] = params0.arcR;
+			radius[1] = params1.arcR;
+			coOrd center[2];
+			center[0] = params0.arcP;
+			center[1] = params1.arcP;
+			ANGLE_T angle[2];
+			angle[0] = NormalizeAngle(GetTrkEndAngle(trk0,ep0)+180.0);
+			angle[1] = NormalizeAngle(GetTrkEndAngle(trk1,ep1)+180.0);
+			joint = NewCornuTrack(pos,center,angle,radius, NULL, 0);
+		} else {
+			joint = NewJoint( GetTrkEndPos(trk0,ep0), GetTrkEndAngle(trk0,ep0),
 						 GetTrkEndPos(trk1,ep1), GetTrkEndAngle(trk1,ep1),
 						 GetTrkGauge(trk0), easeR, easeL, e );
+		}
 		CopyAttributes( trk0, joint );
 		ConnectTracks( trk1, ep1, joint, 1 );
 		ConnectTracks( trk0, ep0, joint, 0 );

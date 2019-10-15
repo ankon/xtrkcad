@@ -168,7 +168,7 @@ static void
 	 	 seg->type=SEG_FILCRCL;
 	 	 seg->u.c.center.x = bc->last_pos.x;
 	 	 seg->u.c.center.y = bc->last_pos.y;
-	 	 seg->u.c.radius = 0.25;
+	 	 seg->u.c.radius = 0.125;
 	 	 seg->width = 0.0;
 	 	 seg->color = wDrawColorBlack;
 	 }
@@ -204,6 +204,11 @@ new_bezctx_xtrkcad(dynArr_t * segArray, int ends[2], BOOL_T spots) {
     result->has_NAN = FALSE;
     result->draw_spots = spots;
     result->track = TRUE;
+
+    result->segsArray->cnt =0;
+    result->segsArray->ptr =0;
+    result->segsArray->max =0;
+
 
     return &result->base;
 }

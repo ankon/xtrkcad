@@ -68,7 +68,7 @@ static paramData_t tipPLs[] = {
 #define I_TIPTEXT		(1)
 #define tipT			((wText_p)tipPLs[I_TIPTEXT].control)
 	{   PD_MESSAGE, N_("Did you know..."), NULL, 0, NULL, NULL, BM_LARGE },
-	{   PD_TEXT, NULL, "text", 0, &tipTextData, NULL, BO_READONLY|BT_CHARUNITS },
+	{   PD_TEXT, NULL, "text", 0, &tipTextData, NULL, BO_READONLY|BT_TOP|BT_CHARUNITS },
 	{   PD_BUTTON, (void*)ShowTip, "prev", PDO_DLGRESETMARGIN, NULL, N_("Previous Tip"), 0L, (void *)(SHOWTIP_FORCESHOW | SHOWTIP_PREVTIP) },	
 	{   PD_BUTTON, (void*)ShowTip, "next", PDO_DLGHORZ, NULL, N_("Next Tip"), 0L, (void *)(SHOWTIP_FORCESHOW | SHOWTIP_NEXTTIP) },
 	{   PD_TOGGLE, &showTipAtStart, "showatstart", PDO_DLGCMDBUTTON, tipLabels, NULL, BC_NOBORDER }};
@@ -168,7 +168,8 @@ void ShowTip( long flags )
 		}
 		ParamLoadControls( &tipPG );
 		wTextClear( tipT );
-		wPrefGetInteger( "misc", "tip-number", &tipNum, 0 );
+		/*  initial value is -1 which gets incremented 0 below */
+		wPrefGetInteger( "misc", "tip-number", &tipNum, -1 );
 		
 		if( flags & SHOWTIP_PREVTIP ) {
 			if(tipNum == 0 )
@@ -203,7 +204,7 @@ static paramData_t aboutPLs[] = {
 	{   PD_MESSAGE, NULL, NULL, PDO_DLGNEWCOLUMN, NULL, NULL, BM_LARGE },
 #define I_COPYRIGHT				 (2)
 #define COPYRIGHT_T			((wText_p)aboutPLs[I_COPYRIGHT].control)
-	{   PD_TEXT, NULL, NULL, PDO_DLGRESIZE, &aboutTextData, NULL, BT_CHARUNITS }
+	{   PD_TEXT, NULL, NULL, PDO_DLGRESIZE, &aboutTextData, NULL, BO_READONLY|BT_TOP|BT_CHARUNITS }
 };
 static paramGroup_t aboutPG = { "about", 0, aboutPLs, sizeof aboutPLs/sizeof aboutPLs[0] };
 

@@ -37,6 +37,8 @@ void InvertTrackSelect( void * );
 void OrphanedTrackSelect( void * );
 void SetAllTrackSelect( BOOL_T );
 void SelectTunnel( void );
+void SelectBridge( void );
+void SelectTies( void );
 void SelectRecount( void );
 void SelectTrackWidth( void* );
 void SelectDelete( void );
@@ -50,5 +52,6 @@ void WriteSelectedTracksToTempSegs( void );
 void DoRescale( void );
 STATUS_T CmdMoveDescription( wAction_t, coOrd );
 void UpdateQuickMove( void * );
+void DrawHighlightBoxes();
 
 #endif

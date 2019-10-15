@@ -182,7 +182,8 @@ static void DrawTurntable( track_p t, drawCmd_p d, wDrawColor color )
 	struct extraData *xx = GetTrkExtraData(t);
 	coOrd p0, p1;
 	EPINX_T ep;
-	long widthOptions = DTS_TIES;
+	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
+
 
 	if ( !ValidateTurntablePosition(t) ) {
 		p0.y = p1.y = xx->pos.y;
@@ -194,10 +195,11 @@ static void DrawTurntable( track_p t, drawCmd_p d, wDrawColor color )
 	}
 	if (color == wDrawColorBlack)
 		color = normalColor;
-	DrawArc( d, xx->pos, xx->radius, 0.0, 360.0, 0, 0, color );
+	DrawArc( d, xx->pos, xx->radius, 0.0, 360.0, 0, (color == wDrawColorBlueHighlight)?3:0, color );
 	if ( programMode != MODE_DESIGN )
 		return;
 	if ( (d->options&DC_QUICK) == 0 ) {
+		if (color == wDrawColorBlueHighlight) widthOptions |= DTS_THICK3;
 		DrawStraightTrack( d, p0, p1, FindAngle(p0,p1), t, GetTrkGauge(t), color, widthOptions );
 		for ( ep=0; ep<GetTrkEndPtCnt(t); ep++ ) {
 			if (GetTrkEndTrk(t,ep) != NULL )
@@ -704,7 +706,6 @@ static BOOL_T QueryTurntable( track_p trk, int query )
 	case Q_NOT_PLACE_FROGPOINTS:
 	case Q_MODIFY_REDRAW_DONT_UNDRAW_TRACK:
 	case Q_CAN_ADD_ENDPOINTS:	
-	case Q_CAN_EXTEND:
 		return TRUE;
 	case Q_MODIFY_CAN_SPLIT:
 	case Q_CORNU_CAN_MODIFY:
@@ -884,7 +885,7 @@ static STATUS_T CmdTurntable( wAction_t action, coOrd pos )
 
 EXPORT void InitCmdTurntable( wMenu_p menu )
 {
-	AddMenuButton( menu, CmdTurntable, "cmdTurntable", _("Turntable"), wIconCreatePixMap(turntbl_xpm), LEVEL0_50, IC_STICKY, ACCL_TURNTABLE, NULL );
+	AddMenuButton( menu, CmdTurntable, "cmdTurntable", _("Turntable"), wIconCreatePixMap(turntbl_xpm), LEVEL0_50, IC_STICKY|IC_INITNOTSTICKY, ACCL_TURNTABLE, NULL );
 }
 
 

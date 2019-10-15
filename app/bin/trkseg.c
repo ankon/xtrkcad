@@ -184,8 +184,9 @@ EXPORT void GetTextBounds(
 	p[0].x = p[3].x = 0.0;
 	p[1].x = p[2].x = size.x;
 	DrawTextSize2(&mainD, "A", NULL, fs, FALSE, &size2, &descent);
-	p[0].y = p[1].y = lastL.y - descent;
-	p[2].y = p[3].y = size.y;
+	POS_T ascent = size2.y-descent;
+	p[0].y = p[1].y = lastL.y + descent;
+	p[2].y = p[3].y = ascent;
 
 	lo = hi = zero;
 
@@ -293,7 +294,7 @@ static void Get1SegBounds( trkSeg_p segPtr, coOrd xlat, ANGLE_T angle, coOrd *lo
 		width.x = width.y = segPtr->width/2.0;
 	case SEG_FILPOLY:
 		for (inx=0; inx<segPtr->u.p.cnt; inx++ ) {
-			REORIGIN( p0, segPtr->u.p.pts[inx], angle, xlat )
+			REORIGIN( p0, segPtr->u.p.pts[inx].pt, angle, xlat )
 			if (inx==0) {
 				*lo = *hi = p0;
 			} else {
@@ -431,8 +432,8 @@ EXPORT void MoveSegs(
 		case SEG_POLY:
 		case SEG_FILPOLY:
 			for (inx=0; inx<s->u.p.cnt; inx++) {
-				s->u.p.pts[inx].x += orig.x;
-				s->u.p.pts[inx].y += orig.y;
+				s->u.p.pts[inx].pt.x += orig.x;
+				s->u.p.pts[inx].pt.y += orig.y;
 			}
 			break;
 		case SEG_JNTTRK:
@@ -484,7 +485,7 @@ EXPORT void RotateSegs(
 		case SEG_POLY:
 		case SEG_FILPOLY:
 			for (inx=0; inx<s->u.p.cnt; inx++) {
-				Rotate( &s->u.p.pts[inx], orig, angle );
+				Rotate( &s->u.p.pts[inx].pt, orig, angle );
 			}
 			break;
 		case SEG_JNTTRK:
@@ -511,7 +512,7 @@ EXPORT void FlipSegs(
 {
 	trkSeg_p s;
 	int inx;
-	coOrd * pts;
+	pts_t * pts;
 
 	for (s=segs; s<&segs[segCnt]; s++) {
 		switch (s->type) {
@@ -537,11 +538,11 @@ EXPORT void FlipSegs(
 			break;
 		case SEG_POLY:
 		case SEG_FILPOLY:
-			pts = (coOrd*)MyMalloc( s->u.p.cnt * sizeof (coOrd) );
-			memcpy( pts, s->u.p.pts, s->u.p.cnt * sizeof (coOrd) );
+			pts = (pts_t*)MyMalloc( s->u.p.cnt * sizeof (pts_t) );
+			memcpy( pts, s->u.p.pts, s->u.p.cnt * sizeof (pts_t) );
 			s->u.p.pts = pts;
 			for (inx=0; inx<s->u.p.cnt; inx++) {
-				s->u.p.pts[inx].y = -s->u.p.pts[inx].y;
+				s->u.p.pts[inx].pt.y = -s->u.p.pts[inx].pt.y;
 			}
 			/* Don't Free - we only just got! ALso can't free other copy as that may be a template */
 			//MyFree(pts);
@@ -602,8 +603,8 @@ EXPORT void RescaleSegs(
 		case SEG_POLY:
 		case SEG_FILPOLY:
 			for (inx=0; inx<s->u.p.cnt; inx++) {
-				s->u.p.pts[inx].x *= scale_x;
-				s->u.p.pts[inx].y *= scale_y;
+				s->u.p.pts[inx].pt.x *= scale_x;
+				s->u.p.pts[inx].pt.y *= scale_y;
 			}
 			break;
 		case SEG_JNTTRK:
@@ -638,7 +639,7 @@ EXPORT void CloneFilledDraw(
 		trkSeg_p segs,
 		BOOL_T reorigin )
 {
-	coOrd * newPts;
+	pts_t * newPts;
 	trkSeg_p sp;
 	wIndex_t inx;
 
@@ -646,14 +647,14 @@ EXPORT void CloneFilledDraw(
 		switch (sp->type) {
 		case SEG_POLY:
 		case SEG_FILPOLY:
-			newPts = (coOrd*)MyMalloc( sp->u.p.cnt * sizeof (coOrd) );
+			newPts = (pts_t*)MyMalloc( sp->u.p.cnt * sizeof (pts_t) );
 			if ( reorigin ) {
 				for ( inx = 0; inx<sp->u.p.cnt; inx++ )
-					REORIGIN( newPts[inx], sp->u.p.pts[inx], sp->u.p.angle, sp->u.p.orig );
+					REORIGIN( newPts[inx].pt, sp->u.p.pts[inx].pt, sp->u.p.angle, sp->u.p.orig );
 				sp->u.p.angle = 0;
 				sp->u.p.orig = zero;
 			} else {
-				memcpy( newPts, sp->u.p.pts, sp->u.p.cnt * sizeof (coOrd) );
+				memcpy( newPts, sp->u.p.pts, sp->u.p.cnt * sizeof (pts_t) );
 			}
 			//if (sp->u.p.pts)    Can't do this a pts could be pointing at static
 			//	free(sp->u.p.pts);
@@ -753,9 +754,9 @@ EXPORT DIST_T DistanceSegs(
 			for (lin=0;lin<segPtr->u.p.cnt;lin++) {
 				pt = p0;
 				if (lin < segPtr->u.p.cnt-1 )
-					ddd = LineDistance( &pt, segPtr->u.p.pts[lin], segPtr->u.p.pts[lin+1] );
+					ddd = LineDistance( &pt, segPtr->u.p.pts[lin].pt, segPtr->u.p.pts[lin+1].pt );
 				else
-					ddd = LineDistance( &pt, segPtr->u.p.pts[lin], segPtr->u.p.pts[0] );
+					ddd = LineDistance( &pt, segPtr->u.p.pts[lin].pt, segPtr->u.p.pts[0].pt );
 				if ( ddd < dd ) {
 					dd = ddd;
 					p1 = pt;
@@ -890,14 +891,14 @@ EXPORT ANGLE_T GetAngleSegs(
 	case SEG_POLY:
 	case SEG_FILPOLY:
 		p0 = pos2;
-		dd = LineDistance( &p0, segPtr->u.p.pts[segPtr->u.p.cnt-1], segPtr->u.p.pts[0] );
-		angle = FindAngle( segPtr->u.p.pts[segPtr->u.p.cnt-1], segPtr->u.p.pts[0] );
+		dd = LineDistance( &p0, segPtr->u.p.pts[segPtr->u.p.cnt-1].pt, segPtr->u.p.pts[0].pt );
+		angle = FindAngle( segPtr->u.p.pts[segPtr->u.p.cnt-1].pt, segPtr->u.p.pts[0].pt );
 		for ( inx=0; inx<segPtr->u.p.cnt-1; inx++ ) {
 			p0 = pos2;
-			d = LineDistance( &p0, segPtr->u.p.pts[inx], segPtr->u.p.pts[inx+1] );
+			d = LineDistance( &p0, segPtr->u.p.pts[inx].pt, segPtr->u.p.pts[inx+1].pt );
 			if ( d < dd ) {
 				dd = d;
-				angle = FindAngle( segPtr->u.p.pts[inx], segPtr->u.p.pts[inx+1] );
+				angle = FindAngle( segPtr->u.p.pts[inx].pt, segPtr->u.p.pts[inx+1].pt );
 			}
 		}
 		break;
@@ -1166,6 +1167,7 @@ EXPORT BOOL_T ReadSegs( void )
 		if ( *cp == '\n' || *cp == '#' ) {
 			continue;
 		}
+		if (subsegs) continue;
 		type = *cp++;
 		hasElev = FALSE;
 		noVersion = TRUE;
@@ -1357,10 +1359,10 @@ EXPORT BOOL_T ReadSegs( void )
 				}
 			}
 			s->color = wDrawFindColor( rgb );
-			s->u.p.pts = (coOrd*)MyMalloc( s->u.p.cnt * sizeof (coOrd) );
+			s->u.p.pts = (pts_t*)MyMalloc( s->u.p.cnt * sizeof (pts_t) );
 			for ( i=0; i<s->u.p.cnt; i++ ) {
 				cp = GetNextLine();
-				if (cp == NULL || !GetArgs( cp, "p", &s->u.p.pts[i])) {
+				if (cp == NULL || !GetArgs( cp, "pd", &s->u.p.pts[i].pt,&s->u.p.pts[i].pt_type)) {
 					rc = FALSE;
 				}
 				if (!noVersion) {
@@ -1512,7 +1514,7 @@ EXPORT BOOL_T WriteSegsEnd(
 		switch ( segs[i].type ) {
 		case SEG_STRTRK:
 			rc &= fprintf( f, "\t%c %ld %0.6f %0.6f %0.6f %0.6f %0.6f\n",
-				segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
+				segs[i].type, wDrawGetRGB(wDrawColorBlack), segs[i].width,
 				segs[i].u.l.pos[0].x, segs[i].u.l.pos[0].y,
 				segs[i].u.l.pos[1].x, segs[i].u.l.pos[1].y ) > 0;
 			break;
@@ -1539,7 +1541,7 @@ EXPORT BOOL_T WriteSegsEnd(
 			break;
 		case SEG_CRVTRK:
 			rc &= fprintf( f, "\t%c %ld %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
-				segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
+				segs[i].type, wDrawGetRGB(wDrawColorBlack), segs[i].width,
 				segs[i].u.c.radius,
 				segs[i].u.c.center.x, segs[i].u.c.center.y,
 				segs[i].u.c.a0, segs[i].u.c.a1 ) > 0;
@@ -1547,7 +1549,7 @@ EXPORT BOOL_T WriteSegsEnd(
 		case SEG_JNTTRK:
 			option = (segs[i].u.j.negate?1:0) + (segs[i].u.j.flip?2:0) + (segs[i].u.j.Scurve?4:0);
 			rc &= fprintf( f, "\t%c %ld %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %ld\n",
-				segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
+				segs[i].type, wDrawGetRGB(wDrawColorBlack), segs[i].width,
 				segs[i].u.j.pos.x, segs[i].u.j.pos.y,
 				segs[i].u.j.angle,
 				segs[i].u.j.l0,
@@ -1559,7 +1561,8 @@ EXPORT BOOL_T WriteSegsEnd(
         case SEG_BEZTRK:
         case SEG_BEZLIN:
             rc &= fprintf( f, "\t%c3 %ld %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
-                segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
+                segs[i].type, (segs[i].type==SEG_BEZTRK)?wDrawGetRGB(wDrawColorBlack):wDrawGetRGB(segs[i].color),
+                segs[i].width,
                 segs[i].u.l.pos[0].x, segs[i].u.l.pos[0].y,
                 segs[i].u.l.pos[1].x, segs[i].u.l.pos[1].y,
                 segs[i].u.l.pos[2].x, segs[i].u.l.pos[2].y,
@@ -1588,8 +1591,8 @@ EXPORT BOOL_T WriteSegsEnd(
 				segs[i].type, wDrawGetRGB(segs[i].color), segs[i].width,
 				segs[i].u.p.cnt, segs[i].u.p.polyType ) > 0;
 			for ( j=0; j<segs[i].u.p.cnt; j++ )
-				rc &= fprintf( f, "\t\t%0.6f %0.6f 0\n",
-						segs[i].u.p.pts[j].x, segs[i].u.p.pts[j].y ) > 0;
+				rc &= fprintf( f, "\t\t%0.6f %0.6f %d\n",
+						segs[i].u.p.pts[j].pt.x, segs[i].u.p.pts[j].pt.y, segs[i].u.p.pts[j].pt_type ) > 0;
 			break;
 		case SEG_TEXT: /* 0pf0fq */
 			escaped_text = ConvertToEscapedText(segs[i].u.t.string);
@@ -1665,15 +1668,15 @@ EXPORT void DrawDimLine(
 
 	if ( ( option & 0x10 ) == 0 ) {
 		Translate( &p, p0, a0-45, dist );
-		DrawLine( d, p0, p, 0, color );
+		DrawLine( d, p0, p, width, color );
 		Translate( &p, p0, a0+45, dist );
-		DrawLine( d, p0, p, 0, color );
+		DrawLine( d, p0, p, width, color );
 	}
 	if ( ( option & 0x20 ) == 0 ) {
 		Translate( &p, p1, a0-135, dist );
-		DrawLine( d, p1, p, 0, color );
+		DrawLine( d, p1, p, width, color );
 		Translate( &p, p1, a0+135, dist );
-		DrawLine( d, p1, p, 0, color );
+		DrawLine( d, p1, p, width, color );
 	}
 
 	if ( fs < 2*d->scale ) {
@@ -1687,7 +1690,7 @@ EXPORT void DrawDimLine(
 	size.y = textsize.y/2.0;
 	dist1 = FindDistance( zero, size );
 	if ( dist <= dist1*2 ) {
-		DrawLine( d, p0, p1, 0, color );
+		DrawLine( d, p0, p1, width, color );
 		return;
 	}
 		a1 = FindAngle( zero, size );
@@ -1716,11 +1719,11 @@ EXPORT void DrawDimLine(
 		p = pc;
 		p.x -= fx*x;
 		p.y -= fy*y;
-		DrawLine( d, p0, p, 0, color );
+		DrawLine( d, p0, p, width, color );
 		p = pc;
 		p.x += fx*x;
 		p.y += fy*y;
-		DrawLine( d, p, p1, 0, color );
+		DrawLine( d, p, p1, width, color );
 }
 
 /*
@@ -1793,7 +1796,7 @@ EXPORT void DrawSegsO(
                 }
                 break;
             }
-			continue;
+			// continue; Ensure tracks also drawn
 		}
 		switch (segPtr->type) {
 		case SEG_STRTRK:
@@ -1809,6 +1812,10 @@ EXPORT void DrawSegsO(
 				trackGauge != 0.0)
 				return;
 		}
+		wDrawWidth thick = 3;
+#ifdef WINDOWS
+		thick *= (wDrawWidth)(d->dpi/mainD.dpi);
+#endif
 		switch (segPtr->type) {
 		case SEG_STRLIN:
 		case SEG_DIMLIN:
@@ -1829,7 +1836,7 @@ EXPORT void DrawSegsO(
 					NULL, trackGauge, color1, options );
 				break;
 			case SEG_STRLIN:
-				DrawLine( d, p0, p1, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
+				DrawLine( d, p0, p1, (d->options&DC_THICK)?thick:(wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
 				break;
 			case SEG_DIMLIN:
 			case SEG_BENCH:
@@ -1849,7 +1856,7 @@ EXPORT void DrawSegsO(
 						fs /= (option==0?8:option==1?4:option==2?2:1);
 						if ( fs < 2 )
 							fs = 2;
-						DrawDimLine( d, p0, p1, FormatDistance(FindDistance(p0,p1)), fs, 0.5, 0, color, option & 0x00 );
+						DrawDimLine( d, p0, p1, FormatDistance(FindDistance(p0,p1)), fs, 0.5, (d->options&DC_THICK)?thick:0, color, option & 0x00 );
 						break;
 					case SEG_BENCH:
 						DrawBench( d, p0, p1, color1, color2, options, segPtr->u.l.option );
@@ -1880,7 +1887,7 @@ EXPORT void DrawSegsO(
 					NULL, trackGauge, color1, options );
 			} else {
 				DrawArc( d, c, fabs(segPtr->u.c.radius), a0, segPtr->u.c.a1,
-						FALSE, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
+						FALSE, (d->options&DC_THICK)?thick:(wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
 			}
 			break;
         case SEG_BEZTRK:
@@ -1915,7 +1922,7 @@ EXPORT void DrawSegsO(
             		   					NULL, trackGauge, color1, options );
         				} else if (tempPtr->type == SEG_CRVLIN) {
         					DrawArc( d, c, fabs(tempPtr->u.c.radius), a0, tempPtr->u.c.a1,
-        							FALSE, (wDrawWidth)floor(tempPtr->width*factor+0.5), color1 );
+        							FALSE, (d->options&DC_THICK)?thick:(wDrawWidth)floor(tempPtr->width*factor+0.5), color1 );
         				}
         				break;
         			case SEG_STRTRK:
@@ -1931,7 +1938,7 @@ EXPORT void DrawSegsO(
         			case SEG_STRLIN:
         				REORIGIN(p0,tempPtr->u.l.pos[0], angle, orig);
         				REORIGIN(p1,tempPtr->u.l.pos[1], angle, orig);
-        				DrawLine( d, p0, p1, (wDrawWidth)floor(tempPtr->width*factor+0.5), color1 );
+        				DrawLine( d, p0, p1, (d->options&DC_THICK)?thick:(wDrawWidth)floor(tempPtr->width*factor+0.5), color1 );
         				break;
             	}
             }
@@ -1945,36 +1952,21 @@ EXPORT void DrawSegsO(
 			DrawMultiString( d, p0, segPtr->u.t.string, segPtr->u.t.fontP, segPtr->u.t.fontSize, color1, NormalizeAngle(angle + segPtr->u.t.angle), NULL, NULL, segPtr->u.t.boxed );
 			break;
 		case SEG_FILPOLY:
-			if ( (d->options&DC_GROUP) == 0 &&
-				 d->funcs != &tempSegDrawFuncs ) {
-				/* Note: if we call tempSegDrawFillPoly we get a nasty bug
-				/+ because we don't make a private copy of p.pts */
-				coOrd *tempPts = malloc(sizeof(coOrd)*segPtr->u.p.cnt);
-//				coOrd tempPts[segPtr->u.p.cnt];
-				for (j=0;j<segPtr->u.p.cnt;j++) {
-					REORIGIN( tempPts[j], segPtr->u.p.pts[j], angle, orig );
-				}
-				DrawFillPoly( d, segPtr->u.p.cnt, tempPts, color1 );
-				free(tempPts);
-				break;
-			} /* else fall thru */
 		case SEG_POLY:
-			if ( (d->options&DC_GROUP) ) {
-				DYNARR_APPEND( trkSeg_t, tempSegs_da, 10 );
-				tempPtr = &tempSegs(tempSegs_da.cnt-1);
-				memcpy( tempPtr, segPtr, sizeof segPtr[0] );
-				tempPtr->u.p.orig = orig;
-				tempPtr->u.p.angle = angle;
-				break;
+			;
+			/* Note: if we call tempSegDrawFillPoly we get a nasty bug
+			/+ because we don't make a private copy of p.pts */
+			coOrd *tempPts = malloc(sizeof(coOrd)*segPtr->u.p.cnt);
+			int *tempTypes = malloc(sizeof(int)*segPtr->u.p.cnt);
+//				coOrd tempPts[segPtr->u.p.cnt];
+			for (j=0;j<segPtr->u.p.cnt;j++) {
+				REORIGIN( tempPts[j], segPtr->u.p.pts[j].pt, angle, orig );
+				tempTypes[j] = segPtr->u.p.pts[j].pt_type;
 			}
-			REORIGIN( p0, segPtr->u.p.pts[0], angle, orig )
-			c = p0;
-			for (j=1; j<segPtr->u.p.cnt; j++) {
-				REORIGIN( p1, segPtr->u.p.pts[j], angle, orig );
-				DrawLine( d, p0, p1, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
-				p0 = p1;
-			}
-			DrawLine( d, p0, c, (wDrawWidth)floor(segPtr->width*factor+0.5), color1 );
+			BOOL_T fill = ((d->options&DC_GROUP) != 0 || (d->funcs != &tempSegDrawFuncs));
+			DrawPoly( d, segPtr->u.p.cnt, tempPts, tempTypes, color1, (d->options&DC_THICK)?thick:(wDrawWidth)floor(segPtr->width*factor+0.5), (fill && (segPtr->type==SEG_FILPOLY))?1:0, segPtr->u.p.polyType==POLYLINE?1:0);
+			free(tempPts);
+			free(tempTypes);
 			break;
 		case SEG_FILCRCL:
 			REORIGIN( c, segPtr->u.c.center, angle, orig )
@@ -1983,7 +1975,7 @@ EXPORT void DrawSegsO(
 				DrawFillCircle( d, c, fabs(segPtr->u.c.radius), color1 );
 			} else {
 				DrawArc( d, c, fabs(segPtr->u.c.radius), 0, 360,
-						FALSE, (wDrawWidth)0, color1 );
+						FALSE, (d->options&DC_THICK)?thick:(wDrawWidth)0, color1 );
 			}
 			break;
 		}
@@ -2004,7 +1996,8 @@ EXPORT void DrawSegs(
 		DIST_T trackGauge,
 		wDrawColor color )
 {
-	DrawSegsO( d, NULL, orig, angle, segPtr, segCnt, trackGauge, color, 0 );
+
+	DrawSegsO( d, NULL, orig, angle, segPtr, segCnt, trackGauge, color, DTS_LEFT|DTS_RIGHT );
 }
 
 /*
@@ -2033,10 +2026,10 @@ EXPORT void CleanSegs(dynArr_t * seg_p) {
 }
 
 EXPORT void CopyPoly(trkSeg_p p, wIndex_t segCnt) {
-	coOrd * newPts;
+	pts_t * newPts;
 	for (int i=0;i<segCnt;i++,p++) {
-		if (p->type == SEG_POLY || p->type == SEG_FILPOLY) {
-			newPts = memdup( p->u.p.pts, p->u.p.cnt*sizeof (coOrd) );
+		if ((p->type == SEG_POLY) || (p->type == SEG_FILPOLY)) {
+			newPts = memdup( p->u.p.pts, p->u.p.cnt*sizeof (pts_t) );
 			p->u.p.pts = newPts;
 		}
 	}
