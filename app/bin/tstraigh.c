@@ -277,8 +277,10 @@ static void DrawStraight( track_p t, drawCmd_p d, wDrawColor color )
 	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
 	if (GetTrkWidth(t) == 2)
 		widthOptions |= DTS_THICK2;
-	if (GetTrkWidth(t) == 3)
+	if ((GetTrkWidth(t) == 3) || (d->options & DC_THICK))
 		widthOptions |= DTS_THICK3;
+	if (GetTrkBridge(t)) widthOptions |= DTS_BRIDGE;
+		else widthOptions &=~DTS_BRIDGE;
 	DrawStraightTrack( d, GetTrkEndPos(t,0), GetTrkEndPos(t,1),
 				GetTrkEndAngle(t,0),
 				t, GetTrkGauge(t), color, widthOptions );
@@ -297,7 +299,7 @@ static BOOL_T WriteStraight( track_p t, FILE * f )
 	BOOL_T rc = TRUE;
 	rc &= fprintf(f, "STRAIGHT %d %d %ld 0 0 %s %d\n",
 				GetTrkIndex(t), GetTrkLayer(t), (long)GetTrkWidth(t),
-				GetTrkScaleName(t), GetTrkVisible(t) )>0;
+				GetTrkScaleName(t), GetTrkVisible(t)|(GetTrkNoTies(t)?1<<2:0)|(GetTrkBridge(t)?1<<3:0) )>0;
 	rc &= WriteEndPt( f, t, 0 );
 	rc &= WriteEndPt( f, t, 1 );
 	rc &= fprintf(f, "\tEND\n" )>0;
@@ -317,7 +319,9 @@ static void ReadStraight( char * line )
 		return;
 	trk = NewTrack( index, T_STRAIGHT, 0, 0 );
 	SetTrkScale( trk, LookupScale(scale) );
-	SetTrkVisible(trk, visible);
+	SetTrkVisible(trk, visible&2);
+	SetTrkNoTies(trk, visible&4);
+	SetTrkBridge(trk, visible&8);
 	SetTrkLayer(trk, layer);
 	SetTrkWidth( trk, (int)(options&3) );
 	ReadSegs();
@@ -362,11 +366,16 @@ static BOOL_T SplitStraight( track_p trk, coOrd pos, EPINX_T ep, track_p *leftov
 {
 	track_p trk1;
 
-	trk1 = NewStraightTrack( GetTrkEndPos(trk,ep), pos );
+	trk1 = NewStraightTrack( 1-ep?GetTrkEndPos(trk,ep):pos, 1-ep?pos:GetTrkEndPos(trk,ep) );
+	DIST_T height;
+	int opt;
+	GetTrkEndElev(trk,ep,&opt,&height);
+	UpdateTrkEndElev( trk1, ep, opt, height, (opt==ELEV_STATION)?GetTrkEndElevStation(trk,ep):NULL );
 	AdjustStraightEndPt( trk, ep, pos );
+	UpdateTrkEndElev( trk, ep, ELEV_NONE, 0, NULL);
 	*leftover = trk1;
-	*ep0 = 1;
-	*ep1 = 0;
+	*ep0 = 1-ep;
+	*ep1 = ep;
 	return TRUE;
 }
 
@@ -413,7 +422,7 @@ static BOOL_T EnumerateStraight( track_p trk )
 	return TRUE;
 }
 
-static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist )
+static BOOL_T TrimStraight( track_p trk, EPINX_T ep, DIST_T dist, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center )
 {
 	DIST_T d;
 	ANGLE_T a;
@@ -632,6 +641,7 @@ static BOOL_T QueryStraight( track_p trk, int query )
 	case Q_ISTRACK:
 	case Q_CORNU_CAN_MODIFY:
 	case Q_MODIFY_CAN_SPLIT:
+	case Q_CAN_EXTEND:
 		return TRUE;
 	default:
 		return FALSE;

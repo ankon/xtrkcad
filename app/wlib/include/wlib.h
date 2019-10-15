@@ -275,6 +275,7 @@ void wDestroySplash( void );
 #define BO_READONLY	(1L<<2)
 #define BO_NOTAB	(1L<<8)
 #define BO_BORDER	(1L<<9)
+#define BO_ENTER    (1L<<10)
 
 wPos_t wLabelWidth(		const char * );
 const char * wControlGetHelp(		wControl_p );
@@ -303,7 +304,7 @@ void wControlLinkedActive( wControl_p b, int active );
 
 #define BS_TRIM			(1<<12)
 /* Creation CallBacks */
-typedef void (*wStringCallBack_p)( const char *, void * );
+typedef void (*wStringCallBack_p)( const char *, void *);
 wString_p wStringCreate(	wWin_p, wPos_t, wPos_t, const char *, const char *, long,
 				wPos_t, char *, wIndex_t, wStringCallBack_p,
 				void * );
@@ -318,8 +319,8 @@ const char * wStringGetValue(		wString_p );
  */
 
 /* Creation CallBacks */
-typedef void (*wIntegerCallBack_p)( long, void * );
-typedef void (*wFloatCallBack_p)( double, void * );
+typedef void (*wIntegerCallBack_p)( long, void * , int);
+typedef void (*wFloatCallBack_p)( double, void * , int);
 wInteger_p wIntegerCreate(	wWin_p, wPos_t, wPos_t, const char *, const char *, long,
 				wPos_t, wInteger_t, wInteger_t, wInteger_t *,
 				wIntegerCallBack_p, void * );
@@ -427,6 +428,7 @@ wLine_p wLineCreate(		wWin_p, const char *, int, wLines_t *);
 #define BT_CHARUNITS	(1L<<23)
 #define BT_FIXEDFONT	(1L<<22)
 #define BT_DOBOLD	(1L<<21)
+#define BT_TOP		(1L<<20)	/* Show the top of the text */
 
 wText_p wTextCreate(		wWin_p, wPos_t, wPos_t, const char *, const char *, long,
 				wPos_t, wPos_t );
@@ -453,12 +455,24 @@ void wTextSetPosition(		wText_p bt, int pos );
 typedef int wDrawOpts;
 #define wDrawOptTemp	(1<<0)
 #define wDrawOptNoClip	(1<<1)
+#define wDrawOptCursor  (1<<2)
+#define wDrawOptCursorClr (1<<3)
+#define wDrawOptCursorRmv (1<<4)
+#define wDrawOptCursorQuit (1<<5)
 #define wDrawOutlineFont (1<<11)
+#define wDrawOptOpaque   (1<<12)
+
 
 typedef enum {
 	wDrawLineSolid,
 	wDrawLineDash }
 		wDrawLineType_e;
+
+typedef enum {
+	wPolyLineStraight,
+	wPolyLineSmooth,
+	wPolyLineRound}
+	wPolyLine_e;
 
 typedef int wAction_t;
 #define wActionMove		(1)
@@ -511,8 +525,8 @@ void wDrawString(		wDraw_p, wPos_t, wPos_t, wAngle_t, const char *, wFont_p,
 		  		wFontSize_t, wDrawColor, wDrawOpts );
 void wDrawFilledRectangle(	wDraw_p, wPos_t, wPos_t, wPos_t, wPos_t,
 				wDrawColor, wDrawOpts );
-void wDrawFilledPolygon(	wDraw_p, wPos_t [][2], wIndex_t, wDrawColor,
-				wDrawOpts );
+void wDrawPolygon(	wDraw_p, wPos_t [][2], wPolyLine_e [], wIndex_t, wDrawColor, wDrawWidth, wDrawLineType_e,
+				wDrawOpts, int, int );
 void wDrawFilledCircle(		wDraw_p, wPos_t, wPos_t, wPos_t, wDrawColor, wDrawOpts );
 
 void wDrawGetTextSize(		wPos_t *, wPos_t *, wPos_t *, wDraw_p, const char *, wFont_p,
@@ -532,7 +546,7 @@ void wDrawSetSize(		wDraw_p, wPos_t, wPos_t, void * );
 void wDrawGetSize(		wDraw_p, wPos_t *, wPos_t * );
 
 /* Bitmaps */
-wDrawBitMap_p wDrawBitMapCreate( wDraw_p, int, int, int, int, const char * );
+wDrawBitMap_p wDrawBitMapCreate( wDraw_p, int, int, int, int, const unsigned char * );
 void wDrawBitMap(		wDraw_p, wDrawBitMap_p, wPos_t, wPos_t,
 				wDrawColor, wDrawOpts );
 

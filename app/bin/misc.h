@@ -147,6 +147,7 @@ extern long programMode;
 #define C_RCLICK		(wActionLast+8)
 #define C_CMDMENU		(wActionLast+9)
 #define C_FINISH		(wActionLast+10)
+#define C_UPDATE        (wActionLast+11)
 
 #define C_CONTINUE		(100)
 #define C_TERMINATE		(101)
@@ -237,26 +238,28 @@ void CheckRoomSize( BOOL_T );
 const char * GetBalloonHelpStr( char* );
 void EnableCommands( void );
 void Reset( void );
+BOOL_T IsCurCommandSticky(void);
 void ResetIfNotSticky( void );
 wBool_t DoCurCommand( wAction_t, coOrd );
 void ConfirmReset( BOOL_T );
 void LayoutToolBar( void * );
-#define IC_STICKY		(1<<0)
-#define IC_CANCEL		(1<<1)
-#define IC_MENU			(1<<2)
-#define IC_NORESTART	(1<<3)
-#define IC_SELECTED		(1<<4)
-#define IC_POPUP		(1<<5)
-#define IC_LCLICK		(1<<6)
-#define IC_RCLICK		(1<<7)
-#define IC_CMDMENU		(1<<8)
-#define IC_POPUP2		(1<<9)
-#define IC_ABUT			(1<<10)
-#define IC_ACCLKEY		(1<<11)
-#define IC_MODETRAIN_TOO		(1<<12)
-#define IC_MODETRAIN_ONLY		(1<<13)
-#define IC_WANT_MOVE	(1<<14)
-#define IC_PLAYBACK_PUSH		(1<<15)
+#define IC_STICKY               (1<<0)
+#define IC_INITNOTSTICKY        (1<<1)
+#define IC_CANCEL               (1<<2)
+#define IC_MENU                 (1<<3)
+#define IC_NORESTART            (1<<4)
+#define IC_SELECTED             (1<<5)
+#define IC_POPUP                (1<<6)
+#define IC_LCLICK               (1<<7)
+#define IC_RCLICK               (1<<8)
+#define IC_CMDMENU              (1<<9)
+#define IC_POPUP2               (1<<10)
+#define IC_ABUT                 (1<<11)
+#define IC_ACCLKEY              (1<<12)
+#define IC_MODETRAIN_TOO        (1<<13)
+#define IC_MODETRAIN_ONLY       (1<<14)
+#define IC_WANT_MOVE            (1<<15)
+#define IC_PLAYBACK_PUSH        (1<<16)
 wIndex_t InitCommand( wMenu_p, procCommand_t, char *, char *,  int, long, long );
 void AddToolbarControl( wControl_p, long );
 BOOL_T CommandEnabled( wIndex_t );
@@ -396,6 +399,7 @@ void ContMgmLoad (wIcon_p,contMgmCallBack_p,void *);
 
 /* dlayer.c */
 void LayerSetCounts();
+int FindUnusedLayer(unsigned int start);
 void DecrementLayerObjects(unsigned int index);
 void IncrementLayerObjects(unsigned int index);
 
@@ -425,4 +429,6 @@ void InitCmdControl ( wMenu_p menu );
 /* csensor.c */
 void SensorMgmLoad ( void );
 void InitCmdSensor ( wMenu_p menu );
+/* cmodify.c */
+STATUS_T CmdModify(wAction_t action,coOrd pos );
 #endif

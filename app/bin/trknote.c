@@ -378,7 +378,7 @@ static void
 ReadTrackNote(char *line)
 {
     track_p t;
-    size_t size;
+    int size;
     char * cp;
     struct extraDataNote *xx;
     wIndex_t index;

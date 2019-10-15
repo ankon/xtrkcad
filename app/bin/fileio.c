@@ -34,6 +34,8 @@
 #include <ctype.h>
 #ifdef WINDOWS
 	#include <io.h>
+	#define W_OK (2)
+	#define access	_access
 	#include <windows.h>
 	//#if _MSC_VER >=1400
 	//	#define strdup _strdup
@@ -82,6 +84,9 @@ EXPORT const char * libDir;
 
 EXPORT char * clipBoardN;
 
+
+EXPORT wBool_t bExample = FALSE;
+EXPORT wBool_t bReadOnly = FALSE;
 
 #ifdef WINDOWS
 #define rename( F1, F2 ) Copyfile( F1, F2 )
@@ -529,9 +534,11 @@ void SetWindowTitle( void )
 		return;
 
 	filename = GetLayoutFilename();
-	sprintf( message, "%s%s - %s(%s)",
+	sprintf( message, "%s%s%s - %s(%s)",
 		(filename && filename[0])?filename: _("Unnamed Trackplan"),
-		changed>0?"*":"", sProdName, sVersion );
+		bReadOnly?"=":"",
+		changed>0?"*":"",
+		sProdName, sVersion );
 	wWinSetTitle( mainW, message );
 }
 
@@ -543,8 +550,9 @@ void SetWindowTitle( void )
  *
  */
 
-static struct wFilSel_t * loadFile_fs;
-static struct wFilSel_t * saveFile_fs;
+static struct wFilSel_t * loadFile_fs = NULL;
+static struct wFilSel_t * saveFile_fs = NULL;
+static struct wFilSel_t * examplesFile_fs = NULL;
 
 static wWin_p checkPointingW;
 static paramData_t checkPointingPLs[] = {
@@ -671,8 +679,10 @@ static BOOL_T ReadTrackFile(
 		}
 	}
 
-	if (paramFile)
+	if (paramFile) {
 		fclose(paramFile);
+		paramFile = NULL;
+	}
 
 	if( ret ) {
 		if (!noSetCurDir)
@@ -712,7 +722,9 @@ int LoadTracks(
 	assert( fileName != NULL );
 	assert( cnt == 1 ); 
 
-	SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
+	if ( ! bExample )
+		SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
+	bReadOnly = bExample;
 	paramVersion = -1;
 	wSetCursor( mainD.d, wCursorWait );
 	Reset();
@@ -812,6 +824,12 @@ int LoadTracks(
 		free(zip_input);
 
 	}
+	if ( bExample )
+		bReadOnly = TRUE;
+	else if ( access( fileName[0], W_OK ) == -1 )
+		bReadOnly = TRUE;
+	else
+		bReadOnly = FALSE;
 
 	if (loadXTC && ReadTrackFile( full_path, FindFilename( fileName[0]), TRUE, FALSE, TRUE )) {
 
@@ -825,7 +843,9 @@ int LoadTracks(
 			full_path = fileName[0];
 		}
 
-		wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
+		if ( ! bExample )
+			wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
+
 		ResolveIndex();
 #ifdef TIME_READTRACKFILE
 		time1 = wGetTimer();
@@ -899,6 +919,7 @@ static BOOL_T DoSaveTracks(
 	if ( !rc )
 		NoticeMessage( MSG_WRITE_FAILURE, _("Ok"), NULL, strerror(errno), fileName );
 	fclose(f);
+	bReadOnly = FALSE;
 
 	RestoreLocale( oldLocale );
 
@@ -1060,7 +1081,7 @@ static int SaveTracks(
 EXPORT void DoSave( doSaveCallBack_p after )
 {
 	doAfterSave = after;
-	if (*(GetLayoutFilename()) == '\0') {
+	if ( bReadOnly || *(GetLayoutFilename()) == '\0') {
 		if (saveFile_fs == NULL)
 			saveFile_fs = wFilSelCreate( mainW, FS_SAVE, 0, _("Save Tracks"),
 				sSourceFilePattern, SaveTracks, NULL );
@@ -1086,9 +1107,25 @@ EXPORT void DoSaveAs( doSaveCallBack_p after )
 
 EXPORT void DoLoad( void )
 {
-	loadFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Open Tracks"),
-		sSourceFilePattern, LoadTracks, NULL );
+	if (loadFile_fs == NULL)
+		loadFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Open Tracks"),
+			sSourceFilePattern, LoadTracks, NULL );
+	bExample = FALSE;
 	wFilSelect( loadFile_fs, GetCurrentPath(LAYOUTPATHKEY));
+	SaveState();
+}
+
+
+EXPORT void DoExamples( void )
+{
+	if (examplesFile_fs == NULL) {
+		static wBool_t bExample = TRUE;
+		examplesFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Example Tracks"),
+			sSourceFilePattern, LoadTracks, &bExample );
+	}
+	bExample = TRUE;
+	sprintf( message, "%s" FILE_SEP_CHAR "examples" FILE_SEP_CHAR, libDir );
+	wFilSelect( examplesFile_fs, message );
 	SaveState();
 }
 
@@ -1102,7 +1139,7 @@ EXPORT void DoCheckPoint( void )
 		checkPointingW = ParamCreateDialog( &checkPointingPG, MakeWindowTitle(_("Check Pointing")), NULL, NULL, NULL, FALSE, NULL, F_TOP|F_CENTER, NULL );
 	}
 	rename( checkPtFileName1, checkPtFileName2 );
-	wShow( checkPointingW );
+	//wShow( checkPointingW );
 	rc = DoSaveTracks( checkPtFileName1 );
 
 	/* could the check point file be written ok? */
@@ -1113,7 +1150,8 @@ EXPORT void DoCheckPoint( void )
 		/* no, rename the backup copy back to the checkpoint file name */
 		rename( checkPtFileName2, checkPtFileName1 );
 	}
-	wHide( checkPointingW );
+	//wHide( checkPointingW );
+	wShow( mainW );
 }
 
 /**
@@ -1212,6 +1250,17 @@ EXPORT int LoadCheckpoint( void )
 static struct wFilSel_t * exportFile_fs;
 static struct wFilSel_t * importFile_fs;
 
+static int importAsModule;
+
+
+
+/*******************************************************************************
+ *
+ * Import Layout Dialog
+ *
+ */
+
+
 
 static int ImportTracks(
 		int cnt,
@@ -1229,12 +1278,25 @@ static int ImportTracks(
 	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	SetAllTrackSelect( FALSE );
+	int saveLayer = curLayer;
+	int layer;
+	if (importAsModule) {
+		layer = FindUnusedLayer(0);
+		if (layer==-1) return FALSE;
+		char LayerName[80];
+		LayerName[0] = '\0';
+		sprintf(LayerName,_("Module - %s"),nameOfFile);
+		if (layer>=0) SetCurrLayer(layer, NULL, 0, NULL, NULL);
+		SetLayerName(layer,LayerName);
+	}
 	ImportStart();
 	UndoStart( _("Import Tracks"), "importTracks" );
 	useCurrentLayer = TRUE;
 	ReadTrackFile( fileName[ 0 ], nameOfFile, FALSE, FALSE, TRUE );
 	ImportEnd();
+	if (importAsModule) SetLayerModule(layer,TRUE);
 	useCurrentLayer = FALSE;
+	SetCurrLayer(saveLayer, NULL, 0, NULL, NULL);
 	/*DoRedraw();*/
 	EnableCommands();
 	wSetCursor( mainD.d, defaultCursor );
@@ -1245,9 +1307,9 @@ static int ImportTracks(
 	return TRUE;
 }
 
-
-EXPORT void DoImport( void )
+EXPORT void DoImport( void * type )
 {
+	importAsModule = (int)type;
 	if (importFile_fs == NULL)
 		importFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Import Tracks"),
 			sImportFilePattern, ImportTracks, NULL );
@@ -1407,7 +1469,9 @@ EXPORT void FileInit( void )
 		AbortProg( "wGetAppWorkDir()" );
 
 	SetLayoutFullPath("");
-	MakeFullpath(&clipBoardN, workingDir, sClipboardF, NULL);
+		MakeFullpath(&clipBoardN, workingDir, sClipboardF, NULL);
+
 }
+
 
 

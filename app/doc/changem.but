@@ -24,6 +24,10 @@ The \f{Change Menu} has all functions related to modifying objects that exist on
 
 \u000
 
+\dd \f{Convert Tracks} - chnages fixed tracks (Straight, Curve, Joint, Bezier) into a Smooth Cornu or vice versa. (\K{cmdConvert}).
+
+\u000
+
 \dd \f{Elevation} - define an elevation at specified track location (\K{cmdElev}).
 
 \u000
@@ -125,6 +129,8 @@ Using the \f{Select} command, select the track that is to have its elevation set
 
 This command is frequently used with \e{Sectional Track}.  But it can be useful to reattach ordinary track which has become disconected or split.
 
+When in this connect, ends of tracks that can be selected are highlighted with a blue arrow. With \e{Shift} added, ends that can be tighten are highlighted with a blue "X".
+
 There are three modes, 
 
 \u000
@@ -133,7 +139,7 @@ There are three modes,
 
 \b a \f{Shift-Left} click on a connected track will "Tighten Tracks" moving other tracks connected to this track to reduce any small distance or angle differences  
 
-\b selecting a set of tracks followed by a \f{Right} click will prompt for confirmation that all selected tracks with unconnected endpoints should be joined to nearby selected track at an unconnected end point. This mode allows for an entire layout to be reconnected after a Select-All.  
+\b Selecting a set of tracks followed by a \e{"S" key} or using the Context menu will prompt for confirmation that all selected tracks with unconnected endpoints should be joined to nearby selected track at an unconnected end point. This mode allows for an entire layout to be reconnected after a Select-All.  
 
 \f{Notes for two track mode:} Occasionally pieces of sectional track do not line up exactly, especially when creating figure-8's or passing sidings. When laying out the actual track you can compensate for this by adjusting the individual tracks to provide a bit of slack.  This command simulates that process.
 
@@ -147,12 +153,39 @@ You can undo the effect of the \f{Connect} command by splitting (\K{splitDisconn
 
 \rule
 
+\S{cmdConvert} Convert Tracks
+
+A drop down menu, which allows selection of the Convert Mode, is invoked from the down arrow button (\G{png.d/bmenu.png}) located on the right side the Convert Tracks button. Dependent upon previous selection, the Convert Track button will look like \G{png.d/convertto.png} or \G{png.d/convertfrom.png}.
+
+\S2{cmdConvertTo} Convert Fixed Track(s) to Cornu(s)
+
+\G{png.d/convertto.png}
+
+This command will take a pre-selected set of fixed track elements (Straights, Curves, Joint or Bezier) and convert them into a set of Cornu Tracks. If there are no selected Tracks, the user can click on a single track.
+
+The Cornu(s) will smoothly pass through all the end points of the selected tracks and smoothly join to the end-points (if any). This may change the internal shape of the resulting track(s) due to smoothing. A subsequent \k{cmdModify} can be used to fine tune the Cornu(s) by moving, adding and deleting "pins" in the combined shape.
+
+This command is intended to help conversion of track designs that were made before Cornu Track existed to Cornu.
+
+\G{png.d/bconvertfrom.png}
+
+This command will take a pre-selected set of Cornu and Bezier Tracks and convert them into a set of equivalent Straights or Curves,
+
+The resulting track(s) will mimic the shape of the Cornu/Bezier(s) exactly. This command is intended to allow easier layout of smoothed shapes. 
+
+\rule
 
 \S{cmdElev} Elevation
 
 \G{png.d/belev.png}
 
-The \f{Elevation} command changes the elevation of track endpoints. After opening this dialog, you can click on the respective endpoint to set its elevation properties. The endpoint on which you work is indicated with a big red dot.
+The \f{Elevation} command changes the elevation of track endpoints. After opening this dialog, The Message Bar will show the computed elevation at the cursor. There will be an open blue circle if an endpoint will be selected with \f{Left-Click}. You click on the respective endpoint to set its elevation properties. The endpoint which you are working on is indicated with a big red dot.
+
+If you hover over a point where two unconnected tracks pass over one another, a blue square will be drawn and the Message Bar will show the two elevations and the Clearance between them.
+
+If you add \f{Shift} as you move the cursor before clicking you will see a filled dot when it is over a track if a \f{Shift-Left-Click} will split the Track at that point (which will give you the opportunity to specify an elevation.
+
+Adding \f{Ctrl} allows you to \f{Ctrl+Left-Click} to Select and \f{Left-Drag} to move Elevation Labels if both the option is set for them to be displayed and the Zoom level is correct,, Only Defined and Station endpoint labels can be moved. 
 
 \G{png.d/celev.png}
 
@@ -174,13 +207,11 @@ An endpoint can have one of several elevation types:
 
 \b \f{Station} - assigns a name to the endpoint.
 
-\f{Note:} Only one of these attributes can be assigned to an endpoint. For example, an endpoint can not be defined as a Grade and a Station at the same time.
+\f{Note:} Only one of these attributes can be assigned to an endpoint at a time. For example, an endpoint can not be defined as a Grade and a Station at the same time.
 
 When an endpoint is selected on the layout by \e{Left-Click}, it is highlighted by a large red dot and its elevation type and values are displayed in the dialog.
 
 Additionally, \f{Defined Elevation} endpoints are indicated on the layout by gold colored dots. \f{Ignored Elevation} endpoints are indicated by blue colored dots.
-
-\e{Shift+Left-Click} splits the track at the specified point and adds an elevation point.
 
 The grade at the specified endpoint is displayed next to the \f{Grade} radio button. For \f{Defined Elevation} endpoints, the grade on each side of the endpoint is displayed.
 
@@ -277,7 +308,6 @@ For detail about;
 
 \rule
 
-
 \S2{joinTrackCurve} Using Curved Flex-Track
 
 This method of joining track may be used using Normal Easments where tracks are either joined with a 'simple curve'\k{joinNormalEasment}, e.g. one which uses a curve in a single direction as opposed to using reverse curves (\K{generalTerms}) or using complex curves if Easement is set to Cornu \K{joinCornu}.
@@ -362,11 +392,29 @@ For detail about;
 
 \S2{joinCornu} \i{Creating a Cornu} \i{Cornu Easements} Join with Cornu Easement
 
+A Cornu is a form of Join that uses a mathematical approach to creating a curve between two sets of end conditions. 
+
+The conditions at each end are the radius, angle and position. 
+
+The curve is designed to change radius (curvature) linearly along its length, which mimics the characteristics of railway easements because it minimizes sudden changes in acceleration towards the center of curvature.
+
+Because Cornu are mathematically generated, they can be regenerated at will and so Cornu Joins are unique in XtrkCAD because they remain connected even if the tracks at the end are moved or even change shape.
+
+Cornu Joins will use whatever space is available - that is their "tightness" (rate of change of curvature) is variable and dynamic. 
+
+\S2{cornuTrackPins}
+
+XtrackCAD Cornu can have "track pins" added that constrain the track to pass through those points in addition to meeting the end-conditions. This allows the track to be skewed or slewed around obstacles, or to suit some other constraint. 
+
+The pins can be added when Cornus are created \K{cmdCurve} or during \K{cmdModify} by clicking on the track. They can be selected and then dragged to alter the curve shape or deleted with \f{Delete}. 
+
+When a Cornu Track with pins is saved, it is split into two Cornu joined at the pin. If a Cornu that is joined to another Cornu is Modified with \K{cmdModify}, the joints are rendered as Pins and the Modify is one continuous Cornu.
+
 \u000
 
 \n First, ensure that the Easement type option is set to Cornu - see \k{cmdEasement}
 
-\n Start the join process by clicking on the Join button (\G{png.d/bjoin.png}).
+\n Start the join process by clicking on the Join button (\G{png.d/bjoin.png}). A blue dot will indicate the end that will be chosen with \e{Left-Click}.
 
 \lcont{
 
@@ -493,7 +541,7 @@ This method of joining track may be used to move, align and join one section of 
 
 \u000
 
-\n Before initiating the \f{Join} command, the track that will be moved, aligned then joined must be selected using the \f{Select} command (\K{cmdSelect}).
+\n Before initiating the \f{Join} command, the track that will be moved, aligned and then joined must be selected using the \f{Select} command (\K{cmdSelect}).
 
 \lcont{
 
@@ -529,7 +577,7 @@ This method of joining track may be used to move, align and join one section of 
 
 }
 
-\n Move the mouse pointer over the endpoint of the other track then \e{Shift+Left-Click}. The selected track will be moved, aligned then joined to the stationary section of track. 
+\n Then move the mouse pointer over the endpoint of the other (unselected and stationary) track with \e{Shift+Left-Click}. The selected track will be moved, aligned then joined to the stationary section of track. 
 
 For detail about;
 
@@ -546,23 +594,30 @@ For detail about;
 
 \G{png.d/bmodify.png}
 
-The \f{Modify} command is used to change characteristics of or extend existing track by adding new track. This command works with any unconnected track endpoint, or with a \e{Cornu} or \e{Bezier} track even if connected
+The \f{Modify} command is used to change characteristics of tracks or draw elements or extend existing track by adding new track. The extend type of Modify command works with any unconnected track endpoint, or with \e{Turntables}. \e{Cornu(s)} or \e{Bezier} track can be modified even if connected.  Selecting one Cornu which is connected to other Cornu(s) results in a single modification curve with control "Pins" at the connections.
 
-The \f{Modify} command can be invoked using the \f{Change>Modify} menu item, the \f{Modify} button or the menu raised by a \e{Right-Click} over the \f{Main Canvas}.
+The \f{Modify} command can be invoked using the \f{Change>Modify} menu item, the \f{Modify} button, by \e{Double-Click} in Select when hovering over a selected item or the menu raised by a \e{Right-Click} over the \f{Main Canvas}.
 
-Either the left mouse button (for changing length or creating a tangent track) or the right mouse button (for extending with a new track) is used to modify the unconnected endpoint.
+Before a track is selected for Modify, a dynamic blue anchor will show which track the command will take effect on if the cursor is close enough to a modifyable track or object. Arrows are shown to indicate if the track can be extended or trimmed and also if its radius can be modified if Shift is depressed as the cursor is moved over the track.  
 
-The endpoints of a \e{Line}, \e{Dimension Line}, \e{Table Edge} or \e{Bench-work} can be dragged to new positions.  A \e{Box} or a \e{FilledBox} can be modified by selecting a corner and dragging in two dimensions, or a side and dragging it orthogonally. These modifications preserve a 4-sided rectangle.
+\S2{extendModify} Extending Track
 
-The controlpoints of a \e{Cornu Track}, \e{Bezier Track} or \e{Bezier Line} can be changed.
+Either the left mouse button (for changing length or creating a tangent track) or the right mouse button (for extending with a new track) is used to modify an unconnected endpoint.
 
-\e{Curved Lines} are modified in same manner as curved track.
+\S2{objectModify} Modifying Objects
 
-Selecting a corner of a \e{Poly Line} or \e{Polygon} moves that corner to a new position, and if moved close to a neighboring corner will merge the two corners and delete the edge between them. Selecting an edge will create a corner that can be dragged to a new position.
+\n The endpoints of a \e{Line}, \e{Dimension Line}, \e{Table Edge} or \e{Bench-work} can be dragged to new positions.  
+
+\n A \e{Box} or a \e{FilledBox} can be modified by selecting a corner and dragging in two dimensions, or a side and dragging it orthogonally. This modifications preserve a 4-sided rectangle.
+
+\n The controlpoints of a \e{Cornu Track}, \e{Bezier Track} or \e{Bezier Line} can be changed. Control "Pins" can be added, moved or selected and removed from \e{Cornus}.
+
+\n \e{Curved Lines} are modified by dragging the end points and dragging the amount of central deflection (radius).
+
 
 Any tracks created during the \f{Modify} command will have the following properties inherited from the first track: selected state, hidden state, scale, track gauge and Layer. 
 
-For detail about;
+For more detail about;
 
 \dd Changing track length refer to \K{chgTrackLength}.
 
@@ -577,6 +632,14 @@ For detail about;
 \u000
 
 \dd Extending track length refer to \K{extendTrack}
+
+\u000
+
+\dd Modifying Draw elements refer to \K{chgDraw}
+
+\u000
+
+\dd Modifying Polygons and PolyLines refer to \K{polyModify}
 
 \u000
 
@@ -716,27 +779,137 @@ For detail about;
 
 \rule
 
-\S2{chgCornu} \i{Cornu Easements} Modifying a Cornu
+\S2{chgDraw} Modifying Draw Elements
 
-Because a Cornu is defined by its end points position, angle and radius - it can only be directly modified by dragging an end point along a track. 
+Draw elements have blue handles that show how they can be modified. They also have text entry boxes that allow precise entry of parameters. These values become active when a \e{Tab} is entered, or the cursor is moved out of the text box.  
+
+There is a context menu accessed via \e{Right-Click} for Draw Objects that can change the edit mode from the initial "Points Mode" to "Origin Mode" where \e{Click} sets the position of the drawn object's origin - which will cause subsequent rotations using \K{cmdModify} to be centered about that point. 
+
+The context menu can be used to go back to Points Mode, or to set the origin to defined points. 
+The shortcuts are "o" for Origin Mode, "p" for Points Mode. 
+
+In Origin Mode, 
+
+\dd the context menu allows the origin to be set by dragging or snapped to the layout origin (shortcut "0") or the position of the corner points (shortcut "1" through "4") or the centroid of the shape (shortcut "c"). For a polygon, if a node is selected, the origin can be moved to it (shortcut "l").
+
+\u000
+
+In Points Mode,
+
+\u000
+
+\dd Lines have end points that can be dragged. \e{Shift-Drag} will snap the end to the end of a nearby Draw object, while \e{Ctrl+Drag} will snap to any point on a nearby Draw object.  They have text entry boxes for length and angle.
+
+\u000
+
+\dd Curves have end points that work like Lines but also have a middle anchor that can be used to alter the curve radius. They have text box entry for Arc Length (in degrees) and Radius. 
+
+\u000
+
+\dd Boxes have anchors for all corners and the middle of all sides. They have text entry boxes for width and height.
+
+\u000
+
+\dd Bezier Lines - see \K{chgBezier}
+
+\S3{polyModify} Modifying PolyLines and Polygons
+
+When a Polygon or a PolyLine is modified, open blue circle anchors show the position of its "nodes", these are selected with \f{Left-Click} and are shown as filled circles.
+
+\b \f{Left-Drag} of a selected node of a \e{PolyLine} or \e{Polygon} moves that node to a new position, and if moved close enough to a neighboring node will merge the two nodes and delete the edge between them. 
+
+\u000
+
+\b \f{Delete} will remove a selected node.
+
+\u000
+
+\b \f{Left-Clicking} on an edge will create a new node that can be dragged to position it.
+
+\u000
+
+\b Multiple points can be selected using \f{Shift+Left-Click}. If these are then \f{Left-Drag}ed all the selected points move together, preserving relative position. 
+
+\u000
+
+\b There is a context menu that has controls for a selected point. It has options to alter the node into a rounded node (shortcut "r") or a smooth node (shortcut "s"). To turn it back into a sharp (vertex) node (shortcut "v").
+
+\u000
+
+\b If \e{Shift} is held down while dragging, the relative angle for the first selected point to its predecessor point will be locked to a multiple of 90 degrees. 
+
+\u000
+
+\b When a node or nodes is/are selected, text entry boxes for length and relative angle (the deviation angle from the direction of preceeding side) can be used to fine-tune the position of the first node in the sequence. A arc indicator identifies the angle in question.
+
+\u000
+
+If no nodes are selected, 
+
+\u000
+
+\b A context menu can be used to close a polyline into a polygon (shortcut "c") or open it (shortcut "o") into a non-filled polygon between its last and first nodes. 
+
+\u000
+
+\b A unfilled polygon can also be filled (shortcut "f") or a filled one emptied (shortcut "e").
+
+\u000
+
+Notes 
+
+\u000
+
+\dd A selected Polygon or Polyline node can only be deleted if there are at least three nodes left. It can only be round or smooth if long as it isn't an end node of a Polyline.
+
+\u000
+
+\dd Smoothed nodes implement a short Bezier curve that goes from halfway along the line of to the next node and which has a control arm that ends at the node. These are typically of most use to fine-tune a series of nodes that simulate a complex curve.
+
+\u000
+
+\dd Rounded nodes start at a distance that is half the shorter of the lines from the last node and to the next node and has control arms that extend to the half-way point to the node. 
+This produces an arc whose radius is determined by the distance of the closet node. By manipulating the nearest node (for example, by adding a point) the radius at the node can be controlled.
+
+\u000
+
+\rule
+
+\S2{chgCornu} \i{Cornu Easements} Modifying a Cornu Track
+
+Because a Cornu Track is defined by its end points position, angle and radius - it can only be directly modified by dragging an end point along a track. It can also have added "Pins" which constrain the curve to smoothly pass through a point.
 
 \n Click the \f{Modify} button (\G{png.d/bmodify.png}) to activate the \f{Modify} function.
 
 \lcont{\u000}
 
-\n Click on the Cornu track. The track ends will turn into roundels
+\n Click on the Cornu track. The track ends will turn into roundels. If any other Cornus are connected at either end, the entire connected set will be modifyable as one Cornu with intermediate "Pins" at the connections. 
 
 \lcont{\u000}
 
-\n \e{Left-Click} the endpoint and \e{Left-Drag} it to move the endpoint along the connected track, or beyond it if you want that track extended ( but this only works in the direction of the Cornu).
+\n \e{Left-Click} an endpoint and \e{Left-Drag} it to move the endpoint along the connected track, or beyond it if you want that track extended.
 
 \lcont{\u000}
 
-\n Repeat with the other end-pint if desired
+\n \e{Left-Click} an Pin and \e{Left-Drag} it to move the pin and make the curve to pass through it.
 
 \lcont{\u000}
 
-\n Once you are happy, hit the \e{spacebar} or \e{Enter}, or to cancel hit \e{Escape}.
+\n \e{Left-Click} the track where a Pin doesn't exist to add a Pin and \e{Left-Drag} it to alter the curve to pass through a defined point.
+
+\lcont{\u000}
+
+\n \e{Delete} to delete the last seelcted Pin, the curve will change to meet the end conditions and pass through any remaining Pins.
+
+\lcont{\u000}
+
+\n Repeat with the other end-point or Pins if desired
+
+\lcont{\u000}
+
+\n Once you are happy, hit the \e{spacebar} or \e{Enter}, or to cancel hit \e{Escape}.  
+
+\f{Note:} If the Modify command contained Pins, \e{spacebar} or \e{Enter} it will output a set of connected Cornu(s) joined at the Pin points.
 
 \f{Note:} A Cornu can also be modified by moving or rotating a connected track.  
 
@@ -790,6 +963,8 @@ A move can be achieved using one of the following methods;
 \dd Selecting fixed or specified amounts of translation in the X and Y directions using a \e{Right-Click} menu. See \K{moveByMenu} for detail.
 
 \u000
+
+During a Move of tracks, if one of the end-points of the selected objects is close to an open end of a unselected point, two anchors (an open an closed blue ball) will appear. This indicates that the two points will auto-join and that all the moved tracks will align to the unselected point if the Move is stopped. 
 
 \rule
 
@@ -860,15 +1035,19 @@ Any amount of precise transalation may be entered by \e{Left-Click}ing the \f{En
 
 \G{png.d/bmovedes.png}
 
-This command is used to move Elevation, Grade, Station (\K{cmdElev}), Curved Track (\K{cmdCurve}), Helix (\K{cmdHelix}) or Turnout (\K{cmdHotBar}) Labels.
+This command is used to move Elevation, Grade, Station (\K{cmdElev}), Curved Track (\K{cmdCurve}), Bezier, Cornu, Helix (\K{cmdHelix}) and Structure or Turnout (\K{cmdHotBar}) Labels.
 
-The \f{Move Description} command can be invoked using the \f{Change>Move Description} menu item, the \f{Move Description} button or the menu raised by a \e{Right-Click} over the \f{Main Canvas}.
+The \f{Move Description} command can be invoked using the \f{Change>Move Description} menu item or the \f{Move Description} button.
 
-Click the \f{Move Description} button to activate the \f{Move Description} command. Use \e{Left+Drag} to move the label to a new position. Once moved, the label becomes fixed in a position relative to the object. Subsequent moves of that object will cause the label to move as well.
+Click the \f{Move Description} button to activate the \f{Move Description} command. As the cursor passes close to an object that can display a label it will be highlighted. A dark blue indicates a label that has "Show Description" set on, a light blue set off.  
+
+Use \e{Left+Drag} to move the label to a new position and unhide if hidden. Once moved, the label becomes fixed in a position relative to the object. Subsequent moves of that object will cause the label to move as well.
 
 This operation can also be invoked by \e{Ctrl+Left+Drag} when in Select mode (\K{cmdSelect}).
 
-\e{Shift+Right-Click} (\K{cmdAcclKeys}) can be used to toggle display of individual Curved Track, Bezier Track, Cornu, Helix or Turnout Labels.
+The letter "\f{h}", can be used to hide display of individual Curved Track, Bezier Track, Cornu, Helix or Turnout Labels. The letter"\f{s} will show a hidden description. There is a \f{Context Menu} Show/Hide Toggle as well. 
+
+Note - existing defined elevation labels can be moved, but controlling thier visbility is done with the \K{cmdElev} command.
 
 \rule
 
@@ -876,7 +1055,9 @@ This operation can also be invoked by \e{Ctrl+Left+Drag} when in Select mode (\K
 
 \G{png.d/pan.png}
 
-This command is used to move or resize the viewport using the mouse or keyboard. \e{Left+Drag} Pans the viewport up and down, left and right keping it within the boundaries of the layout. \e{Right+Drag} selects an area of the screen to zoom into. The \f{"0"}- key resets the display to the origin but leaves the zoom as is. Keys between \f{1} and \f{9} set the zoom to that zoom level. The \f{"e"} - key resets the origin to zero and the zooms to show the whole layout.
+This command is used to move or resize the viewport using the mouse or keyboard. \e{Left+Drag} Pans the viewport up and down, left and right keping it within the boundaries of the layout. \e{Ctrl+Left-Drag} selects an area of the screen to zoom into. The \f{"0"} or \f{"o"} - key resets the display to the origin but leaves the zoom as is. Keys between \f{1} and \f{9} set the zoom to that zoom level. The \f{"e"} - key resets the origin to zero and the zooms to show the whole layout.
+
+There is a context menu that contains these text based items as well.
 
 \S{cmdProfile} Profile
 
@@ -888,7 +1069,7 @@ Choose a path by using \e{Left-Click} on endpoints.  As each endpoint is chosen,
 
 If no route is possible an error message is displayed.  There are several reasons why this might happen:
 
-\b The tracks are not connected. Check this by using \e{Shift+Left-Click} on one track using the \f{Select} command (\K{cmdSelect}). This selects all tracks connected (directly or indirectly). See if the other track is selected.
+\b The tracks are not connected. You can see this more easily if you turn on Display->Option->"Display Unconnected End Points" as Exception. You can also check this by using \e{Shift+Left-Click} on one track using the \f{Select} command (\K{cmdSelect}). This selects all tracks connected (directly or indirectly). See if the other track is selected.
 
 \u000
 
@@ -925,6 +1106,8 @@ The \f{Print} button prints the dialog.  The aspect ratio is preserved on the pr
 
 Clicking on the \f{Properties} (Describe Mode) button cancels all active commands, closes any open dialog windows and places focus on the main window.
 
+Until an object is selected, the object under the cursor that will be selected with \e{Left-Click} is highlighted in blue.
+
 A \e{Left-Click} on an object while in \f{Properties} mode causes a properties dialog window to appear. The properties dialog contains information pertaining to the selected objects position, size, color and layer as appropriate for each type of object. Certain values can be changed to modify the object. If a track is connected to other tracks, then some values, e.g., endpoint positions, can not be changed.
 
 \G{png.d/dproperties.png}
@@ -957,9 +1140,9 @@ The entered value is added to all Defined Elevations on the Selected tracks.  A 
 
 This command is used to rotate selected (\K{cmdSelect}) objects.
 
-The \f{Rotate} command can be invoked using the \f{Change>Rotate} menu item, the \f{Rotate} button, the menu raised by a \e{Right-Click} over the \f{Main Canvas} or by the \e{Shift+Right+Drag} command when in \f{Select} mode.
+The \f{Rotate} command can be invoked using the \f{Change>Rotate} menu item, the \f{Rotate} button, the menu raised by a \e{Right-Click} over the \f{Main Canvas} or by the \e{Ctrl+Right-Drag} command when over a selected trak in \f{Select} mode.
 
-Successful use of this command requires selection of the object(s) to be rotated before attempting to rotate it. An object is selected by using the \e{Left-Click} command. A group of connected objects can be selected using the \e{Shift+Left-Click} command.
+Successful use of this command requires selection of the object(s) to be rotated before attempting to rotate it. An object is selected by using the \e{Left-Click} command. A group of connected objects can be selected using the \e{Shift+Left-Click} command, or indivdual tracks added with \e{Ctrl+Left-Click}.
 
 A pop-up menu with commands controlling how objects move during the \f{Rotate} function can be activated by entering a \e{Shift+Right-Click} command while hovering over the \f{Main Canvas}.
 
@@ -978,6 +1161,8 @@ Rotation can be achieved using one of the following methods;
 \u000
 
 \dd Aligning the selected object with another object on the layout. See \K{rotateByAlign} for detail.
+
+During Rotation of a track, if one of the end-points of the selected objects is close to an open end of a unselected point, two anchors (an open an closed blue ball) will appear. This indicates that the two points will auto-snap and the moved track will align to the unselected point if the Rotation is stopped. Note that this also applies to \K{cmdMove}.  
 
 \rule
 
@@ -998,7 +1183,7 @@ Rotate An Object Using the Mouse
 
 \lcont{\u000}
 
-\n Click and hold the left mouse button then drag (\e{Left+Drag}) the mouse away from the axis point to create a "handle". This handle will be used to rotate the object. While continuing to hold the left mouse button, drag (\e{Left+Drag}) the handle in the desired direction of rotation. \f{Note:} If the \e{Ctrl} key is pressed in conjunction with \e{Left+Drag}, the object will rotate in increments of 15\u00B0.
+\n Click and hold the left mouse button then drag (\e{Left+Drag}) the mouse away from the axis point to create a "handle". This handle will be used to rotate the object. While continuing to hold the left mouse button, drag (\e{Left+Drag}) the handle in the desired direction of rotation. \f{Note:} If the \e{Shift} key is pressed in conjunction with \e{Left+Drag}, the object will rotate in increments of 15\u00B0.
 
 \lcont{\u000}
 
@@ -1133,7 +1318,15 @@ Clicking on the \f{Select} button cancels all active commands, closes any open d
 
 In combination with the mouse, the \f{Select} command can be used as follows;
 
-\dd \e{Left-Click} - selects an object (or unselects a selected object). Selected objects appear in red (unless changed in the \f{Color} (\K{cmdRgbcolor}) dialog).
+\dd Objects under the cursor that will be selected with a \e{Left-Click} are highlighted in Blue unless they are already selected. 
+
+\u000
+
+\dd \e{Left-Click} - selects just the object. Selected objects appear in red (unless changed in the \f{Color} (\K{cmdRgbcolor}) dialog) and a blue selection box. If an point without a track is selected, all currently selected tracks are unselected.
+
+\u000
+
+\dd \e{Ctrl+Left-Click} - Adds the track to the selected tracks, or removes it if it is already selected.
 
 \u000
 
@@ -1141,7 +1334,11 @@ In combination with the mouse, the \f{Select} command can be used as follows;
 
 \u000
 
-\dd \e{Left+Drag} - highlights an area, and all objects within the area are selected.
+\dd \e{Left+Drag} - highlights an area, and just the objects within the area are selected.
+
+\u000
+
+\dd \e{Right-Drag} - highlights an area, and the objects within the area are unselected.
 
 \u000
 
@@ -1157,31 +1354,27 @@ In combination with the mouse, the \f{Select} command can be used as follows;
 
 }
 
+\u000 
+
+\dd Hovering over a selected object (inside the blue highlight area) with either a shift or a ctrl button shows that a Left-Drag will Move or Rotate the selected items.
+
 \u000
 
 \dd \e{Shift+Right-Click} (\K{cmdAcclKeys}) - displays a pop-up menu of options controlling how objects are drawn during moves and rotates (below).  If there are selected objects then additional menu items allow you to rotate the selected objects by various angles.
 
 \u000
 
-\dd \e{Right+Drag} - highlights an area, and all objects within the area are unselected.
+\dd \e{Shift+Left-Click+Drag} - on a selected object moves the selected objects (the Move (\K{cmdMove}) command).
 
 \u000
 
-\dd \e{Shift+Left-Click+Drag} - moves the selected objects (the Move (\K{cmdMove}) command).
-
-\u000
-
-\dd \e{Shift+Right-Click+Drag} - rotates the selected objects (the \f{Rotate} (\K{cmdRotate}) command).
+\dd \e{Ctrl+Left-Click+Drag} - on a selected object rotates the selected objects (the \f{Rotate} (\K{cmdRotate}) command).
 
 \lcont{
 
-\b If the \e{Ctrl} key is pressed while dragging then rotation will occur in 15\u00B0 increments.
+\b If the \e{Shift} key is pressed while dragging in rotation then rotation will occur in 15\u00B0 increments.
 
 }
-
-\u000
-
-\dd \e{Ctrl+Left-Click+Drag} - moves turnout and elevations labels (Also see the \f{Move Description} (\K{cmdMoveLabel}) command).
 
 \u000
 
@@ -1213,11 +1406,11 @@ The \f{Cut}, \f{Copy} and \f{Paste} commands found on the \f{Edit} (\K{editM}) m
 
 Notes:
 
-\b A Filled Shape (\K{cmdDraw}) can be selected by clicking on its edge.
+\b Connections between selected and unselected tracks will be broken when selected tracks are moved.  If the Drawing Scale is 8:1 or smaller, these about-to-be broken connections are marked with a red X.
 
 \u000
 
-\b Connections between selected and unselected tracks will be broken when selected tracks are moved.  If the Drawing Scale is 8:1 or smaller, these about-to-be broken connections are marked with a red X.
+\b During Move or Rotate operations, if an track end that will be disconnected during the operation comes close to a disconnected end of track that isn't selected, a pair of blue circles (one empty and one filled) will turn on. This shows that if the drag is stopped, those two points will be joined and the other selected tracks aligned. This represents a faster alternative to the \K{joinTrackMove} command.
 
 \u000
 
@@ -1229,7 +1422,7 @@ Notes:
 
 \u000
 
-\b Pressing the \e{Escape} key will deselect all selected tracks.
+\b Pressing the \e{Escape} key will deselect all selected tracks. Alternatively left-clicking on an empty area will also work.
 
 \rule
 
@@ -1239,6 +1432,8 @@ Notes:
 \G{png.d/bsplit.png}
 
 The \f{Split} command provides several functions. It can be used to disconnect the joint between two sections of connected track, to divide a section of track into two pieces at a selected point or to place block gaps at an existing joint.
+
+Until a split point is selected, the split point under the cursor will have a blue marker and if it is near a connected end a blue "X" will indicate that a split will occur.
 
 For detail about;
 
@@ -1263,9 +1458,9 @@ Disconnecting a joint between two pieces of connected track;
 
 \n Click the \f{Split} button (\G{png.d/bsplit.png}) to activate the \f{Split} command.
 
-\lcont{\u000} 
+\n Place the mouse pointer right over the joint between the two track endpoints (so the "X" is shown) then \e{Left-Click}.
 
-\n Place the mouse pointer right over the joint between the two track endpoints then \e{Left-Click}.
+\n A blue marker will show where a split will occur, but if the cursor is a near connected joint, it will show a blue "X". 
 
 \lcont{\u000}
 
@@ -1304,9 +1499,7 @@ Dividing a section of flex track into two connected pieces;
 
 \n Click the \f{Split} button (\G{png.d/bsplit.png}) to activate the \f{Split} command.
 
-\lcont{\u000} 
-
-\n Place the mouse pointer over the point on the track where the it should be divided then \e{Left-Click}.
+\n Place the mouse pointer over the point on the track where the it should be divided then \e{Left-Click}. A blue anchor bar across the track under the cursor will indicate the current split point.
 
 \lcont{\u000}
 
@@ -1373,7 +1566,7 @@ The \f{Split} command can be used to add block gaps (\K{generalTerms}) at the po
 
 \u000
 
-After starting the \f{Split} command use the \e{Shift+Right-Click} over a joint to display one of two pop-up menus which can be used to add, change or remove \e{block gaps} for the selected endpoint.
+After starting the \f{Split} command use the \e{Shift+Right-Click} over a joint (with the blue "X" anchor showing) to display one of two pop-up menus which can be used to add, change or remove \e{block gaps} for the selected endpoint.
 
 \dd \G{png.d/msplitblock.png}
 
