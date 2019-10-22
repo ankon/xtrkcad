@@ -64,6 +64,7 @@ SET(SOURCES
 	ccornu.c
 	ccurve.c
 	ccontrol.c
+	condition.c
 	cdraw.c
 	celev.c
 	cgroup.c
