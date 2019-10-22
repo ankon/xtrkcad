@@ -1834,7 +1834,7 @@ EXPORT void DrawSegsO(
 					break;
 				DrawStraightTrack( d,
 					p0, p1,
-					FindAngle(p0, p1 ),
+					FindAngle(p1, p0 ),
 					NULL, trackGauge, color1, options );
 				break;
 			case SEG_STRLIN:
@@ -1934,7 +1934,7 @@ EXPORT void DrawSegsO(
         				REORIGIN(p1,tempPtr->u.l.pos[1], angle, orig);
         				DrawStraightTrack( d,
         									p0, p1,
-											FindAngle(p0, p1 ),
+											FindAngle(p1, p0 ),
 											NULL, trackGauge, color1, options );
             			break;
         			case SEG_STRLIN:

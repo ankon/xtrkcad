@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "utility.h"
 #include "cundo.h"
 #include "i18n.h"
 #include "messages.h"
@@ -31,6 +32,10 @@
 
 EXPORT wIndex_t describeCmdInx;
 EXPORT BOOL_T inDescribeCmd;
+
+extern wIndex_t selectCmdInx;
+extern wIndex_t joinCmdInx;
+extern wIndex_t modifyCmdInx;
 
 static track_p descTrk;
 static descData_p descData;
@@ -42,6 +47,8 @@ static BOOL_T descUndoStarted;
 static BOOL_T descNeedDrawHilite;
 static wPos_t describeW_posy;
 static wPos_t describeCmdButtonEnd;
+
+static wMenu_p descPopupM;
 
 static unsigned int editableLayerList[NUM_LAYERS];		/**< list of non-frozen layers */
 static int * layerValue;								/**pointer to current Layer (int *) */
@@ -138,7 +145,9 @@ static paramData_t describePLs[] = {
 #define I_TOGGLE_0      I_PIVOT_N
     { PD_TOGGLE, NULL, "boxed1", PDO_NOPREF|PDO_DLGHORZ, boxLabels, N_("Boxed"), BC_HORZ|BC_NOBORDER },
 	{ PD_TOGGLE, NULL, "boxed2", PDO_NOPREF|PDO_DLGHORZ, boxLabels, N_("Boxed"), BC_HORZ|BC_NOBORDER },
-#define I_TOGGLE_N 		I_TOGGLE_0+2
+	{ PD_TOGGLE, NULL, "boxed3", PDO_NOPREF|PDO_DLGHORZ, boxLabels, N_("Boxed"), BC_HORZ|BC_NOBORDER },
+	{ PD_TOGGLE, NULL, "boxed4", PDO_NOPREF|PDO_DLGHORZ, boxLabels, N_("Boxed"), BC_HORZ|BC_NOBORDER },
+#define I_TOGGLE_N 		I_TOGGLE_0+4
 };
 
 static paramGroup_t describePG = { "describe", 0, describePLs, sizeof describePLs/sizeof describePLs[0] };
@@ -560,7 +569,7 @@ EXPORT void DescribeCancel(void)
 }
 
 
-static STATUS_T CmdDescribe(wAction_t action, coOrd pos)
+EXPORT STATUS_T CmdDescribe(wAction_t action, coOrd pos)
 {
     static track_p trk;
     char msg[STR_SIZE];
@@ -615,6 +624,9 @@ static STATUS_T CmdDescribe(wAction_t action, coOrd pos)
 
         if (describePG.win && wWinIsVisible(describePG.win) && descTrk) {
             DrawDescHilite(TRUE);
+            if (descTrk && QueryTrack(descTrk, Q_IS_DRAW)) {
+				DrawOriginAnchor(descTrk);
+			}
         } else if (trk){
         	DrawTrack(trk,&mainD,wDrawColorBlue);
         }
@@ -626,7 +638,12 @@ static STATUS_T CmdDescribe(wAction_t action, coOrd pos)
         DescribeCancel();
         wSetCursor(mainD.d,defaultCursor);
         return C_CONTINUE;
+
+    case C_CMDMENU:
+    	if (!trk) wMenuPopupShow(descPopupM);
+    	return C_CONTINUE;
     }
+
 
     return C_CONTINUE;
 }
@@ -635,11 +652,23 @@ static STATUS_T CmdDescribe(wAction_t action, coOrd pos)
 
 #include "bitmaps/describe.xpm"
 
+extern wIndex_t selectCmdInx;
+extern wIndex_t modifyCmdInx;
+extern wIndex_t panCmdInx;
+
 void InitCmdDescribe(wMenu_p menu)
 {
     describeCmdInx = AddMenuButton(menu, CmdDescribe, "cmdDescribe",
                                    _("Properties"), wIconCreatePixMap(describe_xpm),
-                                   LEVEL0, IC_CANCEL|IC_POPUP|IC_WANT_MOVE, ACCL_DESCRIBE, NULL);
+                                   LEVEL0, IC_CANCEL|IC_POPUP|IC_WANT_MOVE|IC_CMDMENU, ACCL_DESCRIBE, NULL);
     RegisterChangeNotification(DescChange);
     ParamRegister(&describePG);
+}
+void InitCmdDescribe2(wMenu_p menu)
+{
+    descPopupM = MenuRegister( "Describe Context Menu" );
+    wMenuPushCreate(descPopupM, "cmdSelectMode", GetBalloonHelpStr(_("cmdSelectMode")), 0, DoCommandB, (void*) (intptr_t) selectCmdInx);
+    wMenuPushCreate(descPopupM, "cmdModifyMode", GetBalloonHelpStr(_("cmdModifyMode")), 0, DoCommandB, (void*) (intptr_t) modifyCmdInx);
+    wMenuPushCreate(descPopupM, "cmdPanMode", GetBalloonHelpStr(_("cmdPanMode")), 0, DoCommandB, (void*) (intptr_t) panCmdInx);
+
 }

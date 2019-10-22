@@ -32,6 +32,8 @@
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 
+
+
 #include "gtkint.h"
 #include "gdk/gdkkeysyms.h"
 
@@ -543,7 +545,7 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
  void wDrawPolygon(
 		wDraw_p bd,
 		wPos_t p[][2],
-		int type[],
+		wPolyLine_e type[],
 		int cnt,
 		wDrawColor color,
 		wDrawWidth dw,
@@ -595,7 +597,7 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 		mid0.y = (d0y/2)+points[j].y;
 		mid1.x = (d1x/2)+points[i].x;
 		mid1.y = (d1y/2)+points[i].y;
-		if (type && (type[i] == 2) && (len1>0) && (len0>0)) {
+		if (type && (type[i] == wPolyLineRound) && (len1>0) && (len0>0)) {
 			double ratio = sqrt(len0/len1);
 			if (len0 < len1) {
 				mid1.x = ((d1x*ratio)/2)+points[i].x;
@@ -620,7 +622,7 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 		mid4.x = round(mid4.x)+0.5;
 		mid4.y = round(mid4.y)+0.5;
 		if(i==0) {
-			if (!type || type[i] == 0 || open) {
+			if (!type || type[i] == wPolyLineStraight || open) {
 				cairo_move_to(cairo, points[i].x, points[i].y);
 				save = points[0];
 			} else {
@@ -631,16 +633,16 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 					cairo_curve_to(cairo, mid3.x, mid3.y, mid4.x, mid4.y, mid1.x, mid1.y);
 				save = mid0;
 			}
-		} else if (!type || type[i] == 0 || (open && (i==cnt-1))) {
+		} else if (!type || type[i] == wPolyLineStraight || (open && (i==cnt-1))) {
 			cairo_line_to(cairo, points[i].x, points[i].y);
 		} else {
 			cairo_line_to(cairo, mid0.x, mid0.y);
-			if (type[i] == 1)
+			if (type[i] == wPolyLineSmooth)
 				cairo_curve_to(cairo, points[i].x, points[i].y, points[i].x, points[i].y, mid1.x, mid1.y);
 			else
 				cairo_curve_to(cairo, mid3.x, mid3.y, mid4.x, mid4.y, mid1.x, mid1.y);
 		}
-		if ((i==cnt-1) && (!fill && !open)) {
+		if ((i==cnt-1) && !open) {
 			cairo_line_to(cairo, save.x, save.y);
 		}
 	}
@@ -1121,6 +1123,35 @@ static gint draw_motion_event(
 	return TRUE;
 }
 
+static gint draw_char_release_event(
+		GtkWidget * widget,
+		GdkEventKey *event,
+		wDraw_p bd )
+{
+		GdkModifierType modifiers;
+		guint key = event->keyval;
+		wModKey_e modKey = wModKey_None;
+		switch (key) {
+			case GDK_KEY_Alt_L:     modKey = wModKey_Alt; break;
+			case GDK_KEY_Alt_R:     modKey = wModKey_Alt; break;
+			case GDK_KEY_Shift_L:	modKey = wModKey_Shift; break;
+			case GDK_KEY_Shift_R:	modKey = wModKey_Shift; break;
+			case GDK_KEY_Control_L:	modKey = wModKey_Ctrl; break;
+			case GDK_KEY_Control_R:	modKey = wModKey_Ctrl; break;
+				default: ;
+		}
+
+		if (modKey!= wModKey_None && (bd->option & BD_MODKEYS)) {
+			 bd->action(bd, bd->context, wActionModKey+((int)modKey<<8), bd->lastX, bd->lastY );
+			 	 if (!(bd->option & BD_NOFOCUS))
+			 		 gtk_widget_grab_focus( bd->widget );
+			 	 return TRUE;
+		} else {
+			return FALSE;
+		}
+		return FALSE;
+}
+
 
 static gint draw_char_event(
 		GtkWidget * widget,
@@ -1130,6 +1161,7 @@ static gint draw_char_event(
 	GdkModifierType modifiers;
 	guint key = event->keyval;
 	wAccelKey_e extKey = wAccelKey_None;
+	wModKey_e modKey = wModKey_None;
 	switch (key) {
 	case GDK_KEY_Escape:	key = 0x1B; break;
 	case GDK_KEY_Return:
@@ -1163,7 +1195,13 @@ static gint draw_char_event(
 	case GDK_KEY_F10:       extKey = wAccelKey_F10; break;
 	case GDK_KEY_F11:       extKey = wAccelKey_F11; break;
 	case GDK_KEY_F12:       extKey = wAccelKey_F12; break;
-	default: ;
+	case GDK_KEY_Alt_L:     modKey = wModKey_Alt; break;
+	case GDK_KEY_Alt_R:     modKey = wModKey_Alt; break;
+	case GDK_KEY_Shift_L:	modKey = wModKey_Shift; break;
+	case GDK_KEY_Shift_R:	modKey = wModKey_Shift; break;
+	case GDK_KEY_Control_L:	modKey = wModKey_Ctrl; break;
+	case GDK_KEY_Control_R:	modKey = wModKey_Ctrl; break;
+		default: ;
 	}
 
 	if (extKey != wAccelKey_None) {
@@ -1178,6 +1216,11 @@ static gint draw_char_event(
 		if (!(bd->option & BD_NOFOCUS))
 				gtk_widget_grab_focus( bd->widget );
 		return TRUE;
+	} else if (modKey!= wModKey_None && (bd->option & BD_MODKEYS)) {
+				bd->action(bd, bd->context, wActionModKey+((int)modKey<<8), bd->lastX, bd->lastY );
+				if (!(bd->option & BD_NOFOCUS))
+								gtk_widget_grab_focus( bd->widget );
+				return TRUE;
 	} else {
 		return FALSE;
 	}
@@ -1234,6 +1277,8 @@ int xw, xh, cw, ch;
 						   (GtkSignalFunc) draw_scroll_event, bd);
 	gtk_signal_connect_after (GTK_OBJECT (bd->widget), "key_press_event",
 						   (GtkSignalFunc) draw_char_event, bd);
+	gtk_signal_connect_after (GTK_OBJECT (bd->widget), "key_release_event",
+							   (GtkSignalFunc) draw_char_release_event, bd);
 	gtk_signal_connect (GTK_OBJECT (bd->widget), "leave_notify_event",
 						   (GtkSignalFunc) draw_leave_event, bd);
 	gtk_widget_set_can_focus(bd->widget,!(option & BD_NOFOCUS));

@@ -418,7 +418,7 @@ static void DDrawPoly(
 	DYNARR_SET( wPos2, wpts_da, cnt * 2 );
 	DYNARR_SET( int, wpts_type_da, cnt);
 #define wpts(N) DYNARR_N( wPos2, wpts_da, N )
-#define wtype(N) DYNARR_N( int, wpts_type_da, N )
+#define wtype(N) DYNARR_N( wPolyLine_e, wpts_type_da, N )
 	for ( inx=0; inx<cnt; inx++ ) {
 		d->CoOrd2Pix( d, pts[inx], &x, &y );
 		wpts(inx)[0] = x;
@@ -426,7 +426,7 @@ static void DDrawPoly(
 		if (!types)
 			wtype(inx) = 0;
 		else
-			wtype(inx) = types[inx];
+			wtype(inx) = (wPolyLine_e)types[inx];
 	}
 	wDrawPolygon( d->d, &wpts(0), &wtype(0), cnt, color, width, ((d->options&DC_DASH)==0)?wDrawLineSolid:wDrawLineDash, (wDrawOpts)d->funcs->options, fill, open );
 }
@@ -860,7 +860,7 @@ static void TempSegPoly(
 	tempSegs(tempSegs_da.cnt-1).u.p.pts = (pts_t *)MyMalloc(cnt*sizeof(pts_t));
 	for (int i=0;i<=cnt-1;i++) {
 		tempSegs(tempSegs_da.cnt-1).u.p.pts[i].pt = pts[i];
-		tempSegs(tempSegs_da.cnt-1).u.p.pts[i].pt_type = (d->options&DC_GROUP)?types[i]:0;
+		tempSegs(tempSegs_da.cnt-1).u.p.pts[i].pt_type = (d->options&DC_GROUP)?types[i]:wPolyLineStraight;
 	}
 
 }
@@ -2441,6 +2441,7 @@ static void DoMouse( wAction_t action, coOrd pos )
 				ConfirmReset( TRUE );
 				return;
 			}
+		case C_MODKEY:
 		case C_MOVE:
 		case C_UP:
 		case C_RMOVE:
@@ -2679,7 +2680,7 @@ EXPORT void DrawInit( int initialZoom )
 	h = h - (toolbarHeight+max(textHeight,infoHeight)+10);
 	if ( w <= 0 ) w = 1;
 	if ( h <= 0 ) h = 1;
-	tempD.d = mainD.d = wDrawCreate( mainW, 0, toolbarHeight, "", BD_TICKS,
+	tempD.d = mainD.d = wDrawCreate( mainW, 0, toolbarHeight, "", BD_TICKS|BD_MODKEYS,
 												w, h, &mainD,
 				(wDrawRedrawCallBack_p)MainRedraw, DoMousew );
 
@@ -2930,11 +2931,24 @@ void panMenuEnter(int key) {
 	CmdPan(action,zero);
 }
 
+extern wIndex_t selectCmdInx;
+extern wIndex_t describeCmdInx;
+extern wIndex_t joinCmdInx;
+extern wIndex_t modifyCmdInx;
+
 EXPORT void InitCmdPan( wMenu_p menu )
 {
 	panCmdInx = AddMenuButton( menu, CmdPan, "cmdPan", _("Pan/Zoom"), wIconCreatePixMap(pan_xpm),
 				LEVEL0, IC_CANCEL|IC_POPUP|IC_LCLICK|IC_CMDMENU, ACCL_PAN, NULL );
+}
+EXPORT void InitCmdPan2( wMenu_p menu )
+{
 	panPopupM = MenuRegister( "Pan Options" );
+	wMenuPushCreate(panPopupM, "cmdSelectMode", GetBalloonHelpStr(_("cmdSelectMode")), 0, DoCommandB, (void*) (intptr_t) selectCmdInx);
+	wMenuPushCreate(panPopupM, "cmdDescribeMode", GetBalloonHelpStr(_("cmdDescribeMode")), 0, DoCommandB, (void*) (intptr_t) describeCmdInx);
+	wMenuPushCreate(panPopupM, "cmdModifyMode", GetBalloonHelpStr(_("cmdModifyMode")), 0, DoCommandB, (void*) (intptr_t) modifyCmdInx);
+	wMenuPushCreate(panPopupM, "cmdJoinMode", GetBalloonHelpStr(_("cmdJoinMode")), 0, DoCommandB, (void*) (intptr_t) joinCmdInx);
+	wMenuSeparatorCreate(panPopupM);
 	zoomExtents = wMenuPushCreate( panPopupM, "", _("Zoom To Extents - 'e'"), 0, (wMenuCallBack_p)panMenuEnter, (void*) 'e');
 	zoomLvl1 = wMenuPushCreate( panPopupM, "", _("Zoom To 1::1 - '1'"), 0, (wMenuCallBack_p)panMenuEnter, (void*) '1');
 	zoomLvl2 = wMenuPushCreate( panPopupM, "", _("Zoom To 1::2 - '2'"), 0, (wMenuCallBack_p)panMenuEnter, (void*) '2');

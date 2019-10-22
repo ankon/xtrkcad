@@ -130,8 +130,9 @@ typedef struct {
 #define Q_ISTRAIN                       (25)
 #define Q_IS_POLY                       (26)
 #define Q_IS_DRAW					    (27)
-#define Q_IS_SIGNAL						(28)
-#define Q_IS_TEXT						(29)
+#define Q_IS_TEXT						(28)
+#define Q_IS_ACTIVATEABLE				(29)
+#define Q_IS_SIGNAL						(30)
 
 typedef struct {
 		track_p trk;							// IN Current Track OUT Next Track
@@ -703,6 +704,7 @@ typedef void (*descUpdate_t)( track_p, int, descData_p, BOOL_T );
 void DoDescribe( char *, track_p, descData_p, descUpdate_t );
 void DescribeCancel( void );
 BOOL_T UpdateDescStraight( int, int, int, int, int, descData_p, long );
+STATUS_T CmdDescribe(wAction_t,coOrd);
 
 		
 /* compound.c */
@@ -729,6 +731,7 @@ void DrawTrackElev( track_p, drawCmd_p, BOOL_T );
 
 /* cdraw.c */
 track_p MakeDrawFromSeg( coOrd, ANGLE_T, trkSeg_p );
+void DrawOriginAnchor(track_p);
 BOOL_T OnTableEdgeEndPt( track_p, coOrd * );
 BOOL_T GetClosestEndPt( track_p, coOrd * );
 BOOL_T ReadTableEdge( char * );
