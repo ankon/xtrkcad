@@ -68,7 +68,7 @@ static void EndPoly( drawContext_t * context, int cnt, wBool_t open)
 	pts = (pts_t*)MyMalloc( (cnt) * sizeof (pts_t) );
 	for ( inx=0; inx<cnt; inx++ ) {
 		pts[inx].pt = tempSegs(inx).u.l.pos[0];
-		pts[inx].pt_type = 0;
+		pts[inx].pt_type = wPolyLineStraight;
 	}
 	DYNARR_SET( trkSeg_t, tempSegs_da, 1 );
 	segPtr = &tempSegs(0);
@@ -781,7 +781,7 @@ STATUS_T DrawGeomMouse(
 			pts = (pts_t*)MyMalloc( 4 * sizeof (pts_t) );
 			for ( inx=0; inx<4; inx++ ) {
 				pts[inx].pt = tempSegs(inx).u.l.pos[0];
-				pts[inx].pt_type = 0;
+				pts[inx].pt_type = wPolyLineStraight;
 			}
 			tempSegs(0).type = (context->Op == OP_FILLBOX)?SEG_FILPOLY:SEG_POLY;
 			tempSegs(0).u.p.cnt = 4;
@@ -938,7 +938,7 @@ static ANGLE_T rotate_angle;
 static dynArr_t origin_da;
 
 
-void static CreateCircleAnchor(wBool_t selected,coOrd center, DIST_T rad) {
+void static CreateCircleAnchor(wBool_t selected,coOrd center, DIST_T rad, ANGLE_T angle) {
 	DYNARR_RESET(trkSeg_t,anchors_da);
 	double d = tempD.scale*0.15;
 	DYNARR_APPEND(trkSeg_t,anchors_da,2);
@@ -946,7 +946,7 @@ void static CreateCircleAnchor(wBool_t selected,coOrd center, DIST_T rad) {
 	anchors(0).u.c.a1 = 360.0;
 	anchors(0).color = wDrawColorBlue;
 	anchors(0).u.c.radius = d/2;
-	PointOnCircle(&anchors(0).u.c.center,center,rad,315.0);
+	PointOnCircle(&anchors(0).u.c.center,center,rad,angle);
 }
 
 void static CreateLineAnchors(int index, coOrd p0, coOrd p1) {
@@ -1033,9 +1033,11 @@ void static CreatePolyAnchors(int index) {
 		coOrd p;
 		for ( int inx=0; inx<points_da.cnt; inx++ ) {
 			DYNARR_APPEND(trkSeg_t,anchors_da,3);
+
 			anchors(inx).type = point_selected(inx)?SEG_FILCRCL:SEG_CRVLIN;
 			anchors(inx).u.c.a0 = 0.0;
 			anchors(inx).u.c.a1 = 360.0;
+			anchors(inx).width = 0;
 			anchors(inx).color = wDrawColorBlue;
 			anchors(inx).u.c.radius = d/2;
 			anchors(inx).u.c.center = points(inx).pt;
@@ -1198,7 +1200,7 @@ STATUS_T DrawGeomPolyModify(
 					for (inx=points_da.cnt-1; inx>polyInx; inx-- ) {
 						points(inx) = points(inx-1);
 					}
-					points(polyInx).pt_type = 0;
+					points(polyInx).pt_type = wPolyLineStraight;
 					tempSegs(0).u.p.cnt = points_da.cnt;
 					context->max_inx = points_da.cnt-1;
 				}
@@ -1453,13 +1455,13 @@ STATUS_T DrawGeomPolyModify(
 					((action>>8 == 's') || (action>>8 == 'v') || (action>>8 == 'r')))  {
 				switch(action>>8) {
 				case 's':
-					points(context->prev_inx).pt_type = 1;
+					points(context->prev_inx).pt_type = wPolyLineSmooth;
 					break;
 				case 'v':
-					points(context->prev_inx).pt_type = 0;
+					points(context->prev_inx).pt_type = wPolyLineStraight;
 					break;
 				case 'r':
-					points(context->prev_inx).pt_type = 2;
+					points(context->prev_inx).pt_type = wPolyLineRound;
 					break;
 				default:
 					return C_CONTINUE;
@@ -1840,7 +1842,8 @@ STATUS_T DrawGeomModify(
 				tempSegs_da.cnt = 1;
 				if (tempSegs(0).u.c.a1<360.0) {
 					CreateCurveAnchors(-1,context->pm,context->pc,context->p0,context->p1);
-				}
+				} else
+					CreateCircleAnchor(FALSE,tempSegs(0).u.c.center,tempSegs(0).u.c.radius,FindAngle(tempSegs(0).u.c.center,pos));
 				context->last_inx = 2;
 				break;
 			case SEG_POLY:
@@ -1922,6 +1925,7 @@ STATUS_T DrawGeomModify(
 				tempSegs(0).u.c.a0 = 0.0;
 				tempSegs(0).u.c.a1 = 360.0;
 				InfoMessage("Drag to Change Radius");
+				CreateCircleAnchor(TRUE,tempSegs(0).u.c.center,tempSegs(0).u.c.radius,FindAngle(tempSegs(0).u.c.center,pos));
 			} else {
 				p0 = context->p0;
 				p1 = context->p1;
@@ -2070,6 +2074,7 @@ STATUS_T DrawGeomModify(
 		case SEG_FILCRCL:
 			if (tempSegs(0).u.c.a1 >= 360.0) {
 				tempSegs(0).u.c.radius = FindDistance( context->pc, pos );
+				CreateCircleAnchor(TRUE,tempSegs(0).u.c.center,tempSegs(0).u.c.radius,FindAngle(tempSegs(0).u.c.center,pos));
 			} else {
 				if (context->state != MOD_SELECTED_PT) return C_CONTINUE;
 				if (curveInx < 0 || curveInx > 2) return C_CONTINUE;
@@ -2250,6 +2255,7 @@ STATUS_T DrawGeomModify(
 			if ( (tempSegs(0).type == SEG_FILCRCL) || (tempSegs(0).u.c.a1 == 360.0 || tempSegs(0).u.c.a1 == 0.0) ) {
 				context->radius = fabs(tempSegs(0).u.c.radius);
 				context->arc_angle = 360.0;
+				CreateCircleAnchor(FALSE,tempSegs(0).u.c.center,tempSegs(0).u.c.radius,FindAngle(tempSegs(0).u.c.center,pos));
 			} else {
 				p0 = context->p0;
 				p1 = context->p1;
@@ -2406,8 +2412,7 @@ STATUS_T DrawGeomModify(
 		context->orig.y = context->rot_center.y;
 
 		context->rot_moved = FALSE;
-
-		context->angle = 0;
+		context->angle = 0.0;
 		switch (tempSegs(0).type) {
 			case SEG_TBLEDGE:
 			case SEG_STRLIN:
@@ -2463,8 +2468,8 @@ STATUS_T DrawGeomModify(
 		DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		break;
 
+	case C_CANCEL:
 	case C_CONFIRM:
-
 	case C_TERMINATE:
 		context->state = MOD_NONE;
 		context->rotate_state = FALSE;
@@ -2477,5 +2482,5 @@ STATUS_T DrawGeomModify(
 	default:
 		;
 	}
-	return C_ERROR;
+	return C_CONTINUE;
 }

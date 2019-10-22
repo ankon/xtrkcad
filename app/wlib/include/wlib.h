@@ -468,6 +468,12 @@ typedef enum {
 	wDrawLineDash }
 		wDrawLineType_e;
 
+typedef enum {
+	wPolyLineStraight,
+	wPolyLineSmooth,
+	wPolyLineRound}
+	wPolyLine_e;
+
 typedef int wAction_t;
 #define wActionMove		(1)
 #define wActionLDown		(2)
@@ -481,7 +487,8 @@ typedef int wAction_t;
 #define wActionWheelUp (10)
 #define wActionWheelDown (11)
 #define wActionLDownDouble (12)
-#define wActionLast		wActionLDownDouble
+#define wActionModKey (13)
+#define wActionLast		wActionModKey
 
 
 #define wRGB(R,G,B)\
@@ -497,6 +504,7 @@ typedef void (*wDrawActionCallBack_p)(	wDraw_p, void*, wAction_t, wPos_t, wPos_t
 #define BD_DIRECT	(1L<<26)
 #define BD_NOCAPTURE (1L<<27)
 #define BD_NOFOCUS  (1L<<28)
+#define BD_MODKEYS  (1L<<29)
 
 /* Create: */
 wDraw_p wDrawCreate(		wWin_p, wPos_t, wPos_t, const char *, long,
@@ -519,7 +527,7 @@ void wDrawString(		wDraw_p, wPos_t, wPos_t, wAngle_t, const char *, wFont_p,
 		  		wFontSize_t, wDrawColor, wDrawOpts );
 void wDrawFilledRectangle(	wDraw_p, wPos_t, wPos_t, wPos_t, wPos_t,
 				wDrawColor, wDrawOpts );
-void wDrawPolygon(	wDraw_p, wPos_t [][2], wIndex_t [], wIndex_t, wDrawColor, wDrawWidth, wDrawLineType_e,
+void wDrawPolygon(	wDraw_p, wPos_t [][2], wPolyLine_e [], wIndex_t, wDrawColor, wDrawWidth, wDrawLineType_e,
 				wDrawOpts, int, int );
 void wDrawFilledCircle(		wDraw_p, wPos_t, wPos_t, wPos_t, wDrawColor, wDrawOpts );
 
@@ -631,6 +639,13 @@ typedef enum {
     wAccelKey_Numpad_Subtract,
 	wAccelKey_LineFeed }
 	wAccelKey_e;
+
+typedef enum {
+	wModKey_None,
+	wModKey_Alt,
+	wModKey_Shift,
+	wModKey_Ctrl }
+	wModKey_e;
 
 /* Creation CallBacks */
 typedef void (*wMenuCallBack_p)( void * );

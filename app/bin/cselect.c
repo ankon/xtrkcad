@@ -64,6 +64,7 @@ static wDrawBitMap_p endpt_bm;
 static wDrawBitMap_p angle_bm[4];
 
 static track_p moveDescTrk;
+static coOrd moveDescPos;
 
  long quickMove = 0;
  BOOL_T importMove = 0;
@@ -80,6 +81,7 @@ static track_p *tlist2 = NULL;
 
 static wMenu_p selectPopup1M;
 static wMenu_p selectPopup2M;
+static wMenuPush_p menuPushModify;
 
 static BOOL_T doingAlign = FALSE;
 static enum { AREA, MOVE } mode;
@@ -141,6 +143,56 @@ void static CreateModifyAnchor(coOrd pos) {
 	anchors(i).width = 0;
 	anchors(i).u.c.center = pos;
 	anchors(i).u.c.a0 = 180.0;
+	anchors(i).u.c.a1 = 360.0;
+	anchors(i).u.c.radius = d;
+	anchors(i).color = wDrawColorPowderedBlue;
+
+}
+
+void CreateDescribeAnchor(coOrd pos) {
+	DIST_T d = tempD.scale*0.15;
+	for (int j=0;j<2;j++) {
+		pos.x += j*d*3/4;
+		pos.y += j*d/2;
+		DYNARR_APPEND(trkSeg_t,anchors_da,1);
+		int i = anchors_da.cnt-1;
+		anchors(i).type = SEG_CRVLIN;
+		anchors(i).width = d/4;
+		anchors(i).u.c.center = pos;
+		anchors(i).u.c.a0 = 270.0;
+		anchors(i).u.c.a1 = 270.0;
+		anchors(i).u.c.radius = d*3/4;
+		anchors(i).color = wDrawColorPowderedBlue;
+		DYNARR_APPEND(trkSeg_t,anchors_da,1);
+		i = anchors_da.cnt-1;
+		anchors(i).type = SEG_STRLIN;
+		anchors(i).width = d/4;
+		Translate(&anchors(i).u.l.pos[0],pos,180.0,d*3/4);
+		Translate(&anchors(i).u.l.pos[1],pos,180.0,d*1.5);
+		anchors(i).color = wDrawColorPowderedBlue;
+	}
+}
+
+void CreateActivateAnchor(coOrd pos) {
+	DIST_T d = tempD.scale*0.15;
+	coOrd c = pos;
+	DYNARR_APPEND(trkSeg_t,anchors_da,1);
+	int i = anchors_da.cnt-1;
+	anchors(i).type = SEG_CRVLIN;
+	anchors(i).width = 0;
+	c.x -= d*3/4;
+	anchors(i).u.c.center = c;
+	anchors(i).u.c.a0 = 0.0;
+	anchors(i).u.c.a1 = 360.0;
+	anchors(i).u.c.radius = d;
+	anchors(i).color = wDrawColorPowderedBlue;
+	DYNARR_APPEND(trkSeg_t,anchors_da,1);
+	i = anchors_da.cnt-1;
+	c.x += d*1.5;
+	anchors(i).type = SEG_CRVLIN;
+	anchors(i).width = 0;
+	anchors(i).u.c.center = pos;
+	anchors(i).u.c.a0 = 0.0;
 	anchors(i).u.c.a1 = 360.0;
 	anchors(i).u.c.radius = d;
 	anchors(i).color = wDrawColorPowderedBlue;
@@ -1535,7 +1587,7 @@ void DrawHighlightLayer(int layer) {
 	mainD.CoOrd2Pix(&mainD,top_left,&rect[1][0],&rect[1][1]);
 	mainD.CoOrd2Pix(&mainD,layer_hi,&rect[2][0],&rect[2][1]);
 	mainD.CoOrd2Pix(&mainD,bot_right,&rect[3][0],&rect[3][1]);
-	wDrawPolygon(tempD.d,rect,type,4,wDrawColorPowderedBlue,0,wDrawLineDash,wDrawOptTemp,0,0);
+	wDrawPolygon(tempD.d,rect,(wPolyLine_e *)type,4,wDrawColorPowderedBlue,0,wDrawLineDash,wDrawOptTemp,0,0);
 	//wDrawFilledRectangle(mainD.d, x-5, y-5, w, h, wDrawColorGrey90, wDrawOptTemp);
 }
 
@@ -1648,6 +1700,7 @@ static STATUS_T CmdMove(
 					}
 				}
 			}
+			moveDescPos = pos;
 			moveDescTrk = trk;
 			wMenuPopupShow( selectPopup2M );
 			return C_CONTINUE;
@@ -1959,6 +2012,7 @@ static STATUS_T CmdRotate(
 					}
 				}
 			}
+			moveDescPos = pos;
 			moveDescTrk = trk;
 			wMenuPopupShow( selectPopup2M );
 			return C_CONTINUE;
@@ -2139,6 +2193,7 @@ STATUS_T CmdMoveDescription(
 			return C_TERMINATE;
 		}
 		moveDescTrk = NULL;
+		moveDescPos = zero;
 		trk = NULL;
 		hidden = FALSE;
 		mode = -1;
@@ -2167,10 +2222,12 @@ STATUS_T CmdMoveDescription(
 					SetTrkBits( t, TB_HIDEDESC );
 					InfoMessage(_("Hidden description - 's' to Show"));
 					moveDescTrk = t;
+					moveDescPos = pos;
 				} else {
 					DrawTrack( t,&mainD,wDrawColorBlue);
 					InfoMessage(_("Shown description - 'h' to Hide"));
-					moveDescTrk = t;
+					moveDescTrk = t;\
+					moveDescPos = pos;
 				}
 			}
 			return C_CONTINUE;
@@ -2234,10 +2291,13 @@ STATUS_T CmdMoveDescription(
 		}
 		break;
 	case C_CMDMENU:
-		if (trk == NULL)
+		if (trk == NULL) {
 			moveDescTrk = OnTrack( &pos, TRUE, FALSE );
-		else
+			moveDescPos = pos;
+		} else {
 			moveDescTrk = trk;
+			moveDescPos = pos;
+		}
 		if ( moveDescTrk == NULL ) break;
 		if ( ! QueryTrack( moveDescTrk, Q_HAS_DESC ) ) break;
 		if ( moveDescM == NULL ) {
@@ -2477,7 +2537,10 @@ static STATUS_T SelectArea(
 	return C_CONTINUE;
 }
 
-
+extern BOOL_T inDescribeCmd;
+extern wIndex_t modifyCmdInx;
+extern wIndex_t describeCmdInx;
+extern wIndex_t panCmdInx;
 
 static STATUS_T SelectTrack( 
 		coOrd pos )
@@ -2489,6 +2552,7 @@ static STATUS_T SelectTrack(
 		SetAllTrackSelect( FALSE );							//Unselect all
 		return C_CONTINUE;
 	}
+	inDescribeCmd = FALSE;
 	DescribeTrack( trk, msg, sizeof msg );
 	InfoMessage( msg );
 	if (GetLayerModule(GetTrkLayer(trk))) {
@@ -2520,7 +2584,7 @@ static STATUS_T Activate( coOrd pos) {
 	if (GetLayerModule(GetTrkLayer(trk))) {
 		return C_CONTINUE;
 	}
-	ActivateTrack(trk);
+	if (QueryTrack(trk,Q_IS_ACTIVATEABLE)) ActivateTrack(trk);
 
 	return C_CONTINUE;
 
@@ -2576,6 +2640,28 @@ static STATUS_T CallModify(wAction_t action,
 	return rc;
 }
 
+static STATUS_T CallDescribe(wAction_t action, coOrd pos) {
+	int rc = CmdDescribe(action, pos);
+	return rc;
+}
+
+static void CallPushDescribe(void * func) {
+	if (moveDescTrk) {
+		CallDescribe(C_START, moveDescPos);
+		CallDescribe(C_DOWN, moveDescPos);
+		CallDescribe(C_UP, moveDescPos);
+	}
+	return;
+}
+
+static STATUS_T CmdSelect(wAction_t,coOrd);
+
+static void CallPushModify(void * func) {
+	if (moveDescTrk) {
+		CmdSelect(C_LDOUBLE, moveDescPos);
+	}
+	return;
+}
 
 static STATUS_T CmdSelect(
 		wAction_t action,
@@ -2619,6 +2705,7 @@ static STATUS_T CmdSelect(
 		MainRedraw();
 		break;
 
+	case wActionModKey:
 	case wActionMove:
 		if (doingDouble) {
 			return CallModify(action,pos);
@@ -2646,6 +2733,9 @@ static STATUS_T CmdSelect(
 					QueryTrack( ht, Q_IS_CORNU ) ||
 					(QueryTrack( ht, Q_IS_DRAW ) && !QueryTrack( ht, Q_IS_TEXT))) {
 						CreateModifyAnchor(pos);
+					} else {
+						if (QueryTrack(ht,Q_IS_ACTIVATEABLE))
+							CreateActivateAnchor(pos);
 					}
 				}
 			}
@@ -2659,7 +2749,9 @@ static STATUS_T CmdSelect(
 				DrawTrack(t,&mainD,wDrawColorBlueHighlight);    //Special color means THICK3 as well
 			}
 		}
-		if (anchors_da.cnt)
+		if ((action&0xFF) == wActionModKey)
+				MainRedraw();
+		else if (anchors_da.cnt)
 			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		break;
 
@@ -2809,8 +2901,10 @@ static STATUS_T CmdSelect(
 						CmdModify(C_START,pos);
 						CmdModify(C_DOWN,pos);
 						return CmdModify(C_UP,pos);
+					} else if (QueryTrack( ht, Q_IS_ACTIVATEABLE)){
+						return Activate(pos);
 					}
-				} else return Activate(pos);
+				}
 				break;
 			case MOVE:
 			default:
@@ -2835,13 +2929,20 @@ static STATUS_T CmdSelect(
 							cmdMenuPos = trackParams.ttcenter;
 					}
 				}
+				wMenuPushEnable( menuPushModify,
+								(QueryTrack( trk, Q_CAN_MODIFY_CONTROL_POINTS ) ||
+								QueryTrack( trk, Q_IS_CORNU ) ||
+								(QueryTrack( trk, Q_IS_DRAW ) && !QueryTrack( trk, Q_IS_TEXT )) ||
+								QueryTrack( trk, Q_IS_ACTIVATEABLE)));
 			}
 			if ((trk)) {
 				wMenuPushEnable(descriptionMI, QueryTrack( trk, Q_HAS_DESC ));
 				moveDescTrk = trk;
+				moveDescPos = pos;
 			}
 			if (selectedTrackCount>0)
 				wMenuPushEnable( rotateAlignMI, TRUE );
+
 			wMenuPopupShow( selectPopup2M );
 		}
 		return C_CONTINUE;
@@ -2885,7 +2986,10 @@ static void moveDescription( void ) {
 EXPORT void InitCmdSelect( wMenu_p menu )
 {
 	selectCmdInx = AddMenuButton( menu, CmdSelect, "cmdSelect", _("Select"), wIconCreatePixMap(select_xpm),
-				LEVEL0, IC_CANCEL|IC_POPUP|IC_LCLICK|IC_CMDMENU|IC_WANT_MOVE, ACCL_SELECT, NULL );
+				LEVEL0, IC_CANCEL|IC_POPUP|IC_LCLICK|IC_CMDMENU|IC_WANT_MOVE|IC_WANT_MODKEYS, ACCL_SELECT, NULL );
+}
+
+EXPORT void InitCmdSelect2( wMenu_p menu ) {
 	endpt_bm = wDrawBitMapCreate( mainD.d, bmendpt_width, bmendpt_width, 7, 7, bmendpt_bits );
 	angle_bm[0] = wDrawBitMapCreate( mainD.d, bma90_width, bma90_width, 7, 7, bma90_bits );
 	angle_bm[1] = wDrawBitMapCreate( mainD.d, bma135_width, bma135_width, 7, 7, bma135_bits );
@@ -2895,12 +2999,17 @@ EXPORT void InitCmdSelect( wMenu_p menu )
 	wPrefGetInteger( "draw", "movemode", &moveMode, MAXMOVEMODE );
 	if (moveMode > MAXMOVEMODE || moveMode < 0)
 		moveMode = MAXMOVEMODE;
-	selectPopup1M = MenuRegister( "Select Menu" );
+	selectPopup1M = MenuRegister( "Select Mode Menu" );
+	wMenuPushCreate(selectPopup1M, "cmdDescribeMode", GetBalloonHelpStr(_("cmdDescribeMode")), 0, DoCommandB, (void*) (intptr_t) describeCmdInx);
+	wMenuPushCreate(selectPopup1M, "cmdModifyMode", GetBalloonHelpStr(_("cmdModifyMode")), 0, DoCommandB, (void*) (intptr_t) modifyCmdInx);
+	wMenuPushCreate(selectPopup1M, "cmdPanMode", GetBalloonHelpStr(_("cmdPanMode")), 0, DoCommandB, (void*) (intptr_t) panCmdInx);
 	wMenuSeparatorCreate( selectPopup1M );
 	quickMove1M[0] = wMenuToggleCreate( selectPopup1M, "", _("Normal"), 0, quickMove==0, ChangeQuickMove, (void *) 0 );
 	quickMove1M[1] = wMenuToggleCreate( selectPopup1M, "", _("Simple"), 0, quickMove==1, ChangeQuickMove, (void *) 1 );
 	quickMove1M[2] = wMenuToggleCreate( selectPopup1M, "", _("End Points"), 0, quickMove==2, ChangeQuickMove, (void *) 2 );
 	selectPopup2M = MenuRegister( "Track Selected Menu " );
+	wMenuPushCreate(selectPopup2M, "", _("Describe Track"), 0,(wMenuCallBack_p) CallPushDescribe, (void*)0);
+	menuPushModify = wMenuPushCreate(selectPopup2M, "", _("Modify/Activate Track"), 0,(wMenuCallBack_p) CallPushModify, (void*)0);
 	wMenuSeparatorCreate( selectPopup2M );
 	AddMoveMenu( selectPopup2M, QuickMove);
 	wMenuSeparatorCreate( selectPopup2M );
@@ -2910,6 +3019,7 @@ EXPORT void InitCmdSelect( wMenu_p menu )
 	rotateAlignMI = wMenuPushCreate( selectPopup2M, "", _("Align"), 0, (wMenuCallBack_p)RotateAlign, (void* ) 1 );
 	ParamRegister( &rescalePG );
 }
+
 
 
 EXPORT void InitCmdDelete( void )

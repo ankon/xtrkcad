@@ -554,6 +554,17 @@ EXPORT int NoticeMessage2(int playbackRC, char * format, char * yes, char * no,
 	va_end(ap);
 	return wNoticeEx( NT_INFORMATION, message2, yes, no);
 }
+
+/**
+* Set the file's changed flag and update the window title.
+*/
+
+void
+FileIsChanged(void)
+{
+	changed = TRUE;
+	SetWindowTitle();
+}
 
 /*****************************************************************************
  *
@@ -1053,6 +1064,11 @@ EXPORT wBool_t DoCurCommand(wAction_t action, coOrd pos) {
 
 	if (action == wActionMove) {
 		if ((commandList[curCommand].options & IC_WANT_MOVE) == 0)
+			return C_CONTINUE;
+	}
+
+	if ((action&0xFF) == wActionModKey) {
+		if ((commandList[curCommand].options & IC_WANT_MODKEYS) == 0)
 			return C_CONTINUE;
 	}
 
@@ -2478,6 +2494,10 @@ static void CreateMenus(void) {
 			ACCL_PRICELIST, (void*) PriceListInit(), 0, (void *) 0);
 
 	cmdGroup = BG_LAYER | BG_BIGGAP;
+
+	InitCmdSelect2(changeM);
+	InitCmdDescribe2(changeM);
+	InitCmdPan2(changeM);
 
 	InitLayers();
 
