@@ -2046,7 +2046,7 @@ EXPORT void AppendSegs(dynArr_t * seg_to, dynArr_t * seg_from) {
 		}
 		if (from_p->type == SEG_POLY || from_p->type == SEG_FILPOLY) {
 			if (from_p->u.p.pts) {
-				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(coOrd));
+				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(pts_t));
 			}
 		}
 	}
