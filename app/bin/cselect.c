@@ -1635,7 +1635,7 @@ static STATUS_T CmdMove(
 			DYNARR_RESET(trkSeg_t,anchors_da);
 			CreateMoveAnchor(pos);
 			if (anchors_da.cnt)
-						DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+						DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 			break;
 		case C_DOWN:
 			DYNARR_RESET(trkSeg_t,anchors_da);
@@ -1725,7 +1725,7 @@ static STATUS_T CmdMove(
 		case C_REDRAW:
 			/* DO_REDRAW */
 			if (anchors_da.cnt)
-				DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+				DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 			if ( state == 0 )
 				break;
 			DrawSelectedTracksD( &mainD, wDrawColorWhite );
@@ -1852,7 +1852,7 @@ static STATUS_T CmdRotate(
 			DYNARR_RESET(trkSeg_t,anchors_da);
 			CreateRotateAnchor(pos);
 			if (anchors_da.cnt)
-					DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+					DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 			break;
 		case C_DOWN:
 			DYNARR_RESET(trkSeg_t,anchors_da);
@@ -2051,7 +2051,7 @@ static STATUS_T CmdRotate(
 
 		case C_REDRAW:
 			if (anchors_da.cnt)
-				DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+				DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 			/* DO_REDRAW */
 			if ( state == 0 )
 				break;
@@ -2494,14 +2494,14 @@ static STATUS_T SelectArea(
 			size.y = - size.y;
 			base.y = pos.y;
 		}
-		DrawHilight( &tempD, base, size, action == C_MOVE );
+		DrawHilight( &anchorD, base, size, action == C_MOVE );
 		return C_CONTINUE;
 
 	case C_UP:
 	case C_RUP:
 		if (state == 1) {
 			state = 0;
-			DrawHilight( &tempD, base, size, action == C_UP );
+			DrawHilight( &anchorD, base, size, action == C_UP );
 			cnt = 0;
 			trk = NULL;
 			if (action==C_UP) SetAllTrackSelect( FALSE );							//Remove all tracks first
@@ -2545,7 +2545,7 @@ static STATUS_T SelectArea(
 
 	case C_CANCEL:
 		if (state == 1) {
-			DrawHilight( &tempD, base, size, add);
+			DrawHilight( &anchorD, base, size, add);
 			state = 0;
 		}
 		break;
@@ -2553,7 +2553,7 @@ static STATUS_T SelectArea(
 	case C_REDRAW:
 		if (state == 0)
 			break;
-		DrawHilight( &tempD, base, size, add );
+		DrawHilight( &anchorD, base, size, add );
 		break;
 
 	}
@@ -2649,8 +2649,8 @@ void DrawHighlightBoxes() {
 		w = (wPos_t)((size.x/mainD.scale)*mainD.dpi+0.5+10);
 		h = (wPos_t)((size.y/mainD.scale)*mainD.dpi+0.5+10);
 		wPos_t x, y;
-		mainD.CoOrd2Pix(&mainD,hilite,&x,&y);
-		wDrawFilledRectangle(tempD.d, x-5, y-5, w, h, wDrawColorPowderedBlue, wDrawOptTemp);
+		anchorD.CoOrd2Pix(&anchorD,hilite,&x,&y);
+		wDrawFilledRectangle(anchorD.d, x-5, y-5, w, h, wDrawColorPowderedBlue, wDrawOptTemp);
 	}
 
 }
@@ -2769,13 +2769,13 @@ static STATUS_T CmdSelect(
 				DoModuleTracks(GetTrkLayer(t),DrawSingleTrack,TRUE);
 				DrawHighlightLayer(GetTrkLayer(t));
 			} else {
-				DrawTrack(t,&mainD,wDrawColorBlueHighlight);    //Special color means THICK3 as well
+				DrawTrack(t,&anchorD,wDrawColorBlueHighlight);    //Special color means THICK3 as well
 			}
 		}
 		if ((action&0xFF) == wActionModKey)
 				MainRedraw();
 		else if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		break;
 
 	case C_DOWN:
@@ -2883,7 +2883,7 @@ static STATUS_T CmdSelect(
 		} else if (doingRotate) {
 			rc = CmdRotate( C_REDRAW, pos );
 		} else if (anchors_da.cnt) {
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		}
 		if (mode==AREA)
 			rc = SelectArea( action, pos );

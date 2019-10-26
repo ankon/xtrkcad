@@ -93,6 +93,7 @@
 #include <stdint.h>
 
 extern drawCmd_t tempD;
+extern drawCmd_t anchorD;
 extern TRKTYP_T T_BEZIER;
 extern TRKTYP_T T_CORNU;
 
@@ -715,20 +716,20 @@ EXPORT void DrawCornuCurve(
 	tempD.funcs->options = wDrawOptTemp;
 	long oldOptions = tempD.options;
 	tempD.options = DC_TICKS;
-	tempD.orig = mainD.orig;
+	anchorD.orig = tempD.orig = mainD.orig;
 	tempD.angle = mainD.angle;
 	if (first_trk)
-		DrawSegs( &tempD, zero, 0.0, first_trk, 1, Da.trackGauge, drawColorBlack );
+		DrawAnchorSegs( &tempD, zero, 0.0, first_trk, 1, Da.trackGauge, drawColorBlack );
 	if (crvSegs_cnt>0 && curveSegs)
 		DrawSegs( &tempD, zero, 0.0, curveSegs, crvSegs_cnt, Da.trackGauge, color );
 	if (second_trk)
 		DrawSegs( &tempD, zero, 0.0, second_trk, 1, Da.trackGauge, drawColorBlack );
 	if (ep1Segs_cnt>0 && point1)
-		DrawSegs( &tempD, zero, 0.0, point1, ep1Segs_cnt, Da.trackGauge, drawColorBlack );
+		DrawAnchorSegs( &anchorD, zero, 0.0, point1, ep1Segs_cnt, Da.trackGauge, drawColorBlack );
 	if (ep2Segs_cnt>0 && point2)
-		DrawSegs( &tempD, zero, 0.0, point2, ep2Segs_cnt, Da.trackGauge, drawColorBlack );
+		DrawAnchorSegs( &anchorD, zero, 0.0, point2, ep2Segs_cnt, Da.trackGauge, drawColorBlack );
 	if (midSegs_cnt>0 && mids)
-		DrawSegs( &tempD, zero, 0.0, mids, midSegs_cnt, Da.trackGauge, drawColorBlack );
+		DrawAnchorSegs( &anchorD, zero, 0.0, mids, midSegs_cnt, Da.trackGauge, drawColorBlack );
 	if (extend1_trk)
 		DrawSegs( &tempD, zero, 0.0, extend1_trk, 1, Da.trackGauge, drawColorBlack);
 	if (extend2_trk)
@@ -1102,7 +1103,6 @@ EXPORT STATUS_T AdjustCornuCurve(
 			}
 			Da.state = POINT_PICKED;
 		}
-		DrawTempCornu();   //wipe out
 		CreateBothEnds(Da.selectEndPoint,Da.selectMidPoint);
 		SetUpCornuParms(&cp);
 		if (CallCornuM(Da.mid_points,Da.ends,Da.pos,&cp,&Da.crvSegs_da,TRUE)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
@@ -1186,7 +1186,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 					return C_CONTINUE;
 				}
 			}
-			DrawTempCornu();
+			wDrawClearTemp(NULL);   //wipe out
 			Da.extend[sel] = FALSE;
 			if(!Da.trk[sel]) {							//Cornu with no ends
 				if (Da.selectTrack) {					//But There is already a track
@@ -1608,9 +1608,10 @@ EXPORT STATUS_T AdjustCornuCurve(
 		return C_CONTINUE;
 
 	case C_REDRAW:
+		wDrawClearTemp(NULL);
 		DrawTempCornu();
 		if (anchors_da.cnt) {
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		}
 		return C_CONTINUE;
 
