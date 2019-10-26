@@ -981,6 +981,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 
 	case C_START:
 			DYNARR_RESET(trkSeg_t,anchors_da);
+			TempRedraw();
 			Da.selectEndPoint = -1;
 			Da.selectMidPoint = -1;
 			Da.selectEndHandle = -1;
@@ -1108,6 +1109,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 		if (CallCornuM(Da.mid_points,Da.ends,Da.pos,&cp,&Da.crvSegs_da,TRUE)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
 		else Da.crvSegs_da_cnt = 0;
 		Da.minRadius = CornuMinRadius(Da.pos, Da.crvSegs_da);
+		TempRedraw();
 		DrawTempCornu();
 		return C_CONTINUE;
 
@@ -1186,7 +1188,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 					return C_CONTINUE;
 				}
 			}
-			wDrawClearTemp(NULL);   //wipe out
+			TempRedraw();   //wipe out
 			Da.extend[sel] = FALSE;
 			if(!Da.trk[sel]) {							//Cornu with no ends
 				if (Da.selectTrack) {					//But There is already a track
@@ -1444,6 +1446,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 
 	case C_UP:
 		DYNARR_RESET(trkSeg_t,anchors_da);
+		TempRedraw();
 		if (Da.state != POINT_PICKED) return C_CONTINUE;
 		ep = 0;
 		DrawTempCornu();  //wipe out
@@ -1608,7 +1611,6 @@ EXPORT STATUS_T AdjustCornuCurve(
 		return C_CONTINUE;
 
 	case C_REDRAW:
-		wDrawClearTemp(NULL);
 		DrawTempCornu();
 		if (anchors_da.cnt) {
 			DrawSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
@@ -2237,11 +2239,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 				CreateCornuEndAnchor(pos,TRUE);
 			} else CreateCornuEndAnchor(pos,TRUE);
 		}
-		if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
-
-		if (MyGetKeyState()&WKEY_SHIFT) DrawHighlightBoxes();
-
+		TempRedraw();
 		return C_CONTINUE;
 			
 	case C_MOVE:

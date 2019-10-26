@@ -524,15 +524,17 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 	cairo_t* cairo = gtkDrawCreateCairoContext(bd, NULL, 0, wDrawLineSolid, color, opt);
 
 
-	if (opt != wDrawOptOpaque) {
-		cairo_move_to(cairo, x, y);
-		cairo_rel_line_to(cairo, w, 0);
-		cairo_rel_line_to(cairo, 0, h);
-		cairo_rel_line_to(cairo, -w, 0);
-		cairo_rel_line_to(cairo, 0, -h);
-		cairo_set_source_rgb(cairo, 0,0,0);
-		cairo_set_operator(cairo, CAIRO_OPERATOR_DIFFERENCE);
-		cairo_fill(cairo);
+	if (opt != wDrawOptOpaque ) {
+		if (opt != wDrawOptTemp ) {
+			cairo_move_to(cairo, x, y);
+			cairo_rel_line_to(cairo, w, 0);
+			cairo_rel_line_to(cairo, 0, h);
+			cairo_rel_line_to(cairo, -w, 0);
+			cairo_rel_line_to(cairo, 0, -h);
+			cairo_set_source_rgb(cairo, 0,0,0);
+			cairo_set_operator(cairo, CAIRO_OPERATOR_DIFFERENCE);
+			cairo_fill(cairo);
+		}
 		GdkColor * gcolor = wlibGetColor(color, TRUE);
 		cairo_set_source_rgba(cairo, gcolor->red / 65535.0, gcolor->green / 65535.0, gcolor->blue / 65535.0, 1.0);
 		cairo_set_operator(cairo, CAIRO_OPERATOR_OVER);
@@ -711,7 +713,11 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 
 	cairo_t* cairo = cairo_create(bd->temp_surface);
 	cairo_set_operator (cairo, CAIRO_OPERATOR_CLEAR);
-	cairo_paint(cairo);
+	cairo_move_to(cairo, 0, 0);
+	cairo_rel_line_to(cairo, bd->w, 0);
+	cairo_rel_line_to(cairo, 0, bd->h);
+	cairo_rel_line_to(cairo, -bd->w, 0);
+	cairo_fill(cairo);
 	cairo_destroy(cairo);
  }
 
@@ -722,13 +728,12 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 	cairo_set_source_rgba(cairo, 1.0, 1.0, 1.0, 1.0);
 	cairo_set_operator (cairo, CAIRO_OPERATOR_SOURCE);
 
-	//cairo_move_to(cairo, 0, 0);
-	//cairo_rel_line_to(cairo, bd->w, 0);
-	//cairo_rel_line_to(cairo, 0, bd->h);
-	//cairo_rel_line_to(cairo, -bd->w, 0);
-	//cairo_fill(cairo);
+	cairo_move_to(cairo, 0, 0);
+	cairo_rel_line_to(cairo, bd->w, 0);
+	cairo_rel_line_to(cairo, 0, bd->h);
+	cairo_rel_line_to(cairo, -bd->w, 0);
+	cairo_fill(cairo);
 
-	cairo_paint(cairo);
 	cairo_destroy(cairo);
 
 	wDrawClearTemp(bd);

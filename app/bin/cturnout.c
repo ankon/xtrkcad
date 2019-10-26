@@ -2603,9 +2603,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		} else {
 			CreateMoveAnchor(pos);
 		}
-		if (anchors_da.cnt>0)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
-		MainRedraw();
+		TempRedraw();
 		return C_CONTINUE;
 		break;
 	case C_DOWN:
@@ -2614,7 +2612,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		PlaceTurnout( pos );
 		Dto.state = 1;
 		CreateMoveAnchor(pos);
-		MainRedraw();
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -2625,13 +2623,14 @@ EXPORT STATUS_T CmdTurnoutAction(
 		Dto.state = 1;
 		PlaceTurnout( pos );
 		CreateMoveAnchor(pos);
-		MainRedraw();
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_UP:
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		CreateMoveAnchor(pos);
 		InfoMessage( _("Left drag to move, ctrl+left-drag or right-drag to rotate, press Space or Return to accept or Esc to cancel") );
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_RDOWN:
@@ -2649,7 +2648,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 #else
 		Rotate( &origPos, Dto.rot0, -(Dto.angle + curTurnout->endPt[(int)curTurnoutEp].angle) );
 #endif
-		MainRedraw();
+		TempRedraw();
 		validAngle = FALSE;
 		return C_CONTINUE;
 
@@ -2677,7 +2676,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		InfoMessage( _("Angle = %0.3f (%s)"), PutAngle( NormalizeAngle(Dto.angle + 90.0) ), message );
 		Dto.state = 2;
 		CreateRotateAnchor(Dto.rot0);
-		MainRedraw();
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_RUP:
@@ -2685,7 +2684,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		if ( curTurnout == NULL ) return C_CONTINUE;
 		Dto.state = 1;
 		CreateMoveAnchor(pos);
-		MainRedraw();
+		TempRedraw();
 		InfoMessage( _("Left-drag to move, ctl+left-drag or right-drag to rotate, press Space or Return to accept or Esc to cancel") );
 		return C_CONTINUE;
 
@@ -2700,7 +2699,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 			if (Dto.trk == NULL)
 				Dto.angle = NormalizeAngle( Dto.angle + (angle - curTurnout->endPt[(int)curTurnoutEp].angle ) );
 			PlaceTurnout( Dto.place );
-			MainRedraw();
+			TempRedraw();
 		} else {
 			CmdTurnoutAction( C_DOWN, pos );
 			CmdTurnoutAction( C_UP, pos );
@@ -2713,7 +2712,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 				curTurnout->segs, curTurnout->segCnt, trackGauge, wDrawColorBlue );
 		}
 		if (anchors_da.cnt>0) {
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		}
 		if (Dto.state == 2)
 			DrawLine( &tempD, Dto.rot0, Dto.rot1, 0, wDrawColorBlack );

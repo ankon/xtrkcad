@@ -191,10 +191,11 @@ static STATUS_T CmdSplitTrack( wAction_t action, coOrd pos )
 					CreateSplitAnchor(pos,trk0,FALSE);
 			}
 		}
+		TempRedraw();
 		break;
 	case C_REDRAW:
 		if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		break;
 	}
 
