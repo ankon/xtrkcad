@@ -2877,6 +2877,9 @@ static STATUS_T CmdPan(
 			MapRedraw();
 		}
 		break;
+	case wActionMove:
+		TempRedraw();
+		return C_CONTINUE;
 	case C_REDRAW:
 		if (panmode == ZOOM) {
 			if (base.x && base.y && size.x && size.y)
@@ -2963,7 +2966,7 @@ extern wIndex_t modifyCmdInx;
 EXPORT void InitCmdPan( wMenu_p menu )
 {
 	panCmdInx = AddMenuButton( menu, CmdPan, "cmdPan", _("Pan/Zoom"), wIconCreatePixMap(pan_xpm),
-				LEVEL0, IC_CANCEL|IC_POPUP|IC_LCLICK|IC_CMDMENU, ACCL_PAN, NULL );
+				LEVEL0, IC_CANCEL|IC_POPUP|IC_LCLICK|IC_CMDMENU|IC_WANT_MOVE, ACCL_PAN, NULL );
 }
 EXPORT void InitCmdPan2( wMenu_p menu )
 {

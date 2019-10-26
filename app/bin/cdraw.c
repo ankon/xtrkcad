@@ -1653,7 +1653,7 @@ static void DrawRedraw(void);
 static drawContext_t drawCmdContext = {
 		InfoMessage,
 		DrawRedraw,
-		&tempD,
+		&anchorD,
 		OP_LINE };
 
 static void DrawRedraw( void )
