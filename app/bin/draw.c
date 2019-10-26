@@ -477,7 +477,7 @@ EXPORT void DrawHilight( drawCmd_p d, coOrd p, coOrd s, BOOL_T add )
 	h = (wPos_t)((s.y/d->scale)*d->dpi+0.5);
 	d->CoOrd2Pix(d,p,&x,&y);
 	if ((d == &mapD) || add)
-		wDrawFilledRectangle( d->d, x, y, w, h, drawColorPowderedBlue, wDrawOptTemp );
+		wDrawFilledRectangle( d->d, x, y, w, h, drawColorPowderedBlue, d==&mapD?0:wDrawOptTemp );
 	else
 		wDrawFilledRectangle( d->d, x, y, w, h, selectedColor, wDrawOptTemp );
 
@@ -1302,6 +1302,12 @@ EXPORT void SetMainSize( void )
 	anchorD.size = tempD.size = mainD.size;
 }
 
+EXPORT void TempRedraw( void ) {
+	wDrawClearTemp(tempD.d);
+	DrawMarkers();
+	RulerRedraw( FALSE );
+	DoCurCommand( C_REDRAW, zero );
+}
 
 EXPORT void MainRedraw( void )
 {
@@ -1351,6 +1357,9 @@ lprintf("mainRedraw\n");
 	}
 	ConstraintOrig( &mainD.orig, mainD.size, FALSE );
 	anchorD.orig = tempD.orig = mainD.orig;
+
+	wDrawDelayUpdate( mainD.d, TRUE );
+
 	wDrawClear( mainD.d );
 
 	//mainD.d->option = 0;
@@ -1490,6 +1499,7 @@ static void DrawRoomWalls( wBool_t drawBackground )
 		return;
 
 	if (drawBackground) {
+
 		mainD.CoOrd2Pix(&mainD,mainD.orig,&p0,&p1);
 		coOrd end;
 		end.x = mainD.orig.x + mainD.size.x;
@@ -1497,7 +1507,7 @@ static void DrawRoomWalls( wBool_t drawBackground )
 		mainD.CoOrd2Pix(&mainD,end,&p2,&p3);
 		p2 -= p0;
 		p3 -= p1;
-		wDrawFilledRectangle( mainD.d, p0, p1, p2, p3, drawColorGrey80, wDrawOptTemp );
+		wDrawFilledRectangle( mainD.d, p0, p1, p2, p3, drawColorGrey80, wDrawOptOpaque );
 
 		mainD.CoOrd2Pix(&mainD,zero,&p0,&p1);
 		mainD.CoOrd2Pix(&mainD,mapD.size,&p2,&p3);
@@ -2453,6 +2463,7 @@ static void DoMouse( wAction_t action, coOrd pos )
 				ConfirmReset( TRUE );
 				return;
 			}
+			/* no break*/
 		case C_MODKEY:
 		case C_MOVE:
 		case C_UP:
@@ -2818,7 +2829,8 @@ static STATUS_T CmdPan(
 						InfoMessage(_("Can't move any further in that direction"));
 					else
 					    InfoMessage(_("Left Click to Pan, Right Click to Zoom, 'o' for Origin, 'e' for Extents"));
-				}
+				} else
+					InfoMessage("");
 			}
 		else if (panmode == ZOOM) {
 			base = start_pos;

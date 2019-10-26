@@ -474,8 +474,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 				}
 			}
 		}
-		if (anchors_da.cnt)
-				DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -604,8 +603,8 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 			mainD.funcs->options = 0;
 		}
-		if (anchors_da.cnt && Da.state >=0)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		if (anchors_da.cnt )
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 
 	case C_CANCEL:
