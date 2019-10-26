@@ -494,19 +494,19 @@ EXPORT void DrawBezCurve(trkSeg_p control_arm1,
 					wDrawColor color
 					) {
 	long oldDrawOptions = tempD.funcs->options;
-	tempD.funcs->options = wDrawOptTemp;
+	anchorD.funcs->options = tempD.funcs->options = wDrawOptTemp;
 	long oldOptions = tempD.options;
-	tempD.options = DC_TICKS;
+	anchorD.options = tempD.options = DC_TICKS;
 	anchorD.orig = tempD.orig = mainD.orig;
-	tempD.angle = mainD.angle;
+	anchorD.angle = tempD.angle = mainD.angle;
 	if (crvSegs_cnt && curveSegs)
 		DrawSegs( &tempD, zero, 0.0, curveSegs, crvSegs_cnt, Da.trackGauge, color );
 	if (cp1Segs_cnt && control_arm1)
-		DrawSegs( &anchorD, zero, 0.0, control_arm1, cp1Segs_cnt, Da.trackGauge, drawColorBlack );
+		DrawAnchorSegs( &anchorD, zero, 0.0, control_arm1, cp1Segs_cnt, Da.trackGauge, drawColorBlack );
 	if (cp2Segs_cnt && control_arm2)
-		DrawSegs( &anchorD, zero, 0.0, control_arm2, cp2Segs_cnt, Da.trackGauge, drawColorBlack );
-	tempD.funcs->options = oldDrawOptions;
-	tempD.options = oldOptions;
+		DrawAnchorSegs( &anchorD, zero, 0.0, control_arm2, cp2Segs_cnt, Da.trackGauge, drawColorBlack );
+	anchorD.funcs->options = oldDrawOptions;
+	anchorD.options = tempD.options = oldOptions;
 
 }
 
@@ -632,7 +632,7 @@ EXPORT STATUS_T AdjustBezCurve(
 		if (ConvertToArcs(Da.pos, &Da.crvSegs_da, track, color,Da.width)) Da.crvSegs_da_cnt = Da.crvSegs_da.cnt;
 		Da.minRadius = BezierMinRadius(Da.pos, Da.crvSegs_da);
 		//DrawTempBezier(Da.track);
-		MainRedraw();
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -676,7 +676,7 @@ EXPORT STATUS_T AdjustBezCurve(
 				InfoMessage( _("Bezier %s : Min Radius=%s Length=%s"),track?"Track":"Line",
 									FormatDistance(Da.minRadius>=100000?0:Da.minRadius),
 									FormatDistance(BezierLength(Da.pos,Da.crvSegs_da)));
-        MainRedraw();
+        TempRedraw();
 		return C_CONTINUE;
 
 	case C_UP:
@@ -730,8 +730,7 @@ EXPORT STATUS_T AdjustBezCurve(
 				InfoMessage(_("Pick any circle to adjust it - Enter to confirm, ESC to abort"));
 		} else
 			InfoMessage(_("Pick any circle to adjust it - Enter to confirm, ESC to abort"));
-		MainRedraw();
-		MapRedraw();
+		TempRedraw();
 		Da.state = PICK_POINT;
 
 		return C_CONTINUE;
@@ -1111,8 +1110,7 @@ STATUS_T CmdBezCurve( wAction_t action, coOrd pos )
 				}
 			}
 		}
-		if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		TempRedraw();
 		return C_CONTINUE;
 			
 	case C_MOVE:
@@ -1181,7 +1179,7 @@ STATUS_T CmdBezCurve( wAction_t action, coOrd pos )
 			DrawBezCurve(Da.cp1Segs_da,Da.cp1Segs_da_cnt,Da.cp2Segs_da,Da.cp2Segs_da_cnt,(trkSeg_t *)Da.crvSegs_da.ptr,Da.crvSegs_da.cnt, Da.color);
 		}
 		if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 
 	case C_CANCEL:

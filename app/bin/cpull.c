@@ -763,7 +763,7 @@ static STATUS_T CmdPull(
 				return C_CONTINUE;
 			CreateConnectAnchor(t_ep1,t1,TRUE);
 		}
-		MainRedraw();
+		TempRedraw();
 		break;
 
 	case C_LCLICK:
@@ -823,11 +823,11 @@ static STATUS_T CmdPull(
 
 	case C_REDRAW:
 		if (anchors_da.cnt)
-					DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+					DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		if (t1 && t_turn1)
-					DrawTrack(t1,&mainD,wDrawColorBlue);
+					DrawTrack(t1,&anchorD,wDrawColorBlue);
 		if (t2 && t_turn2)
-					DrawTrack(t2,&mainD,wDrawColorBlue);
+					DrawTrack(t2,&anchorD,wDrawColorBlue);
 		return C_CONTINUE;
 
 	case C_TEXT:
