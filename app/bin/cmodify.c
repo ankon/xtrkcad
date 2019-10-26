@@ -131,6 +131,7 @@ static STATUS_T ModifyBezier(wAction_t action, coOrd pos) {
 			Dex.Trk = NULL;
 			modifyBezierMode = FALSE;
 			break;
+		case wActionMove:
 		case C_REDRAW:
 			rc = CmdBezModify(Dex.Trk, action, pos, trackGauge);
 			break;
@@ -160,7 +161,11 @@ static STATUS_T ModifyCornu(wAction_t action, coOrd pos) {
 			Dex.Trk = NULL;
 			modifyCornuMode = FALSE;
 			break;
+		case wActionMove:
+			TempRedraw();
+			break;
 		case C_REDRAW:
+
 			rc = CmdCornuModify(Dex.Trk, action, pos, trackGauge);
 			break;
 	}
@@ -209,6 +214,9 @@ static STATUS_T ModifyDraw(wAction_t action, coOrd pos) {
 			modifyDrawMode = FALSE;
 			tempSegs_da.cnt = 0;
 			rc = C_CONTINUE;
+			break;
+		case wActionMove:
+			TempRedraw();
 			break;
 		case C_REDRAW:
 			rc = ModifyTrack( Dex.Trk, action, pos );
@@ -359,9 +367,9 @@ STATUS_T CmdModify(
 
 	case wActionMove:
 		DYNARR_RESET(trkSeg_t,anchors_da);
-		if (modifyBezierMode) return C_CONTINUE;
-		if (modifyCornuMode) return C_CONTINUE;
-		if (modifyDrawMode) return C_CONTINUE;
+		if (modifyBezierMode) return  ModifyBezier(action, pos);
+		if (modifyCornuMode) return ModifyCornu(action, pos);
+		if (modifyDrawMode) return ModifyDraw(action, pos);
 		track_p t;
 		if (((t=OnTrack(&pos,FALSE,TRUE))!= NULL) && CheckTrackLayer( t )) {
 			if (GetTrkScale(t) == (char)GetLayoutCurScale()) {
@@ -700,7 +708,7 @@ LOG( log_modify, 1, ("R = %0.3f, A0 = %0.3f, A1 = %0.3f\n",
 		if (modifyDrawMode) return ModifyDraw(C_REDRAW, pos);
 		if ( (!changeTrackMode) && Dex.Trk && !QueryTrack( Dex.Trk,	 Q_MODIFY_REDRAW_DONT_UNDRAW_TRACK ) )
 		   UndrawNewTrack( Dex.Trk );
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		DrawAnchorSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if (anchors_da.cnt)
 			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 

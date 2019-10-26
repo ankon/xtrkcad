@@ -351,7 +351,7 @@ STATUS_T DrawGeomMouse(
 			} else {
 				tempSegs(0).u.l.option = 0;
 			}
-			tempSegs_da.cnt = 0;
+			tempSegs_da.cnt = 1;
 			context->message( _("Drag to next point, +Shift to lock to object, +Ctrl to lock to 90deg") );
 			break;
 		case OP_TBLEDGE:
@@ -361,7 +361,7 @@ STATUS_T DrawGeomMouse(
 			tempSegs(0).color = context->Color;
 			tempSegs(0).width = (mainD.scale<=16)?(3/context->D->dpi*context->D->scale):0;
 			tempSegs(0).u.l.pos[0] = tempSegs(0).u.l.pos[1] = pos;
-			tempSegs_da.cnt = 0;
+			tempSegs_da.cnt = 1;
 			context->message( _("Drag to place next end point") );
 			break;
 		case OP_CURVE1: case OP_CURVE2: case OP_CURVE3: case OP_CURVE4:
@@ -374,6 +374,7 @@ STATUS_T DrawGeomMouse(
 				}
 				CreateCurve( C_START, pos, FALSE, context->Color, width, drawGeomCurveMode, &anchors_da, context->message );
 				CreateCurve( C_DOWN, pos, FALSE, context->Color, width, drawGeomCurveMode, &anchors_da, context->message );
+				tempSegs_da.cnt = 1;
 			}
 			break;
 		case OP_CIRCLE1:
@@ -393,6 +394,7 @@ STATUS_T DrawGeomMouse(
 			tempSegs(0).u.c.a1 = 360;
 			tempSegs(0).u.c.radius = 0;
 			tempSegs(0).u.c.center = pos;
+			tempSegs_da.cnt = 1;
 			context->message( _("Drag to set radius") );
 			break;
 		case OP_FILLBOX:
@@ -405,6 +407,7 @@ STATUS_T DrawGeomMouse(
 				tempSegs(inx).color = context->Color;
 				tempSegs(inx).width = width;
 				tempSegs(inx).u.l.pos[0] = tempSegs(inx).u.l.pos[1] = pos;
+				tempSegs_da.cnt = 4;
 			}
 			context->message( _("Drag set box size") );
 			break;
@@ -446,8 +449,8 @@ STATUS_T DrawGeomMouse(
 			}
 			segPtr->u.l.pos[1] = pos;
 			context->State = 1;
-			oldOptions = context->D->funcs->options;
-			DrawSegs( context->D, zero, 0.0, &tempSegs(tempSegs_da.cnt-1), 1, trackGauge, wDrawColorBlack );
+			//oldOptions = context->D->funcs->options;
+			//DrawSegs( &tempD, zero, 0.0, &tempSegs(tempSegs_da.cnt-1), 1, trackGauge, wDrawColorBlack );
 			segCnt = tempSegs_da.cnt;
 			context->message(_("+Shift - lock to close object, +Ctrl - lock to 90 deg"));
 			break;
@@ -458,10 +461,10 @@ STATUS_T DrawGeomMouse(
 	case wActionLDrag:
 		DYNARR_RESET(trkSeg_t, anchors_da );
 		oldOptions = context->D->funcs->options;
-		if (context->Op == OP_POLY || context->Op == OP_FILLPOLY || context->Op == OP_POLYLINE)
-			DrawSegs( context->D, zero, 0.0, &tempSegs(tempSegs_da.cnt-1), 1, trackGauge, wDrawColorBlack );
-		else
-			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		//if (context->Op == OP_POLY || context->Op == OP_FILLPOLY || context->Op == OP_POLYLINE)
+		//	DrawSegs( &tempD, zero, 0.0, &tempSegs(tempSegs_da.cnt-1), 1, trackGauge, wDrawColorBlack );
+		//else
+		//	DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if ((context->Op == OP_CURVE1 && context->State == 1) ||
 			(context->Op == OP_CURVE2 && context->State == 0) ||
 			(context->Op == OP_CURVE4 && context->State != 2) ||
@@ -651,22 +654,22 @@ STATUS_T DrawGeomMouse(
 						FormatDistance(fabs(pos1.x - pos0.x)), FormatDistance(fabs(pos1.y - pos0.y)) );
 			break;
 		}
-		context->D->funcs->options |= wDrawOptTemp;
-		if (context->Op == OP_POLY || context->Op == OP_FILLPOLY || context->Op == OP_POLYLINE)
-			DrawSegs( context->D, zero, 0.0, &tempSegs(tempSegs_da.cnt-1), 1, trackGauge, wDrawColorBlack );
-		else
-			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-		if (anchors_da.cnt)
-			DrawAnchorSegs(&anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
-		context->D->funcs->options = oldOptions;
+		//context->D->funcs->options |= wDrawOptTemp;
+		//if (context->Op == OP_POLY || context->Op == OP_FILLPOLY || context->Op == OP_POLYLINE)
+		//	DrawAnchorSegs( &anchorD, zero, 0.0, &tempSegs(tempSegs_da.cnt-1), 1, trackGauge, wDrawColorBlack );
+		//else
+		//	DrawAnchorSegs( &anchorD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		//if (anchors_da.cnt)
+		//	DrawAnchorSegs(&anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		//context->D->funcs->options = oldOptions;
 		TempRedraw();
 		return C_CONTINUE;
 
 	case wActionLUp:
 		oldOptions = context->D->funcs->options;
-		context->D->funcs->options |= wDrawOptTemp;
-		if (context->Op != OP_POLY && context->Op != OP_FILLPOLY && context->Op != OP_POLYLINE)
-			DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		//context->D->funcs->options |= wDrawOptTemp;
+		//if (context->Op != OP_POLY && context->Op != OP_FILLPOLY && context->Op != OP_POLYLINE)
+		//	DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		lastValid = FALSE;
 		createTrack = FALSE;
 		if ((context->Op == OP_CURVE1 && context->State == 1) ||
@@ -725,7 +728,7 @@ STATUS_T DrawGeomMouse(
 				context->ArcAngle = FindAngle( pos0, pos1 );
 				pos0x = pos1;
 				CreateCurve( C_UP, pos, FALSE, context->Color, width, drawGeomCurveMode, &anchors_da, context->message );
-				DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			//	DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 				context->message( _("Drag on Red arrows to adjust curve") );
 				return C_CONTINUE;
 			} else {
@@ -758,6 +761,7 @@ STATUS_T DrawGeomMouse(
 				/*drawContext = context;
 				DrawGeomOp( (void*)context->Op );*/
 			}
+
 			break;
 		case OP_CIRCLE1:
 		case OP_CIRCLE2:
@@ -843,7 +847,7 @@ STATUS_T DrawGeomMouse(
 		context->Started = FALSE;
 		context->Changed = TRUE;					//Update screen shown
 		/*CheckOk();*/
-		if (context->State == 2 && IsCurCommandSticky()) {
+		if (context->State < 2 || (context->State == 2 && IsCurCommandSticky())) {
 			segCnt = tempSegs_da.cnt;
 			TempRedraw();
 			return C_CONTINUE;
@@ -891,9 +895,9 @@ STATUS_T DrawGeomMouse(
 		}
 		DYNARR_RESET(trkSeg_t, anchors_da );
 		oldOptions = context->D->funcs->options;
-		context->D->funcs->options |= wDrawOptTemp;
-		DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-		context->D->funcs->options = oldOptions;
+		//context->D->funcs->options |= wDrawOptTemp;
+		//DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		//context->D->funcs->options = oldOptions;
 		tempSegs_da.cnt = 0;
 		context->message( "" );
 		context->Changed = FALSE;
@@ -905,8 +909,8 @@ STATUS_T DrawGeomMouse(
 	case C_REDRAW:
 		oldOptions = context->D->funcs->options;
 		context->D->funcs->options |= wDrawOptTemp;
-		if (context->State !=0) {
-			DrawSegs(context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		if (tempSegs_da.cnt > 0) {
+			DrawAnchorSegs(&tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		}
 		if (anchors_da.cnt > 0) {
 			DrawAnchorSegs(&anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, 0.0, wDrawColorBlack );
@@ -1169,6 +1173,7 @@ STATUS_T DrawGeomPolyModify(
 				}
 				polyInx = -1;
 				selected_count = 0;
+				polyState = POLY_SELECTED;
 				CreatePolyAnchors( -1);
 				TempRedraw();
 				return C_CONTINUE; //Not close to any line
@@ -1554,7 +1559,7 @@ STATUS_T DrawGeomPolyModify(
 		case C_REDRAW:
 			if (polyState == POLY_NONE) return C_CONTINUE;
 			DrawTrack(context->trk, &mainD, wDrawColorWhite);
-			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt,trackGauge, wDrawColorBlack);
+			DrawAnchorSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt,trackGauge, wDrawColorBlack);
 			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 			break;
 		default:
@@ -2459,7 +2464,7 @@ STATUS_T DrawGeomModify(
 		if (polyMode) return DrawGeomPolyModify(action,pos,context);
 		if (context->state == MOD_NONE) return C_CONTINUE;
 		DrawTrack(context->trk,&mainD,wDrawColorWhite);
-		DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack);
+		DrawAnchorSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack);
 		DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		break;
 

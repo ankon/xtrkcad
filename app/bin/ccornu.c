@@ -723,9 +723,9 @@ EXPORT void DrawCornuCurve(
 	if (first_trk)
 		DrawAnchorSegs( &tempD, zero, 0.0, first_trk, 1, Da.trackGauge, drawColorBlack );
 	if (crvSegs_cnt>0 && curveSegs)
-		DrawSegs( &tempD, zero, 0.0, curveSegs, crvSegs_cnt, Da.trackGauge, color );
+		DrawAnchorSegs( &tempD, zero, 0.0, curveSegs, crvSegs_cnt, Da.trackGauge, color );
 	if (second_trk)
-		DrawSegs( &tempD, zero, 0.0, second_trk, 1, Da.trackGauge, drawColorBlack );
+		DrawAnchorSegs( &tempD, zero, 0.0, second_trk, 1, Da.trackGauge, drawColorBlack );
 	if (ep1Segs_cnt>0 && point1)
 		DrawAnchorSegs( &anchorD, zero, 0.0, point1, ep1Segs_cnt, Da.trackGauge, drawColorBlack );
 	if (ep2Segs_cnt>0 && point2)
@@ -733,9 +733,9 @@ EXPORT void DrawCornuCurve(
 	if (midSegs_cnt>0 && mids)
 		DrawAnchorSegs( &anchorD, zero, 0.0, mids, midSegs_cnt, Da.trackGauge, drawColorBlack );
 	if (extend1_trk)
-		DrawSegs( &tempD, zero, 0.0, extend1_trk, 1, Da.trackGauge, drawColorBlack);
+		DrawAnchorSegs( &tempD, zero, 0.0, extend1_trk, 1, Da.trackGauge, drawColorBlack);
 	if (extend2_trk)
-		DrawSegs( &tempD, zero, 0.0, extend2_trk, 1, Da.trackGauge, drawColorBlack);
+		DrawAnchorSegs( &tempD, zero, 0.0, extend2_trk, 1, Da.trackGauge, drawColorBlack);
 	tempD.funcs->options = oldDrawOptions;
 	tempD.options = oldOptions;
 
@@ -1500,7 +1500,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 		else Da.crvSegs_da_cnt = 0;
 		Da.minRadius = CornuMinRadius(Da.pos,Da.crvSegs_da);
 		InfoMessage(_("Pick on point to adjust it along track - Delete to remove, Enter to confirm, ESC to abort"));
-		DrawTempCornu();
+		TempRedraw();
 		Da.state = PICK_POINT;
 		return C_CONTINUE;
 
@@ -1616,7 +1616,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 	case C_REDRAW:
 		DrawTempCornu();
 		if (anchors_da.cnt) {
-			DrawSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		}
 		return C_CONTINUE;
 
@@ -2209,8 +2209,10 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 
 	case wActionMove:
 		DYNARR_RESET(trkSeg_t,anchors_da);
-		if (Da.state != NONE && Da.state != LOC_2) return C_CONTINUE;
-		if (Da.trk[0] && Da.trk[1]) return C_CONTINUE;
+		if ((Da.state != NONE && Da.state != LOC_2) || (Da.trk[0] && Da.trk[1])) {
+			TempRedraw();
+			return C_CONTINUE;
+		}
 		EPINX_T ep = -1;
 		if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0) {
 			//Lock to endpoint if one is available and under pointer
@@ -2337,7 +2339,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 					Da.extend[0]?&Da.extendSeg[0]:NULL,Da.extend[1]?&Da.extendSeg[1]:NULL,(trkSeg_t *)Da.midSegs.ptr,Da.midSegs.cnt,Da.color);
 		}
 		if (anchors_da.cnt)
-					DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+					DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		if (MyGetKeyState()&WKEY_SHIFT) DrawHighlightBoxes();
 
 		return C_CONTINUE;
