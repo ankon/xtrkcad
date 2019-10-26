@@ -600,7 +600,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 
 	case C_REDRAW:
 		if ( Da.state >= 0 ) {
-			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 			mainD.funcs->options = 0;
 		}
 		if (anchors_da.cnt )
