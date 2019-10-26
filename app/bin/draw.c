@@ -907,6 +907,15 @@ EXPORT drawFuncs_t tempDrawFuncs = {
 		DDrawPoly,
 		DDrawFillCircle };
 
+EXPORT drawFuncs_t anchorDrawFuncs = {
+		wDrawOptTemp,
+		DDrawLine,
+		DDrawArc,
+		DDrawString,
+		DDrawBitMap,
+		DDrawPoly,
+		DDrawFillCircle };
+
 EXPORT drawFuncs_t printDrawFuncs = {
 		0,
 		DDrawLine,
@@ -930,6 +939,9 @@ EXPORT drawCmd_t mainD = {
 
 EXPORT drawCmd_t tempD = {
 		NULL, &tempDrawFuncs, DC_TICKS|DC_SIMPLE, INIT_MAIN_SCALE, 0.0, {0.0,0.0}, {0.0,0.0}, MainPix2CoOrd, MainCoOrd2Pix };
+
+EXPORT drawCmd_t anchorD = {
+		NULL, &anchorDrawFuncs, DC_TICKS, INIT_MAIN_SCALE, 0.0, {0.0,0.0}, {0.0,0.0}, MainPix2CoOrd, MainCoOrd2Pix };
 
 EXPORT drawCmd_t mapD = {
 		NULL, &screenDrawFuncs, 0, INIT_MAP_SCALE, 0.0, {0.0,0.0}, {96.0,48.0}, Pix2CoOrd, CoOrd2Pix };
@@ -1106,13 +1118,13 @@ EXPORT void InfoCount( wIndex_t count )
 
 EXPORT void InfoPos( coOrd pos )
 {
-	DrawMarkers();
+	//DrawMarkers();
 	sprintf( message, "%s%s", xLabel, FormatDistance(pos.x) );
 	wStatusSetValue( infoD.posX_m, message );
 	sprintf( message, "%s%s", yLabel, FormatDistance(pos.y) );
 	wStatusSetValue( infoD.posY_m, message );
 	
-	MainRedraw();
+	wDrawClearTemp(tempD.d);
 	oldMarker = pos;
 	DrawMarkers();
 }
@@ -1209,7 +1221,7 @@ EXPORT BOOL_T SetRoomSize( coOrd size )
 		return TRUE;
 	ChangeMapScale(TRUE);
 	ConstraintOrig( &mainD.orig, mainD.size, TRUE );
-	tempD.orig = mainD.orig;
+	anchorD.orig = tempD.orig = mainD.orig;
 	/*MainRedraw();*/
 	wPrefSetFloat( "draw", "roomsizeX", mapD.size.x );
 	wPrefSetFloat( "draw", "roomsizeY", mapD.size.y );
@@ -1287,7 +1299,7 @@ EXPORT void SetMainSize( void )
 	h = hh/mainD.dpi;
 	mainD.size.x = w * mainD.scale;
 	mainD.size.y = h * mainD.scale;
-	tempD.size = mainD.size;
+	anchorD.size = tempD.size = mainD.size;
 }
 
 
@@ -1338,7 +1350,7 @@ lprintf("mainRedraw\n");
 		}
 	}
 	ConstraintOrig( &mainD.orig, mainD.size, FALSE );
-	tempD.orig = mainD.orig;
+	anchorD.orig = tempD.orig = mainD.orig;
 	wDrawClear( mainD.d );
 
 	//mainD.d->option = 0;
@@ -1402,7 +1414,7 @@ void MainProc( wWin_p win, winProcEvent e, void * refresh, void * data )
 			wControlSetPos( (wControl_p)mainD.d, 0, toolbarHeight );
 			SetMainSize();
 			ConstraintOrig( &mainD.orig, mainD.size, TRUE );
-			tempD.orig = mainD.orig;
+			anchorD.orig = tempD.orig = mainD.orig;
 			SetInfoBar();
 			if (!refresh) {
 				MainRedraw();
@@ -1513,10 +1525,10 @@ static void DrawRoomWalls( wBool_t drawBackground )
 EXPORT void DrawMarkers( void )
 {
 	wPos_t x, y;
-	mainD.CoOrd2Pix(&mainD,oldMarker,&x,&y);
-	wDrawLine( mainD.d, 0, y, (wPos_t)LBORDER, y,
+	tempD.CoOrd2Pix(&tempD,oldMarker,&x,&y);
+	wDrawLine( anchorD.d, 0, y, (wPos_t)LBORDER, y,
 				0, wDrawLineSolid, markerColor, wDrawOptTemp );
-	wDrawLine( mainD.d, x, 0, x, (wPos_t)BBORDER,
+	wDrawLine( anchorD.d, x, 0, x, (wPos_t)BBORDER,
 				0, wDrawLineSolid, markerColor, wDrawOptTemp );
 }
 
@@ -1908,14 +1920,14 @@ static void DoNewScale( DIST_T scale )
 	if (scale > MAX_MAIN_SCALE)
 		scale = MAX_MAIN_SCALE;
 
-	tempD.scale = mainD.scale = scale;
+	anchorD.scale = tempD.scale = mainD.scale = scale;
 	mainD.dpi = wDrawGetDPI( mainD.d );
 	if ( mainD.dpi == 75 ) {
 		mainD.dpi = 72.0;
 	} else if ( scale > 1.0 && scale <= 12.0 ) {
 		mainD.dpi = floor( (mainD.dpi + scale/2)/scale) * scale;
 	}
-	tempD.dpi = mainD.dpi;
+	anchorD.dpi = tempD.dpi = mainD.dpi;
 
 	SetZoomRadio( scale ); 
 	InfoScale();
@@ -1929,7 +1941,7 @@ static void DoNewScale( DIST_T scale )
 	}
 	ConstraintOrig( &mainD.orig, mainD.size, TRUE );
 	MainRedraw();
-	tempD.orig = mainD.orig;
+	anchorD.orig = tempD.orig = mainD.orig ;
 LOG( log_zoom, 1, ( "center = [%0.3f %0.3f]\n", mainCenter.x, mainCenter.y ) )
 	/*SetFont(0);*/
 	sprintf( tmp, "%0.3f", mainD.scale );
@@ -2082,7 +2094,7 @@ LOG( log_pan, 2, ( "NEW = [ %0.3f, %0.3f ] \n", pos.x, pos.y ) )
 		newOrig.x = oldOrig.x + pos.x-mapOrig.x;
 		newOrig.y = oldOrig.y + pos.y-mapOrig.y;
 		ConstraintOrig( &newOrig, mainD.size, FALSE );
-		tempD.orig = mainD.orig = newOrig;
+		anchorD.orig = tempD.orig = mainD.orig = newOrig;
 		if (liveMap) {
 			MainRedraw();
 		}
@@ -2091,7 +2103,7 @@ LOG( log_pan, 2, ( "NEW = [ %0.3f, %0.3f ] \n", pos.x, pos.y ) )
 	case C_UP:
 		if ( mode != movePan )
 			break;
-		tempD.orig = mainD.orig = newOrig;
+		anchorD.orig = tempD.orig = mainD.orig = newOrig;
 		mainCenter.x = newOrig.x + mainD.size.x/2.0;
 		mainCenter.y = newOrig.y + mainD.size.y/2.0;
 		if (!liveMap)
@@ -2154,8 +2166,8 @@ LOG( log_pan, 1, ( "FINAL = [ %0.3f, %0.3f ]\n", pos.x, pos.y ) )
 			newOrig.x += sizeMap.x;
 		if (sizeMap.y<0)
 			newOrig.y += sizeMap.y;
-		tempD.size = mainD.size = newSize;
-		tempD.orig = mainD.orig = newOrig;
+		anchorD.size = tempD.size = mainD.size = newSize;
+		anchorD.orig = tempD.orig = mainD.orig = newOrig;
 		hideBox = TRUE;
 		MapRedraw();
 		hideBox = FALSE;
@@ -2167,8 +2179,8 @@ LOG( log_pan, 1, ( "FINAL = [ %0.3f, %0.3f ]\n", pos.x, pos.y ) )
 	case C_RUP:
 		if ( mode != resizePan )
 			break;
-		tempD.size = mainD.size = newSize;
-		tempD.orig = mainD.orig = newOrig;
+		anchorD.size = tempD.size = mainD.size = newSize;
+		anchorD.orig = tempD.orig = mainD.orig = newOrig;
 		mainCenter.x = newOrig.x+newSize.x/2;
 		mainCenter.y = newOrig.y+newSize.y/2;
 		DoNewScale( xscale );
@@ -2680,7 +2692,7 @@ EXPORT void DrawInit( int initialZoom )
 	h = h - (toolbarHeight+max(textHeight,infoHeight)+10);
 	if ( w <= 0 ) w = 1;
 	if ( h <= 0 ) h = 1;
-	tempD.d = mainD.d = wDrawCreate( mainW, 0, toolbarHeight, "", BD_TICKS|BD_MODKEYS,
+	anchorD.d = tempD.d = mainD.d = wDrawCreate( mainW, 0, toolbarHeight, "", BD_TICKS|BD_MODKEYS,
 												w, h, &mainD,
 				(wDrawRedrawCallBack_p)MainRedraw, DoMousew );
 
@@ -2698,14 +2710,14 @@ EXPORT void DrawInit( int initialZoom )
 			initialZoom++;
 		}
 	}
-	tempD.scale = mainD.scale;
+	anchorD.scale = tempD.scale = mainD.scale;
 	mainD.dpi = wDrawGetDPI( mainD.d );
 	if ( mainD.dpi == 75 ) {
 		mainD.dpi = 72.0;
 	} else if ( mainD.scale > 1.0 && mainD.scale <= 12.0 ) {
 		mainD.dpi = floor( (mainD.dpi + mainD.scale/2)/mainD.scale) * mainD.scale;
 	}
-	tempD.dpi = mainD.dpi;
+	anchorD.dpi = tempD.dpi = mainD.dpi;
 
 	SetMainSize();
 	mapD.scale = mapScale;
@@ -2798,7 +2810,7 @@ static STATUS_T CmdPan(
 					mainD.orig.x -= (pos.x - start_pos.x);
 					mainD.orig.y -= (pos.y - start_pos.y);
 					ConstraintOrig( &mainD.orig, mainD.size, FALSE );
-					tempD.orig = mainD.orig;
+					anchorD.orig = tempD.orig = mainD.orig;
 					mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 					mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 					DrawMapBoundingBox( TRUE );

@@ -1806,8 +1806,8 @@ EXPORT void DrawSegsO(
 		case SEG_JNTTRK:
         case SEG_BEZTRK:
 		case SEG_TEXT:
-			break;
 		default:
+			if (options&DTS_ANCHOR) break;
 			if (d->options&DC_QUICK)
 				return;
 			if ((d->options&DC_SIMPLE) != 0 &&
@@ -1983,6 +1983,25 @@ EXPORT void DrawSegsO(
 		}
 	}
 }
+
+
+/*
+ * Draw Segments setting DTS_ options.
+ */
+
+EXPORT void DrawAnchorSegs(
+		drawCmd_p d,
+		coOrd orig,
+		ANGLE_T angle,
+		trkSeg_p segPtr,
+		wIndex_t segCnt,
+		DIST_T trackGauge,
+		wDrawColor color )
+{
+
+	DrawSegsO( d, NULL, orig, angle, segPtr, segCnt, trackGauge, color, DTS_LEFT|DTS_RIGHT|DTS_ANCHOR );
+}
+
 
 
 /*
