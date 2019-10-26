@@ -241,7 +241,6 @@ STATUS_T CmdModify(
 	curveType_e curveType;
 	static BOOL_T changeTrackMode;
 
-
 	STATUS_T rc;
 	static DIST_T trackGauge;
 
@@ -354,9 +353,7 @@ STATUS_T CmdModify(
 			Dex.Trk = NULL;
 			rc = C_CONTINUE;
 		}
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-        MainRedraw();
-        MapRedraw();
+        TempRedraw();
 		return rc;
 
 	case wActionMove:
@@ -411,13 +408,10 @@ STATUS_T CmdModify(
 				}
 			}
 		} else if (((t=OnTrack(&pos,FALSE,FALSE))!= NULL) && (!(GetLayerFrozen(GetTrkLayer(t)) && GetLayerModule(GetTrkLayer(t)))) && QueryTrack(t, Q_IS_DRAW )) {
-			DrawTrack( t, &mainD, wDrawColorBlue );
+			DrawTrack( t, &anchorD, wDrawColorBlue );
 			CreateEndAnchor(pos,FALSE);
 		}
-		if (anchors_da.cnt)
-				DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
-		if (tempSegs_da.cnt)
-				DrawSegs( &mainD, zero, 0.0, &anchors(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+		TempRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -442,8 +436,7 @@ STATUS_T CmdModify(
 			rc = C_CONTINUE;
 			Dex.Trk = NULL;
 		}
-        MainRedraw();
-        MapRedraw();
+        TempRedraw();
 		return rc;
 
 	case C_UP:
@@ -469,8 +462,7 @@ STATUS_T CmdModify(
 		rc = ModifyTrack( Dex.Trk, C_UP, pos );
 		UndoEnd();
         Dex.Trk = NULL;
-        MainRedraw();
-        MapRedraw();
+        TempRedraw();
 		return rc;
 
 	case C_RDOWN:									//This is same as context menu....
@@ -510,8 +502,7 @@ LOG( log_modify, 1, ("extend endPt[%d] = [%0.3f %0.3f] A%0.3f\n",
 			}
 		}
 		Dex.first = TRUE;
-        MainRedraw();
-        MapRedraw();
+        TempRedraw();
         /* no break */
 	case C_RMOVE:
 extendTrackMove:
@@ -647,8 +638,7 @@ LOG( log_modify, 2, ("A=%0.3f X=%0.3f\n", a0, Dex.jointD.x ) )
 					FormatDistance( Dex.curveData.curveRadius * da),
 					Dex.curveData.a1 );
 		}
-        MainRedraw();
-        MapRedraw();
+        TempRedraw();
 		return C_CONTINUE;
 
 	case C_RUP:
@@ -711,7 +701,7 @@ LOG( log_modify, 1, ("R = %0.3f, A0 = %0.3f, A1 = %0.3f\n",
 		   UndrawNewTrack( Dex.Trk );
 		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 
 		return C_CONTINUE;
 

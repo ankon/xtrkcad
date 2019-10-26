@@ -583,8 +583,9 @@ EXPORT STATUS_T CmdDescribe(wAction_t action, coOrd pos)
         return C_CONTINUE;
 
     case wActionMove:
+    	TempRedraw();
     	if ((trk = OnTrack(&pos, FALSE, FALSE)) != NULL) {
-    		DrawTrack(trk,&mainD,wDrawColorBlue);
+    		DrawTrack(trk,&anchorD,wDrawColorBlue);
     	}
     	return C_CONTINUE;
 
@@ -628,7 +629,7 @@ EXPORT STATUS_T CmdDescribe(wAction_t action, coOrd pos)
 				DrawOriginAnchor(descTrk);
 			}
         } else if (trk){
-        	DrawTrack(trk,&mainD,wDrawColorBlue);
+        	DrawTrack(trk,&anchorD,wDrawColorBlue);
         }
 
 

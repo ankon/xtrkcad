@@ -439,8 +439,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 			} else InfoMessage( _("Click on End, +Shift = Split, +Ctrl = Move Description") );
 		} else
 			InfoMessage( _("Click on End, +Shift = Split, +Ctrl = Move Description") );
-		if (anchors_da.cnt)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		TempRedraw();
 		return C_CONTINUE;
 	case C_DOWN:
 	case C_MOVE:
