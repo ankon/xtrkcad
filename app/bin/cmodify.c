@@ -165,7 +165,9 @@ static STATUS_T ModifyCornu(wAction_t action, coOrd pos) {
 			TempRedraw();
 			break;
 		case C_REDRAW:
-
+			rc = CmdCornuModify(Dex.Trk, action, pos, trackGauge);
+			break;
+		default:
 			rc = CmdCornuModify(Dex.Trk, action, pos, trackGauge);
 			break;
 	}
