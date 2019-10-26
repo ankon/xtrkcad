@@ -179,7 +179,7 @@ static STATUS_T CmdStraight( wAction_t action, coOrd pos )
 		if (anchors_da.cnt)
 			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		if (Dl.down)
-			DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 	case C_CANCEL:
 		Dl.down = FALSE;

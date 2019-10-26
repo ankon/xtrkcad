@@ -2747,11 +2747,15 @@ static STATUS_T CmdSelect(
 		coOrd p = pos;
 		t = OnTrack( &p, FALSE, FALSE );
 		track_p ht;
-		if ((selectedTrackCount==0) && (t == NULL)) return C_CONTINUE;
+		if ((selectedTrackCount==0) && (t == NULL)) {
+			TempRedraw();
+			return C_CONTINUE;
+		}
 		if (t && !CheckTrackLayerSilent( t ) ) {
 			if (GetLayerFrozen(GetTrkLayer(t)) ) {
 				t = NULL;
-				return C_TERMINATE;
+				TempRedraw();
+				return C_CONTINUE;
 			}
 		}
 		if (selectedTrackCount>0) {

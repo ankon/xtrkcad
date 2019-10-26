@@ -903,6 +903,7 @@ STATUS_T CmdBezModify (track_p trk, wAction_t action, coOrd pos, DIST_T trackG) 
 		MapRedraw();
 		return C_TERMINATE;
 
+	case wActionMove:
 	case C_REDRAW:
 		if (Da.state != NONE)
 			DrawTrack(Da.selectTrack,&mainD,wDrawColorWhite);
