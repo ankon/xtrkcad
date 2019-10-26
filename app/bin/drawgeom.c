@@ -758,6 +758,7 @@ STATUS_T DrawGeomMouse(
 				lastValid = TRUE;
 				lastPos = pos1;
 				context->State = 2;
+				TempRedraw();
 				/*drawContext = context;
 				DrawGeomOp( (void*)context->Op );*/
 			}
@@ -842,6 +843,7 @@ STATUS_T DrawGeomMouse(
 			context->State = 1;
 			context->index = text_inx;
 			segCnt = tempSegs_da.cnt;
+			TempRedraw();
 			return C_CONTINUE;
 		}
 		context->Started = FALSE;
@@ -884,6 +886,7 @@ STATUS_T DrawGeomMouse(
 		}
 		context->State = 0;
 		segCnt = 0;
+		TempRedraw();
 		return C_TERMINATE;
 
 	case C_CANCEL:
@@ -1267,6 +1270,7 @@ STATUS_T DrawGeomPolyModify(
 			TempRedraw();
 			return C_CONTINUE;
 		case C_LDOUBLE:
+			TempRedraw();
 			return C_CONTINUE;
 		case C_MOVE:
 			tempSegs_da.cnt = 1;
