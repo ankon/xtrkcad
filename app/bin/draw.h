@@ -39,6 +39,7 @@
 #define DC_BLOCK_LEFT   (1<<11)
 #define DC_BLOCK_RIGHT  (1<<12)
 #define DC_THICK        (1<<13)
+#define DC_ANCHOR       (1<<14)
 
 #define INIT_MAIN_SCALE (8.0)
 #define INIT_MAP_SCALE	(64.0)
@@ -103,6 +104,7 @@ extern drawCmd_t mainD;
 extern coOrd mainCenter;
 extern drawCmd_t mapD;
 extern drawCmd_t tempD;
+extern drawCmd_t anchorD;
 #define RoomSize (mapD.size)
 extern coOrd oldMarker;
 extern wPos_t closePixels;
