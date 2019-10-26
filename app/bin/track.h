@@ -313,6 +313,14 @@ void CloneFilledDraw( wIndex_t, trkSeg_p, BOOL_T );
 void FreeFilledDraw( wIndex_t, trkSeg_p );
 DIST_T DistanceSegs( coOrd, ANGLE_T, wIndex_t, trkSeg_p, coOrd *, wIndex_t * );
 void DrawDimLine( drawCmd_p, coOrd, coOrd, char *, wFontSize_t, FLOAT_T, wDrawWidth, wDrawColor, long );
+void DrawAnchorSegs(
+		drawCmd_p d,
+		coOrd orig,
+		ANGLE_T angle,
+		trkSeg_p segPtr,
+		wIndex_t segCnt,
+		DIST_T trackGauge,
+		wDrawColor color );
 void DrawSegs(
 		drawCmd_p d,
 		coOrd orig,
@@ -556,6 +564,10 @@ BOOL_T ComputeElev( track_p trk, EPINX_T ep, BOOL_T on_path, DIST_T * elev, DIST
 #define DTS_TIES		(1<<4)
 #define DTS_NOCENTER	(1<<5)
 #define DTS_BRIDGE      (1<<6)
+#define DTS_BLOCK_LEFT  (1<<7)
+#define DTS_BLOCK_RIGHT (1<<8)
+#define DTS_BRIDGE      (1<<9)
+#define DTS_ANCHOR      (1<<10)
 
 void DrawCurvedTies( drawCmd_p, track_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, wDrawColor );
 void DrawCurvedTrack( drawCmd_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, coOrd, coOrd, track_p, DIST_T, wDrawColor, long );

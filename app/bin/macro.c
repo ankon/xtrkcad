@@ -760,9 +760,9 @@ static void PlaybackQuit( void )
 	mainD.size = oldMainSize;
 	mainD.orig = oldMainOrig;
 	SetRoomSize( oldRoomSize );
-	tempD.orig = mainD.orig;
-	tempD.size = mainD.size;
-	tempD.scale = mainD.scale;
+	anchorD.orig = tempD.orig = mainD.orig;
+	anchorD.size = tempD.size = mainD.size;
+	anchorD.scale = tempD.scale = mainD.scale;
 	ClearTracks();
 	checkPtMark = changed = 0;
 	RestoreTrackState();
@@ -1075,9 +1075,9 @@ static void Playback( void )
 			mainD.orig.x = x;
 			mainD.orig.y = y;
 			SetMainSize();
-			tempD.orig = mainD.orig;
-			tempD.size = mainD.size;
-			tempD.scale = mainD.scale;
+			anchorD.orig = tempD.orig = mainD.orig;
+			anchorD.size = tempD.size = mainD.size;
+			anchorD.scale = tempD.scale = mainD.scale;
 
 			DoRedraw();
 			if (playbackD != NULL && playbackBm != NULL)
