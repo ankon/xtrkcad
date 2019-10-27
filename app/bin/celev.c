@@ -400,7 +400,8 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 			CmdMoveDescription( action, pos );
 			return C_CONTINUE;
 		}
-		BOOL_T xing = FALSE;
+		static coOrd common;
+		static BOOL_T common_valid = FALSE;
 		coOrd p0 = pos, p2=pos;
 		if ((trk0 = OnTrack2(&p0,FALSE, TRUE, FALSE, NULL)) != NULL) {
 			EPINX_T ep0 = 0, ep1 = 1;
@@ -414,16 +415,20 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 				InfoMessage( _("Move to End-Point or Track Crossing") );
 				return C_CONTINUE;
 			}
-			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, trk0)) != NULL) {
+			p2=p0;
+			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, FALSE, trk0)) != NULL) {
 				if (GetEndPtConnectedToMe(trk0,trk1) == -1) {	//Not simply connected to each other!!!
 					if (GetTrkEndPtCnt(trk1) == 2) {
-						if (GetPointElev(trk1,p2,&elev1)) {
+						if (IsClose(FindDistance(p0,p2)) &&
+							(GetPointElev(trk1,p2,&elev1))) {
 							if (MyGetKeyState()&WKEY_SHIFT) {
+								common = p2; common_valid = TRUE;
 								InfoMessage (_("Xing - LowElev %0.3f, High %0.3f, Clearance %0.3f - Click to Split"), elev0, elev1, fabs(elev0-elev1));
 							} else
 								InfoMessage (_("Xing - LowElev %0.3f, High %0.3f, Clearance %0.3f"), elev0, elev1, fabs(elev0-elev1));
 						}
 						CreateSquareAnchor(p2);
+						TempRedraw();
 						return C_CONTINUE;
 					}
 				}
@@ -449,7 +454,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 			CmdMoveDescription( action, pos );
 			DYNARR_RESET(trkSeg_t,anchors_da);
 			elevTrk = NULL;
-			MainRedraw();
+			TempRedraw();
 			return C_CONTINUE;
 		}
 		/*no break*/
@@ -467,19 +472,22 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 				ElevSelect( trk0, ep0 );
 				return C_CONTINUE;
 			} else if ( (MyGetKeyState()&WKEY_SHIFT) ) {
+				if (common_valid) p0 = common;
+				common_valid = FALSE;
 				UndoStart( _("Split Track"), "SplitTrack( T%d[%d] )", GetTrkIndex(trk0), ep0 );
 				oldTrackCount = trackCount;
 				if (!SplitTrack( trk0, p0, ep0, &trk1, FALSE ))
 					return C_CONTINUE;
 				InfoMessage( _("Track Split!") );
 				ElevSelect( trk0, ep0 );
+				CreateEndAnchor(p0,TRUE);
 				UndoEnd();
 				elevUndo = FALSE;
 			}
 		}
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		elevTrk = NULL;
-		MainRedraw();
+		TempRedraw();
 		return C_CONTINUE;
 	case C_OK:
 		DoElevDone(NULL);
@@ -496,7 +504,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 		DoElevHilight( NULL );
 		HilightSelectedEndPt( TRUE, elevTrk, elevEp );
 		if (anchors_da.cnt)
-					DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 	}
 	return C_CONTINUE;
