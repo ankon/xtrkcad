@@ -224,5 +224,6 @@ BOOL_T WriteSignalSystem(FILE * f);
 signalParm_p FindSignalDef(char* scale, char * name);
 BOOL_T ReadSignalParm(char* line);
 void SetSignalHead(track_p sig,int head, char* app);
+void ReadHeadType (char * line);
 
 #endif /* APP_BIN_CSIGNAL_H_ */
