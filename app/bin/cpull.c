@@ -703,6 +703,7 @@ static STATUS_T CmdPull(
 	static EPINX_T ep1, t_ep1, t_ep2;
 	track_p trk2;
 	EPINX_T ep2;
+	BOOL_T rc;
 	static BOOL_T turntable;
 
 	int countTracksR0 = 0, countTracksR1 = 0, possibleEndPoints = 0;
@@ -714,7 +715,7 @@ static STATUS_T CmdPull(
 
 	case C_START:
 		if (selectedTrackCount==0)
-			InfoMessage( _("Select first end-point to connect or turntable, +Shift to tighten") );
+			InfoMessage( _("Select first end-point to connect or turntable, +Shift to tighten/merge") );
 		else
 			InfoMessage( _("Select first end-point to connect, or Right-Click for connecting selected tracks (not turntable)") );
 		trk1 = NULL;
@@ -730,44 +731,60 @@ static STATUS_T CmdPull(
 				if ((t1= OnTrack( &pos, FALSE, TRUE )) != NULL) {
 					if ((t_ep1 = PickUnconnectedEndPointSilent( pos, t1 )) < 0) {
 						if (QueryTrack(t1, Q_CAN_ADD_ENDPOINTS)) {
-							DrawTrack(t1,&mainD,wDrawColorBlue);
+							DrawTrack(t1,&tempD,wDrawColorBlue);
 							t_turn1 = TRUE;
 						} else t1 = NULL;
 					}
-					if (t1 && t_ep1 >=0)
-						CreateConnectAnchor(t_ep1,t1,FALSE);
+					if (t1 && t_ep1 >=0) {
+						if (IsClose(FindDistance(GetTrkEndPos(t1,t_ep1),pos))) {
+							CreateConnectAnchor(t_ep1,t1,FALSE);
+						} else t1 = NULL;
+					}
 				}
 			} else {
 				if (t1 != NULL) {
-					if (t_turn1) DrawTrack(t1,&mainD,wDrawColorBlue);
+					if (t_turn1) DrawTrack(t1,&tempD,wDrawColorBlue);
 					else CreateConnectAnchor(t_ep1,t1,FALSE);
 				}
 				if ((t2= OnTrackIgnore( &pos, FALSE, TRUE, TRUE, t1 )) != NULL) {
 					if ((t_ep2 = PickUnconnectedEndPointSilent( pos, t2 )) < 0) {
 						if (QueryTrack(t2, Q_CAN_ADD_ENDPOINTS)) {
-							DrawTrack(t2,&mainD,wDrawColorBlue);
+							DrawTrack(t2,&tempD,wDrawColorBlue);
 							t_turn2 = TRUE;
 						} else t2 = NULL;
 					}
-					if (t2 && t_ep2 >=0)
-						CreateConnectAnchor(t_ep2,t2,FALSE);
+					if (t2 && t_ep2 >=0) {
+						if (IsClose(FindDistance(GetTrkEndPos(t2,t_ep2),pos))) {
+							CreateConnectAnchor(t_ep2,t2,FALSE);
+						} else t1 = NULL;
+					}
 				}
-
 			}
-		} else {										//Shift, tighten
+		} else {										//Shift, tighten or merge
 			t1 = OnTrack( &pos, FALSE, TRUE );
-			if (t1 == NULL)
+			if (t1 == NULL) {
+				TempRedraw();
 				return C_CONTINUE;
+			}
 			t_ep1 = PickUnconnectedEndPointSilent( pos, t1 );
-			if ( t_ep1 < 0 )
-				return C_CONTINUE;
-			CreateConnectAnchor(t_ep1,t1,TRUE);
+			if ((t_ep1<0) || !IsClose(FindDistance(GetTrkEndPos(t1,t_ep1),pos))) {
+				if ((t_ep1 = PickEndPoint(pos,t1))>=0) {
+					if (IsClose(FindDistance(GetTrkEndPos(t1,t_ep1),pos))) {
+						if ((t2 =GetTrkEndTrk(t1,t_ep1))!=NULL) {
+							if (GetTrkType(t1)!= GetTrkType(t2)) return C_CONTINUE;
+							CreateConnectAnchor(t_ep1,t1,TRUE);
+							TempRedraw();
+							return C_CONTINUE;
+						}
+					}
+				}
+			} else CreateConnectAnchor(t_ep1,t1,TRUE);
 		}
 		TempRedraw();
 		break;
 
 	case C_LCLICK:
-		if ( (MyGetKeyState() & WKEY_SHIFT) == 0 ) {   //No shift - try and join
+		if ( (MyGetKeyState() & WKEY_SHIFT ) == 0 ) {   //No shift - try and join
 			if (trk1 == NULL) {
 				if ((trk1 = OnTrack( &pos, TRUE, TRUE )) != NULL) {
 					if ((ep1 = PickUnconnectedEndPoint( pos, trk1 )) < 0) {
@@ -811,6 +828,20 @@ static STATUS_T CmdPull(
 			if (trk1 == NULL)
 				return C_CONTINUE;
 			ep1 = PickUnconnectedEndPoint( pos, trk1 );
+			if ((ep1<0) || !IsClose(FindDistance(GetTrkEndPos(trk1,ep1),pos))) {
+				if ((ep1 = PickEndPoint(pos,trk1))>=0) {
+					if (IsClose(FindDistance(GetTrkEndPos(trk1,ep1),pos))) {
+						if ((trk2 =GetTrkEndTrk(trk1,ep1))!=NULL) {
+							if (GetTrkType(trk1)!= GetTrkType(trk2)) return C_TERMINATE;
+							ep2 = GetEndPtConnectedToMe(trk2,trk1);
+							MergeTracks(trk1,ep1,trk2,ep2);
+							MainRedraw();
+							MapRedraw();
+							return C_TERMINATE;
+						}
+					}
+				}
+			}
 			if ( ep1 < 0 )
 				return C_CONTINUE;
 			TightenTracks( trk1, ep1 );
@@ -831,9 +862,12 @@ static STATUS_T CmdPull(
 		return C_CONTINUE;
 
 	case C_TEXT:
-		if (action>>8 == 'S')
-			return ConnectMultiple();
-
+		if (action>>8 == 'S') {
+			rc = ConnectMultiple();
+			MainRedraw();
+			MapRedraw();
+			return rc;
+		}
 		break;
 
 	case C_CANCEL:
@@ -845,7 +879,7 @@ static STATUS_T CmdPull(
 	case C_CONFIRM:
 		return C_CONTINUE;
 
-	case C_CMDMENU:
+	case C_CMDMENU:;
 		wMenuPopupShow( pullPopupM );
 		return C_CONTINUE;
 		break;
@@ -863,6 +897,7 @@ static STATUS_T CmdPull(
 
 wMenuPush_p pullConnectMultiple;
 
+
 void pullMenuEnter(int key) {
 	int action;
 	action = C_TEXT;
@@ -874,5 +909,6 @@ void InitCmdPull( wMenu_p menu )
 {
 	AddMenuButton( menu, CmdPull, "cmdConnect", _("Connect Two Tracks"), wIconCreatePixMap(pull_xpm), LEVEL0_50, IC_STICKY|IC_INITNOTSTICKY|IC_LCLICK|IC_POPUP2|IC_CMDMENU|IC_WANT_MOVE, ACCL_CONNECT, NULL );
 	pullPopupM = MenuRegister( "Connect Options" );
-	pullConnectMultiple = wMenuPushCreate( pullPopupM, "", _("Connect All Selected - 'S'"), 0, (wMenuCallBack_p)pullMenuEnter, (void*) 'S');
+	pullConnectMultiple = wMenuPushCreate( pullPopupM, "", _("Connect All Selected Tracks"), 0, (wMenuCallBack_p)pullMenuEnter, (void*) 'S');
+
 }
