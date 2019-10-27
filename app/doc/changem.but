@@ -127,9 +127,9 @@ Using the \f{Select} command, select the track that is to have its elevation set
 
 \G{png.d/bconnect.png}
 
-This command is frequently used with \e{Sectional Track}.  But it can be useful to reattach ordinary track which has become disconected or split.
+This command is frequently used with \e{Sectional Track}.  But it can be useful to reattach flex track which has become disconected or merge split track.
 
-When in this connect, ends of tracks that can be selected are highlighted with a blue arrow. With \e{Shift} added, ends that can be tighten are highlighted with a blue "X".
+When in this connect, ends of tracks that can be selected are highlighted with a blue arrow. With \e{Shift} added, ends that can be tightened or merged are highlighted with a blue "X".
 
 There are three modes, 
 
@@ -137,7 +137,8 @@ There are three modes,
 
 \b a \f{Left} click on a track near a disconnected end-point followed by a second on a close-by disconnected end-point on another track will try to join two tracks
 
-\b a \f{Shift-Left} click on a connected track will "Tighten Tracks" moving other tracks connected to this track to reduce any small distance or angle differences  
+\b a \f{Shift-Left} click on a disconnected track joint will "Tighten Tracks" moving other tracks connected to this track to reduce any small distance or angle differences. 
+Doing this at a connected track joint between two similar tracks (same type of track and radius) will merge the two tracks and remove the joint.   
 
 \b Selecting a set of tracks followed by a \e{"S" key} or using the Context menu will prompt for confirmation that all selected tracks with unconnected endpoints should be joined to nearby selected track at an unconnected end point. This mode allows for an entire layout to be reconnected after a Select-All.  
 
