@@ -829,6 +829,13 @@ static BOOL_T MergeBezier(
 	UndoStart( _("Merge Bezier"), "MergeBezier( T%d[%d] T%d[%d] )", GetTrkIndex(trk0), ep0, GetTrkIndex(trk1), ep1 );
 	UndoModify( trk0 );
 	UndrawNewTrack( trk0 );
+
+	if ((trk2 = GetTrkEndTrk(trk0,ep0)) != NULL) {
+			if (trk2 != trk1) return FALSE;
+			DisconnectTracks(trk0,ep0,trk1,ep1);
+	}
+	trk2 = NULL;
+
 	if (tracks) {
 		trk2 = GetTrkEndTrk( trk1, 1-ep1 );
 		if (trk2) {

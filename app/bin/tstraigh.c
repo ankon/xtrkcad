@@ -476,8 +476,8 @@ BOOL_T ExtendStraightToJoin(
 		return FALSE;
 	}
 
-	if ( GetTrkType(trk0) != T_STRAIGHT &&
-		 GetTrkType(trk1) != T_STRAIGHT ) {
+	if ( GetTrkType(trk0) == T_STRAIGHT &&
+		 GetTrkType(trk1) == T_STRAIGHT ) {
 		aa = FindAngle( pos0, pos1 );
 		aa = NormalizeAngle( aa-a0+connectAngle/2.0);
 		if (aa > connectAngle)
@@ -487,6 +487,13 @@ BOOL_T ExtendStraightToJoin(
 	UndoModify( trk0 );
 	UndoModify( trk1 );
 	trk2 = trk0x = trk1x = NULL;
+
+	if ((trk2 = GetTrkEndTrk(trk0,ep0)) != NULL) {
+		if (trk2 != trk1) return FALSE;
+		DisconnectTracks(trk0,ep0,trk1,ep1);
+	}
+	trk2 = NULL;
+
 	if ( GetTrkType(trk0) == T_STRAIGHT ) {
 		pos0 = GetTrkEndPos( trk0, 1-ep0 );
 		trk0x = GetTrkEndTrk( trk0, 1-ep0 );
