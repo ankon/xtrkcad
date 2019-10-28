@@ -127,8 +127,6 @@ static STATUS_T CmdStraight( wAction_t action, coOrd pos )
 				}
 			}
 			TempRedraw();
-			if (anchors_da.cnt)
-				DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 			return C_CONTINUE;
 		}
 		//DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorWhite );
@@ -147,7 +145,6 @@ static STATUS_T CmdStraight( wAction_t action, coOrd pos )
 		tempSegs(0).u.l.pos[1] = pos;
 		tempSegs_da.cnt = 1;
 		TempRedraw();
-		//DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 
 	case C_UP:
