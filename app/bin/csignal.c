@@ -1293,7 +1293,7 @@ static long signalEditHeadCount;
 static wIndex_t signalEditAspectChoice;
 static char signalEditTrackInxEP[10];
 
-static void RedrawEditSignal( wDraw_p, void *, wPos_t, wPos_t );
+static void RedrawEditSignal( /*wDraw_p, void *, wPos_t, wPos_t*/ );
 
 static char *dispmodeLabels[] = { N_("Aspects"), N_("Heads"), N_("Groups"), N_("Static"), NULL };
 
