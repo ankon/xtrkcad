@@ -2481,6 +2481,7 @@ static STATUS_T SelectArea(
 
 	case C_DOWN:
 	case C_RDOWN:
+		state = 0;
 		pos0 = pos;
 		add = (action == C_DOWN);
 		return C_CONTINUE;
@@ -2642,6 +2643,8 @@ track_p IsInsideABox(coOrd pos) {
 
 void DrawHighlightBoxes() {
 	track_p ts = NULL;
+	coOrd origin,max;
+	BOOL_T first = TRUE;
 	while ( TrackIterate( &ts ) ) {
 		if ( !GetLayerVisible( GetTrkLayer( ts))) continue;
 		if (!GetTrkSelected(ts)) continue;
@@ -2650,15 +2653,26 @@ void DrawHighlightBoxes() {
 		}
 		coOrd hi,lo;
 		GetBoundingBox(ts, &hi, &lo);
-		coOrd hilite,size;
-		hilite = lo;
-		size.x = hi.x-lo.x;
-		size.y = hi.y-lo.y;
+		if (first) {
+			origin = lo;
+			max = hi;
+			first = FALSE;
+		} else {
+			if (lo.x <origin.x) origin.x = lo.x;
+			if (lo.y <origin.y) origin.y = lo.y;
+			if (hi.x >max.x) max.x = hi.x;
+			if (hi.y >max.y) max.y = hi.y;
+		}
+	}
+	if (!first) {
+		coOrd size;
+		size.x = max.x-origin.x;
+		size.y = max.y-origin.y;
 		DIST_T w,h;
 		w = (wPos_t)((size.x/mainD.scale)*mainD.dpi+0.5+10);
 		h = (wPos_t)((size.y/mainD.scale)*mainD.dpi+0.5+10);
 		wPos_t x, y;
-		anchorD.CoOrd2Pix(&anchorD,hilite,&x,&y);
+		anchorD.CoOrd2Pix(&anchorD,origin,&x,&y);
 		wDrawFilledRectangle(anchorD.d, x-5, y-5, w, h, wDrawColorPowderedBlue, wDrawOptTemp);
 	}
 
@@ -2776,7 +2790,6 @@ static STATUS_T CmdSelect(
 				}
 			}
 		}
-		TempRedraw();
 		if (t && !GetTrkSelected(t)) {
 			if (GetLayerModule(GetTrkLayer(t))) {
 				track_p lt;
@@ -2786,6 +2799,7 @@ static STATUS_T CmdSelect(
 				DrawTrack(t,&anchorD,wDrawColorBlueHighlight);    //Special color means THICK3 as well
 			}
 		}
+		TempRedraw();
 		break;
 
 	case C_DOWN:
@@ -2900,9 +2914,10 @@ static STATUS_T CmdSelect(
 		} else if (anchors_da.cnt) {
 			DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		}
-		if (mode==AREA)
+		if (mode==AREA )
 			rc = SelectArea( action, pos );
-		DrawHighlightBoxes();
+		if (!doingMove && !doingRotate)
+			DrawHighlightBoxes();
 		return rc;
 
 	case C_LCLICK:

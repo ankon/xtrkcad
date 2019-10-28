@@ -712,7 +712,8 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 	//Wipe out temp space with 0 alpha (transparent)
 
 	cairo_t* cairo = cairo_create(bd->temp_surface);
-	cairo_set_operator (cairo, CAIRO_OPERATOR_CLEAR);
+	cairo_set_source_rgba(cairo, 0.0, 0.0, 0.0, 0.0);
+	cairo_set_operator (cairo, CAIRO_OPERATOR_SOURCE);
 	cairo_move_to(cairo, 0, 0);
 	cairo_rel_line_to(cairo, bd->w, 0);
 	cairo_rel_line_to(cairo, 0, bd->h);
@@ -727,7 +728,6 @@ cairo_t* CreateCursorSurface(wControl_p ct, wSurface_p surface, wPos_t width, wP
 	cairo_t* cairo = gdk_cairo_create(bd->pixmap);
 	cairo_set_source_rgba(cairo, 1.0, 1.0, 1.0, 1.0);
 	cairo_set_operator (cairo, CAIRO_OPERATOR_SOURCE);
-
 	cairo_move_to(cairo, 0, 0);
 	cairo_rel_line_to(cairo, bd->w, 0);
 	cairo_rel_line_to(cairo, 0, bd->h);
@@ -1029,23 +1029,23 @@ static gint draw_expose_event(
 {
 
 	cairo_t* cairo = gdk_cairo_create (widget->window);
-	gdk_cairo_set_source_pixmap(cairo,bd->pixmap,event->area.x, event->area.y);
+	gdk_cairo_set_source_pixmap(cairo,bd->pixmap,0,0);
 	cairo_rectangle(cairo,event->area.x, event->area.y,
 					event->area.width, event->area.height);
 	cairo_set_operator(cairo,CAIRO_OPERATOR_SOURCE);
 	cairo_fill(cairo);
 
 	if (bd->temp_surface) {
-		cairo_set_source_surface(cairo,bd->temp_surface,event->area.x, event->area.y);
-		cairo_set_operator(cairo,CAIRO_OPERATOR_OVER);
+		cairo_set_source_surface(cairo,bd->temp_surface,0,0);
 		cairo_rectangle(cairo,event->area.x, event->area.y,
 					event->area.width, event->area.height);
+		cairo_set_operator(cairo,CAIRO_OPERATOR_OVER);
 		cairo_fill(cairo);
 	}
 
 
 	if (bd->cursor_surface.surface && bd->cursor_surface.show) {
-		cairo_set_source_surface(cairo,bd->cursor_surface.surface,event->area.x, event->area.y);
+		cairo_set_source_surface(cairo,bd->cursor_surface.surface,0,0);
 		cairo_set_operator(cairo,CAIRO_OPERATOR_OVER);
 		cairo_rectangle(cairo,event->area.x, event->area.y,
 				       event->area.width, event->area.height);
