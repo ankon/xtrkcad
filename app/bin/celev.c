@@ -362,6 +362,9 @@ static BOOL_T GetPointElev(track_p trk, coOrd pos, DIST_T * height) {
 	} else if (GetTrkEndPtCnt(trk) == 1 && GetTrkEndElevCachedHeight(trk,0,&elev0,&len)) {
 		*height = elev0;
 		return TRUE;
+	} else {
+		*height = GetTrkElev(trk);
+		return TRUE;
 	}
 	return FALSE;
 }
@@ -418,7 +421,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 			p2=p0;
 			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, FALSE, trk0)) != NULL) {
 				if (GetEndPtConnectedToMe(trk0,trk1) == -1) {	//Not simply connected to each other!!!
-					if (GetTrkEndPtCnt(trk1) == 2) {
+					//if (GetTrkEndPtCnt(trk1) > 1 ) {
 						if (IsClose(FindDistance(p0,p2)) &&
 							(GetPointElev(trk1,p2,&elev1))) {
 							if (MyGetKeyState()&WKEY_SHIFT) {
@@ -430,7 +433,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 						CreateSquareAnchor(p2);
 						TempRedraw();
 						return C_CONTINUE;
-					}
+					//}
 				}
 			}
 			if ((ep0 = PickEndPoint( p0, trk0 )) != -1)  {
