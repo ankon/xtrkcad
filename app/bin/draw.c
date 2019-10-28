@@ -948,7 +948,7 @@ EXPORT drawCmd_t tempD = {
 		NULL, &tempDrawFuncs, DC_TICKS|DC_SIMPLE, INIT_MAIN_SCALE, 0.0, {0.0,0.0}, {0.0,0.0}, MainPix2CoOrd, MainCoOrd2Pix };
 
 EXPORT drawCmd_t anchorD = {
-		NULL, &anchorDrawFuncs, DC_TICKS, INIT_MAIN_SCALE, 0.0, {0.0,0.0}, {0.0,0.0}, MainPix2CoOrd, MainCoOrd2Pix };
+		NULL, &anchorDrawFuncs, DC_ANCHOR|DC_TICKS, INIT_MAIN_SCALE, 0.0, {0.0,0.0}, {0.0,0.0}, MainPix2CoOrd, MainCoOrd2Pix };
 
 EXPORT drawCmd_t mapD = {
 		NULL, &screenDrawFuncs, 0, INIT_MAP_SCALE, 0.0, {0.0,0.0}, {96.0,48.0}, Pix2CoOrd, CoOrd2Pix };
@@ -2924,30 +2924,23 @@ static STATUS_T CmdPan(
 			ConstraintOrig( &mainD.orig, mainD.size, TRUE );
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
-			MapRedraw();
-			MainRedraw();
 		} else if (((action>>8) == '0') || ((action>>8) == 'o')) {     //"0" or "o"
 			mainD.orig = zero;
 			ConstraintOrig( &mainD.orig, mainD.size, TRUE);
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
-			MapRedraw();
-			MainRedraw();
 		} else if ((action>>8) >= '1' && (action>>8) <= '9') {         //"1" to "9"
 			scale_x = (action>>8)&0x0F;
 			DoNewScale(scale_x);
-			MapRedraw();
-			MainRedraw();
 		} else if ((action>>8) == '@') {								// "@"
 			mainD.orig.x = pos.x - mainD.size.x/2.0;
 			mainD.orig.y = pos.y - mainD.size.y/2.0;
 			ConstraintOrig( &mainD.orig, mainD.size, TRUE);
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
-			MapRedraw();
-			MainRedraw();
 		}
-
+		MapRedraw();
+		MainRedraw();
 		if ((action>>8) == 0x0D) {
 			wSetCursor(mainD.d,defaultCursor);
 			return C_TERMINATE;

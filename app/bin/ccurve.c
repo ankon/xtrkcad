@@ -537,7 +537,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			}
 		}
 		mainD.funcs->options = 0;
-		MainRedraw();
+		TempRedraw();
 		return rc;
 	case C_TEXT:
 		if ( Da.state == 0 )
@@ -555,7 +555,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			mainD.funcs->options = 0;
 			segCnt = tempSegs_da.cnt;
 			InfoMessage( _("Drag on Red arrows to adjust curve") );
-			MainRedraw();
+			TempRedraw();
 			return C_CONTINUE;
 		} else if ((curveMode == crvCmdFromChord && Da.state == 0 && Da.trk)) {
 			pos = Da.middle;

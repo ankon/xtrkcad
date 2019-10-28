@@ -744,7 +744,6 @@ EXPORT STATUS_T CmdStructureAction(
 		PlaceStructure( rot0, pos, origPos, &Dst.pos, &Dst.angle );
 		CreateMoveAnchor(pos);
         TempRedraw();
-        MapRedraw();
 		InfoMessage( "[ %0.3f %0.3f ]", pos.x - origPos.x, pos.y - origPos.y );
 		return C_CONTINUE;
 
@@ -792,7 +791,6 @@ EXPORT STATUS_T CmdStructureAction(
 		Dst.state = 1;
 		InfoMessage(_("Left-Drag to place, Ctrl+Left-Drag or Right-Drag to Rotate, Space or Enter to accept, Esc to Cancel"));
         TempRedraw();
-        MapRedraw();
 		return C_CONTINUE;
 
 	case C_CMDMENU:
@@ -823,6 +821,8 @@ EXPORT STATUS_T CmdStructureAction(
 		Dst.state = 0;
 		InfoSubstituteControls( NULL, NULL );
 		HotBarCancel();
+		MainRedraw();
+		MapRedraw();
 		/*wHide( newTurn.reg.win );*/
 		return C_TERMINATE;
 
@@ -834,6 +834,8 @@ EXPORT STATUS_T CmdStructureAction(
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		NewStructure();
 		InfoSubstituteControls( NULL, NULL );
+		MainRedraw();
+		MapRedraw();
 		return C_TERMINATE;
 
 	case C_FINISH:
@@ -842,6 +844,8 @@ EXPORT STATUS_T CmdStructureAction(
 			CmdStructureAction( C_OK, pos );
 		else
 			CmdStructureAction( C_CANCEL, pos );
+		MainRedraw();
+		MapRedraw();
 		return C_TERMINATE;
 
 	default:

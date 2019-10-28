@@ -1040,8 +1040,12 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 static void DrawDraw( track_p t, drawCmd_p d, wDrawColor color )
 {
 	struct extraData * xx = GetTrkExtraData(t);
-	if ( (d->funcs->options&DC_QUICK) == 0 )
-		DrawSegs( d, xx->orig, xx->angle, xx->segs, xx->segCnt, 0.0, color );
+	if ( (d->options&DC_QUICK) == 0 ) {
+		if ((d->options&DC_ANCHOR) == 0)
+			DrawSegs( d, xx->orig, xx->angle, xx->segs, xx->segCnt, 0.0, color );
+		else
+			DrawAnchorSegs( d, xx->orig, xx->angle, xx->segs, xx->segCnt, 0.0, color );
+	}
 }
 
 

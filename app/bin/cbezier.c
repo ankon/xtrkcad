@@ -494,9 +494,9 @@ EXPORT void DrawBezCurve(trkSeg_p control_arm1,
 					wDrawColor color
 					) {
 	long oldDrawOptions = tempD.funcs->options;
-	anchorD.funcs->options = tempD.funcs->options = wDrawOptTemp;
+	tempD.funcs->options = wDrawOptTemp;
 	long oldOptions = tempD.options;
-	anchorD.options = tempD.options = DC_TICKS;
+	tempD.options = DC_TICKS;
 	anchorD.orig = tempD.orig = mainD.orig;
 	anchorD.angle = tempD.angle = mainD.angle;
 	if (crvSegs_cnt && curveSegs)
@@ -505,8 +505,8 @@ EXPORT void DrawBezCurve(trkSeg_p control_arm1,
 		DrawAnchorSegs( &anchorD, zero, 0.0, control_arm1, cp1Segs_cnt, Da.trackGauge, drawColorBlack );
 	if (cp2Segs_cnt && control_arm2)
 		DrawAnchorSegs( &anchorD, zero, 0.0, control_arm2, cp2Segs_cnt, Da.trackGauge, drawColorBlack );
-	anchorD.funcs->options = oldDrawOptions;
-	anchorD.options = tempD.options = oldOptions;
+	tempD.funcs->options = oldDrawOptions;
+	tempD.options = oldOptions;
 
 }
 
