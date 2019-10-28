@@ -2790,6 +2790,7 @@ static STATUS_T CmdSelect(
 				}
 			}
 		}
+		TempRedraw();
 		if (t && !GetTrkSelected(t)) {
 			if (GetLayerModule(GetTrkLayer(t))) {
 				track_p lt;
@@ -2799,7 +2800,6 @@ static STATUS_T CmdSelect(
 				DrawTrack(t,&anchorD,wDrawColorBlueHighlight);    //Special color means THICK3 as well
 			}
 		}
-		TempRedraw();
 		break;
 
 	case C_DOWN:

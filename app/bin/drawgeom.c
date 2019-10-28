@@ -890,9 +890,6 @@ STATUS_T DrawGeomMouse(
 		}
 		DYNARR_RESET(trkSeg_t, anchors_da );
 		oldOptions = context->D->funcs->options;
-		//context->D->funcs->options |= wDrawOptTemp;
-		//DrawSegs( context->D, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
-		//context->D->funcs->options = oldOptions;
 		tempSegs_da.cnt = 0;
 		context->message( "" );
 		context->Changed = FALSE;
