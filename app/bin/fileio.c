@@ -609,6 +609,7 @@ static BOOL_T ReadTrackFile(
 	while ( paramFile && ( fgets(paramLine, sizeof paramLine, paramFile) ) != NULL ) {
 		count++;
 		if (count%10 == 0) {
+			if (count%100 == 0) MainRedraw();
 			InfoMessage( "%d", count );
 			wFlush();
 		}

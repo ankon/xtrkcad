@@ -424,13 +424,13 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 					//if (GetTrkEndPtCnt(trk1) > 1 ) {
 						if (IsClose(FindDistance(p0,p2)) &&
 							(GetPointElev(trk1,p2,&elev1))) {
-							if (MyGetKeyState()&WKEY_SHIFT) {
+							if ((MyGetKeyState()&WKEY_SHIFT) && QueryTrack(trk0,Q_MODIFY_CAN_SPLIT)) {
 								common = p2; common_valid = TRUE;
 								InfoMessage (_("Xing - LowElev %0.3f, High %0.3f, Clearance %0.3f - Click to Split"), elev0, elev1, fabs(elev0-elev1));
 							} else
 								InfoMessage (_("Xing - LowElev %0.3f, High %0.3f, Clearance %0.3f"), elev0, elev1, fabs(elev0-elev1));
+							CreateSquareAnchor(p2);
 						}
-						CreateSquareAnchor(p2);
 						TempRedraw();
 						return C_CONTINUE;
 					//}
