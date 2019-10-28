@@ -417,11 +417,12 @@ STATUS_T CmdModify(
 					}
 				}
 			}
+			TempRedraw();
 		} else if (((t=OnTrack(&pos,FALSE,FALSE))!= NULL) && (!(GetLayerFrozen(GetTrkLayer(t)) && GetLayerModule(GetTrkLayer(t)))) && QueryTrack(t, Q_IS_DRAW )) {
-			DrawTrack( t, &anchorD, wDrawColorBlue );
 			CreateEndAnchor(pos,FALSE);
+			TempRedraw();
+			DrawTrack( t, &anchorD, wDrawColorBlue );
 		}
-		TempRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
