@@ -52,6 +52,12 @@
 #include "utility.h"
 #include "layout.h"
 
+#ifdef WINDOWS
+static int overlayDraw = 0;          //Use Main Redraw
+#else
+static int overlayDraw = 1;          //Static to control which clearing algorithm is used
+#endif
+
 static void DrawRoomWalls( wBool_t );
 EXPORT void DrawMarkers( void );
 static void ConstraintOrig( coOrd *, coOrd, int );
@@ -1300,10 +1306,14 @@ EXPORT void SetMainSize( void )
 }
 
 EXPORT void TempRedraw( void ) {
-	wDrawClearTemp(tempD.d);
-	DrawMarkers();
-	RulerRedraw( FALSE );
-	DoCurCommand( C_REDRAW, zero );
+
+	if (overlayDraw) {
+		//DrawMarkers();
+		//RulerRedraw( FALSE );
+		DoCurCommand( C_REDRAW, zero );
+	} else {
+		MainRedraw();
+	}
 }
 
 EXPORT void MainRedraw( void )
@@ -2305,12 +2315,19 @@ GetMousePosition( int *x, int *y )
 	}
 }
 
+
+
 static void DoMouse( wAction_t action, coOrd pos )
 {
 
 	BOOL_T rc;
 	wPos_t x, y;
 	static BOOL_T ignoreCommands;
+
+	if (overlayDraw) {
+		wDrawClearTemp(tempD.d);         // Before calling commands - ensure temp cleared
+		RulerRedraw( FALSE );
+	}
 
 	LOG( log_mouse, 2, ( "DoMouse( %d, %0.3f, %0.3f )\n", action, pos.x, pos.y ) )
 

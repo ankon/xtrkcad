@@ -1247,6 +1247,7 @@ void wDrawRestoreImage(
 	InvalidateRect( bd->hWnd, NULL, FALSE );
 }
 
+void wDrawClearTemp(    wDraw_p ) {};  //No implementation
 
 void wDrawClear( wDraw_p d )
 {
