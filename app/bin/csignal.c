@@ -2328,8 +2328,8 @@ EXPORT void InitTrkSignal ( void )
 {
     log_signal = LogFindIndex ( "signal" );
     //InitSignalSystem();
-    AddParam( "SIGNALITEM ", ReadSignalParam);
-    AddParam( "HEADTYPE ", ReadHeadTypeParam );
+    AddParam( "SIGNALPART", ReadSignalParam);
+    AddParam( "HEADTYPE", ReadHeadTypeParam );
     //AddParam( "SIGNALSYSTEM ", ReadSignalSystemParam);
     AddParam( "SIGNALPOST", ReadSignalPost);
     T_SIGNAL = InitObject(&signalCmds);
