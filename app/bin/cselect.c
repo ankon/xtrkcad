@@ -1500,7 +1500,7 @@ void ConnectAllAlignedTracks() {
 			coOrd pos2;
 			pos2 = pos1;
 			track_p tt;
-			if ((tt=OnTrackIgnore(&pos2,FALSE,TRUE,TRUE,ts))!=NULL) {
+			if ((tt=OnTrackIgnore(&pos2,FALSE,TRUE,ts))!=NULL) {
 				if (!GetTrkSelected(tt)) {							//Ignore if new track is selected
 					EPINX_T epp = PickUnconnectedEndPointSilent(pos2, tt);
 					if (epp>=0) {

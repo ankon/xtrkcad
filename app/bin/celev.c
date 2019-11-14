@@ -419,7 +419,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 				return C_CONTINUE;
 			}
 			p2=p0;
-			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, FALSE, trk0)) != NULL) {
+			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, trk0)) != NULL) {
 				if (GetEndPtConnectedToMe(trk0,trk1) == -1) {	//Not simply connected to each other!!!
 					//if (GetTrkEndPtCnt(trk1) > 1 ) {
 						if (IsClose(FindDistance(p0,p2)) &&
