@@ -63,7 +63,6 @@
 #include "fcntl.h"
 #include "i18n.h"
 #include "layout.h"
-#include "csignal.h"
 #include "manifest.h"
 #include "messages.h"
 #include "misc.h"
@@ -675,8 +674,6 @@ static BOOL_T ReadTrackFile(
 			}
 		} else if (strncmp( paramLine, "LAYERS ", 7 ) == 0) {
 			ReadLayers( paramLine+7 );
-		} else if (strncmp( paramLine, "HEADTYPE ", 7 ) == 0) {
-			ReadHeadType( paramLine );
 		} else {
 			if( !(ret = InputError( "unknown command", TRUE )))
 				break;

@@ -566,8 +566,7 @@ BOOL_T ComputeElev( track_p trk, EPINX_T ep, BOOL_T on_path, DIST_T * elev, DIST
 #define DTS_BRIDGE      (1<<6)
 #define DTS_BLOCK_LEFT  (1<<7)
 #define DTS_BLOCK_RIGHT (1<<8)
-#define DTS_BRIDGE      (1<<9)
-#define DTS_ANCHOR      (1<<10)
+#define DTS_ANCHOR      (1<<9)
 
 void DrawCurvedTies( drawCmd_p, track_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, wDrawColor );
 void DrawCurvedTrack( drawCmd_p, coOrd, DIST_T, ANGLE_T, ANGLE_T, coOrd, coOrd, track_p, DIST_T, wDrawColor, long );
