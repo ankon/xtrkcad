@@ -86,6 +86,8 @@ EXPORT long drawCount;
 EXPORT BOOL_T drawEnable = TRUE;
 EXPORT long currRedraw = 0;
 
+EXPORT coOrd panCenter;
+
 EXPORT wDrawColor drawColorBlack;
 EXPORT wDrawColor drawColorWhite;
 EXPORT wDrawColor drawColorRed;
@@ -1956,7 +1958,7 @@ static void DoNewScale( DIST_T scale )
 		mainD.orig.x = mainCenter.x - mainD.size.x/2.0;
 		mainD.orig.y = mainCenter.y - mainD.size.y/2.0;
 	}
-	ConstraintOrig( &mainD.orig, mainD.size, TRUE );
+	ConstraintOrig( &mainD.orig, mainD.size, FALSE );
 	MainRedraw();
 	anchorD.orig = tempD.orig = mainD.orig ;
 LOG( log_zoom, 1, ( "center = [%0.3f %0.3f]\n", mainCenter.x, mainCenter.y ) )
@@ -1994,12 +1996,12 @@ EXPORT void DoZoomUp( void * mode )
 				if (mainD.scale <=1.0) 
 					InfoMessage(_("Macro Zoom Mode"));
 				else
-					InfoMessage(_("Use Shift+PageDwn to jump to preset Zoom In"));
+					InfoMessage(_(""));
 				DoNewScale( zoomList[ i - 1 ].value );	
 				
-			} else InfoMessage("Min Macro Zoom");
+			} else InfoMessage("Minimum Macro Zoom");
 		} else {
-			InfoMessage(_("Scale 1:1 - Use Ctrl+PageDwn to go to Macro Zoom Mode"));
+			InfoMessage(_("Scale 1:1 - Use Ctrl+ to go to Macro Zoom Mode"));
 		}
 	} else if ( (MyGetKeyState()&WKEY_CTRL) == 0 ) {
 		wPrefGetInteger( "misc", "zoomin", &newScale, 4 );
@@ -2027,7 +2029,7 @@ EXPORT void DoZoomDown( void  * mode)
 		i = ScaleInx( mainD.scale );
 		if (i < 0) i = NearestScaleInx(mainD.scale, TRUE);
 		if( i>= 0 && i < ( sizeof zoomList/sizeof zoomList[0] - 1 )) {
-			InfoMessage(_("Use Shift+PageUp to jump to preset Zoom Out"));
+			InfoMessage(_(""));
 			DoNewScale( zoomList[ i + 1 ].value );
 		} else
 			InfoMessage(_("At Maximum Zoom Out"));
@@ -2079,6 +2081,16 @@ EXPORT void CoOrd2Pix(
 {
 	*x = (wPos_t)((pos.x-d->orig.x)/d->scale*d->dpi);
 	*y = (wPos_t)((pos.y-d->orig.y)/d->scale*d->dpi);
+}
+
+EXPORT void PanHere(void * mode) {
+	mainD.orig.x = panCenter.x - mainD.size.x/2.0;
+	mainD.orig.y = panCenter.y - mainD.size.y/2.0;
+	ConstraintOrig( &mainD.orig, mainD.size, FALSE );
+	mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
+	mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
+	MainRedraw();
+	MapRedraw();
 }
 
 
@@ -2924,7 +2936,7 @@ static STATUS_T CmdPan(
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 		} else if (((action>>8) == '0') || ((action>>8) == 'o')) {     //"0" or "o"
 			mainD.orig = zero;
-			ConstraintOrig( &mainD.orig, mainD.size, TRUE);
+			ConstraintOrig( &mainD.orig, mainD.size, FALSE);
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 		} else if ((action>>8) >= '1' && (action>>8) <= '9') {         //"1" to "9"
@@ -2933,7 +2945,7 @@ static STATUS_T CmdPan(
 		} else if ((action>>8) == '@') {								// "@"
 			mainD.orig.x = pos.x - mainD.size.x/2.0;
 			mainD.orig.y = pos.y - mainD.size.y/2.0;
-			ConstraintOrig( &mainD.orig, mainD.size, TRUE);
+			ConstraintOrig( &mainD.orig, mainD.size, FALSE);
 			mainCenter.x = mainD.orig.x + mainD.size.x/2.0;
 			mainCenter.y = mainD.orig.y + mainD.size.y/2.0;
 		}
@@ -2948,6 +2960,7 @@ static STATUS_T CmdPan(
 		}
 		break;
 	case C_CMDMENU:
+		panCenter = pos;
 		wMenuPopupShow( panPopupM );
 		return C_CONTINUE;
 		break;
@@ -2993,5 +3006,5 @@ EXPORT void InitCmdPan2( wMenu_p menu )
 	zoomLvl8 = wMenuPushCreate( panPopupM, "", _("Zoom To 1::8 - '8'"), 0, (wMenuCallBack_p)panMenuEnter, (void*) '8');
 	zoomLvl9 = wMenuPushCreate( panPopupM, "", _("Zoom To 1::9 - '9'"), 0, (wMenuCallBack_p)panMenuEnter, (void*) '9');
 	panOrig = wMenuPushCreate( panPopupM, "", _("Pan To Origin - 'o'"), 0, (wMenuCallBack_p)panMenuEnter, (void*) 'o');
-
+	panHere = wMenuPushCreate( panPopupM, "", _("Pan Center Here - '@'"), 0, (wMenuCallBack_p)PanHere, (void*) 0);
 }

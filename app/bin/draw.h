@@ -117,6 +117,8 @@ extern long drawCount;
 extern BOOL_T drawEnable;
 extern long currRedraw;
 
+extern coOrd panCenter;
+
 
 extern wDrawColor drawColorBlack;
 extern wDrawColor drawColorWhite;
@@ -225,6 +227,7 @@ void DrawInit( int );
 void DoZoomUp( void * );
 void DoZoomDown( void * );
 void DoZoom( DIST_T * );
+void PanHere(void *);
 
 void InitCmdZoom( wMenu_p, wMenu_p );
 

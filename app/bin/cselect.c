@@ -87,6 +87,12 @@ static wMenu_p selectPopup2CM;
 static wMenu_p selectPopup2RM;
 static wMenu_p selectPopup2TM;
 static wMenuPush_p menuPushModify;
+static wMenuPush_p rotateAlignMI;
+static wMenuPush_p descriptionMI;
+static wMenuPush_p hideMI;
+static wMenuPush_p bridgeMI;
+static wMenuPush_p tiesMI;
+
 
 static BOOL_T doingAlign = FALSE;
 static enum { AREA, MOVE } mode;
@@ -1620,6 +1626,45 @@ void DrawHighlightLayer(int layer) {
 	//wDrawFilledRectangle(mainD.d, x-5, y-5, w, h, wDrawColorGrey90, wDrawOptTemp);
 }
 
+void SetUpMenu2(coOrd pos, track_p trk) {
+	wMenuPushEnable( menuPushModify,FALSE);
+	wMenuPushEnable(descriptionMI,FALSE);
+	wMenuPushEnable( rotateAlignMI, FALSE );
+	wMenuPushEnable( hideMI, FALSE );
+	wMenuPushEnable( bridgeMI, FALSE );
+	wMenuPushEnable( tiesMI, FALSE );
+	panCenter = pos;
+	if ((trk) &&
+		QueryTrack(trk,Q_CAN_ADD_ENDPOINTS)) {   //Turntable snap to center if within 1/4 radius
+		trackParams_t trackParams;
+		if (GetTrackParams(PARAMS_CORNU, trk, pos, &trackParams)) {
+			DIST_T dist = FindDistance(pos, trackParams.ttcenter);
+			if (dist < trackParams.ttradius/4) {
+					cmdMenuPos = trackParams.ttcenter;
+			}
+		}
+	}
+	if (trk && !QueryTrack( trk, Q_IS_DRAW )) {
+		wMenuPushEnable( hideMI, TRUE );
+		wMenuPushEnable( bridgeMI, TRUE );
+		wMenuPushEnable( tiesMI, TRUE );
+	}
+	if (trk) {
+		wMenuPushEnable( menuPushModify,
+					(QueryTrack( trk, Q_CAN_MODIFY_CONTROL_POINTS ) ||
+					QueryTrack( trk, Q_IS_CORNU ) ||
+					(QueryTrack( trk, Q_IS_DRAW ) && !QueryTrack( trk, Q_IS_TEXT )) ||
+					QueryTrack( trk, Q_IS_ACTIVATEABLE)));
+	}
+	if ((trk)) {
+		wMenuPushEnable(descriptionMI, QueryTrack( trk, Q_HAS_DESC ));
+		moveDescTrk = trk;
+		moveDescPos = pos;
+	}
+	if (selectedTrackCount>0)
+		wMenuPushEnable( rotateAlignMI, TRUE );
+}
+
 
 static STATUS_T CmdMove(
 		wAction_t action,
@@ -1737,9 +1782,16 @@ static STATUS_T CmdMove(
 			}
 			moveDescPos = pos;
 			moveDescTrk = trk;
+			SetUpMenu2(pos,trk);
 			wMenuPopupShow( selectPopup2M );
 			return C_CONTINUE;
 
+		case C_TEXT:
+			if ((action>>8) == '@') {
+				panCenter = pos;
+				PanHere((void*)0);
+			}
+			break;
 		case C_REDRAW:
 			/* DO_REDRAW */
 			if (anchors_da.cnt)
@@ -1814,8 +1866,7 @@ static STATUS_T CmdMove(
 }
 
 
-wMenuPush_p rotateAlignMI;
-wMenuPush_p descriptionMI;
+
 static int rotateAlignState = 0;
 
 static void RotateAlign( BOOL_T align )
@@ -2060,9 +2111,16 @@ static STATUS_T CmdRotate(
 			}
 			moveDescPos = pos;
 			moveDescTrk = trk;
+			SetUpMenu2(pos,trk);
 			wMenuPopupShow( selectPopup2M );
 			return C_CONTINUE;
 
+		case C_TEXT:
+			if ((action>>8) == '@') {
+				panCenter = pos;
+				PanHere((void*)0);
+			}
+			break;
 		case C_REDRAW:
 			if (anchors_da.cnt)
 				DrawAnchorSegs( &anchorD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
@@ -2560,6 +2618,12 @@ static STATUS_T SelectArea(
 		}
 		break;
 
+	case C_TEXT:
+		if ((action>>8) == '@') {
+			panCenter = pos;
+			PanHere((void*)0);
+		}
+		break;
 	case C_REDRAW:
 		if (state == 0)
 			break;
@@ -2969,36 +3033,21 @@ static STATUS_T CmdSelect(
 			return CallModify(action,pos);
 		}
 		if (selectedTrackCount <= 0) {
+			panCenter = pos;
 			wMenuPopupShow( selectPopup1M );
 		} else {
 			coOrd base = pos;
 		    track_p trk = OnTrack(&pos, FALSE, FALSE);  //Note pollutes pos if turntable
-			if ((trk) &&
-				QueryTrack(trk,Q_CAN_ADD_ENDPOINTS)) {   //Turntable snap to center if within 1/4 radius
-				trackParams_t trackParams;
-				if (GetTrackParams(PARAMS_CORNU, trk, pos, &trackParams)) {
-					DIST_T dist = FindDistance(base, trackParams.ttcenter);
-					if (dist < trackParams.ttradius/4) {
-							cmdMenuPos = trackParams.ttcenter;
-					}
-				}
-				wMenuPushEnable( menuPushModify,
-								(QueryTrack( trk, Q_CAN_MODIFY_CONTROL_POINTS ) ||
-								QueryTrack( trk, Q_IS_CORNU ) ||
-								(QueryTrack( trk, Q_IS_DRAW ) && !QueryTrack( trk, Q_IS_TEXT )) ||
-								QueryTrack( trk, Q_IS_ACTIVATEABLE)));
-			}
-			if ((trk)) {
-				wMenuPushEnable(descriptionMI, QueryTrack( trk, Q_HAS_DESC ));
-				moveDescTrk = trk;
-				moveDescPos = pos;
-			}
-			if (selectedTrackCount>0)
-				wMenuPushEnable( rotateAlignMI, TRUE );
-
+			SetUpMenu2(pos,trk);
 			wMenuPopupShow( selectPopup2M );
 		}
 		return C_CONTINUE;
+	case C_TEXT:
+		if ((action>>8) == '@') {
+			panCenter = pos;
+			PanHere((void*)0);
+		}
+		break;
 	case C_FINISH:
 		if (doingMove) UndoEnd();
 		doingDouble = FALSE;
@@ -3068,6 +3117,7 @@ EXPORT void InitCmdSelect2( wMenu_p menu ) {
 	wMenuSeparatorCreate( selectPopup1M );
 	wMenuPushCreate(selectPopup1M, "", _("Zoom In"), 0,(wMenuCallBack_p) DoZoomUp, (void*) 1);
 	wMenuPushCreate(selectPopup1M, "", _("Zoom Out"), 0,	(wMenuCallBack_p) DoZoomDown, (void*) 1);
+	wMenuPushCreate(selectPopup1M, "", _("Pan Center Here - '@'"), 0,	(wMenuCallBack_p) PanHere, (void*) 0);
 	wMenuSeparatorCreate( selectPopup1M );
 	wMenuPushCreate(selectPopup1M, "", _("Select All"), 0,(wMenuCallBack_p) SetAllTrackSelect, (void *) 1);
 	wMenuPushCreate(selectPopup1M, "",_("Select Current Layer"), 0,(wMenuCallBack_p) SelectCurrentLayer, (void *) 0);
@@ -3076,9 +3126,14 @@ EXPORT void InitCmdSelect2( wMenu_p menu ) {
 	quickMove1M[1] = wMenuToggleCreate( selectPopup1M, "", _("Simple"), 0, quickMove==1, ChangeQuickMove, (void *) 1 );
 	quickMove1M[2] = wMenuToggleCreate( selectPopup1M, "", _("End Points"), 0, quickMove==2, ChangeQuickMove, (void *) 2 );
 	wMenuSeparatorCreate( selectPopup1M );
+
 	selectPopup2M = MenuRegister( "Track Selected Menu " );
 	wMenuPushCreate(selectPopup2M, "", _("Undo"), 0,(wMenuCallBack_p) UndoUndo, (void *) 0);
 	wMenuPushCreate(selectPopup2M, "", _("Redo"), 0,(wMenuCallBack_p) UndoRedo, (void *) 0);
+	wMenuSeparatorCreate( selectPopup2M );
+	wMenuPushCreate(selectPopup2M, "", _("Zoom In"), 0,(wMenuCallBack_p) DoZoomUp, (void*) 1);
+	wMenuPushCreate(selectPopup2M, "", _("Zoom Out"), 0,	(wMenuCallBack_p) DoZoomDown, (void*) 1);
+	wMenuPushCreate(selectPopup2M, "", _("Pan Center Here - '@'"), 0,	(wMenuCallBack_p) PanHere, (void*) 0);
 	wMenuSeparatorCreate( selectPopup2M );
 	wMenuPushCreate(selectPopup2M, "", _("Deselect All"), 0, (wMenuCallBack_p) SetAllTrackSelect, (void *) 0);
 	wMenuSeparatorCreate( selectPopup2M );
@@ -3095,9 +3150,9 @@ EXPORT void InitCmdSelect2( wMenu_p menu ) {
 	wMenuSeparatorCreate( selectPopup2M );
 	descriptionMI = wMenuPushCreate(selectPopup2M, "cmdMoveLabel", _("Show/Hide Description"), 0, (wMenuCallBack_p)moveDescription, (void*) 0);
 	wMenuSeparatorCreate( selectPopup2M );
-	wMenuPushCreate(selectPopup2M, "", _("Hide/NoHide"), 0,(wMenuCallBack_p) SelectTunnel, (void *) 0);
-	wMenuPushCreate(selectPopup2M, "", _("Bridge/NoBridge"), 0,(wMenuCallBack_p) SelectBridge, (void *) 0);
-	wMenuPushCreate(selectPopup2M, "", _("NoTies/Ties"), 0,(wMenuCallBack_p) SelectTies, (void *) 0);
+	hideMI = wMenuPushCreate(selectPopup2M, "", _("Hide/NoHide"), 0,(wMenuCallBack_p) SelectTunnel, (void *) 0);
+	bridgeMI = wMenuPushCreate(selectPopup2M, "", _("Bridge/NoBridge"), 0,(wMenuCallBack_p) SelectBridge, (void *) 0);
+	tiesMI = wMenuPushCreate(selectPopup2M, "", _("NoTies/Ties"), 0,(wMenuCallBack_p) SelectTies, (void *) 0);
 	selectPopup2TM = wMenuMenuCreate(selectPopup2M, "", _("Thickness..."));
 	wMenuPushCreate( selectPopup2TM, "", _("Thin Tracks"), 0, (void*)(wMenuCallBack_p)SelectTrackWidth, (void *)0 );
 	wMenuPushCreate( selectPopup2TM, "", _("Medium Tracks"), 0, (void*)(wMenuCallBack_p)SelectTrackWidth, (void *)2 );
@@ -3143,7 +3198,7 @@ EXPORT void InitCmdBridge( void)
 EXPORT void InitCmdMoveDescription( wMenu_p menu )
 {
 	AddMenuButton( menu, CmdMoveDescription, "cmdMoveLabel", _("Move Description"), wIconCreatePixMap(movedesc_xpm),
-				LEVEL0, IC_STICKY|IC_POPUP|IC_CMDMENU|IC_WANT_MOVE, ACCL_MOVEDESC, (void*) 0 );
+				LEVEL0, IC_STICKY|IC_POPUP3|IC_CMDMENU|IC_WANT_MOVE, ACCL_MOVEDESC, (void*) 0 );
 }
 
 

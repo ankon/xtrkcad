@@ -2047,7 +2047,7 @@ EXPORT void CleanSegs(dynArr_t * seg_p) {
 /*
  * Copy Segs from one array to another
  */
-EXPORT void AppendSegsArray(dynArr_t * seg_to, dynArr_t * seg_from) {
+EXPORT void AppendSegsToArray(dynArr_t * seg_to, dynArr_t * seg_from) {
 	if (seg_from->cnt ==0) return;
 	int j = 0;
 	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);

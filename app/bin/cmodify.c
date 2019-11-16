@@ -717,6 +717,11 @@ LOG( log_modify, 1, ("R = %0.3f, A0 = %0.3f, A1 = %0.3f\n",
 		return C_CONTINUE;
 
 	case C_TEXT:
+		if ((action>>8) == '@') {
+			panCenter = pos;
+			PanHere((void*)0);
+			return C_CONTINUE;
+		}
 		if ( !Dex.Trk )
 			return C_CONTINUE;
 		if (modifyBezierMode)
@@ -729,6 +734,7 @@ LOG( log_modify, 1, ("R = %0.3f, A0 = %0.3f, A1 = %0.3f\n",
 
 	case C_CMDMENU:
 		if ( !Dex.Trk ) {
+			panCenter = pos;
 			wMenuPopupShow(modPopupM);
 			return C_CONTINUE;
 		}
@@ -779,4 +785,8 @@ void InitCmdModify( wMenu_p menu )
 	wMenuPushCreate(modPopupM, "cmdSelectMode", GetBalloonHelpStr(_("cmdSelectMode")), 0, DoCommandB, (void*) (intptr_t) selectCmdInx);
 	wMenuPushCreate(modPopupM, "cmdDescribeMode", GetBalloonHelpStr(_("cmdDescribeMode")), 0, DoCommandB, (void*) (intptr_t) describeCmdInx);
 	wMenuPushCreate(modPopupM, "cmdPanMode", GetBalloonHelpStr(_("cmdPanMode")), 0, DoCommandB, (void*) (intptr_t) panCmdInx);
+	wMenuSeparatorCreate(modPopupM);
+	wMenuPushCreate(modPopupM, "", _("Zoom In"), 0,(wMenuCallBack_p) DoZoomUp, (void*) 1);
+	wMenuPushCreate(modPopupM, "", _("Zoom Out"), 0,	(wMenuCallBack_p) DoZoomDown, (void*) 1);
+	wMenuPushCreate(modPopupM, "", _("Pan Center - '@'"), 0,	(wMenuCallBack_p) PanHere, (void*) 0);
 }
