@@ -100,7 +100,7 @@ static STATUS_T CmdParallel( wAction_t action, coOrd pos )
 		if (Dpa.anchor_Trk && !CheckTrackLayerSilent( Dpa.anchor_Trk ) ) {
 			return C_CONTINUE;
 		}
-		if (!MakeParallelTrack( Dpa.anchor_Trk, pos, parSeparation, NULL, &p0, &p1, parType == PAR_TRACK )) {
+		if (!QueryTrack(Dpa.anchor_Trk,Q_CAN_PARALLEL)) {
 			return C_CONTINUE;
 		}
 		DrawTrack(Dpa.anchor_Trk,&anchorD,wDrawColorBlueHighlight);    //Special color means THICK3 as well
