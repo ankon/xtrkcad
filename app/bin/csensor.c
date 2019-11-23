@@ -60,6 +60,7 @@ static const char rcsid[] = "@(#) : $Id$";
 #include "trackx.h"
 #include "utility.h"
 #include "messages.h"
+#include "condition.h"
 
 EXPORT TRKTYP_T T_SENSOR = -1;
 
@@ -85,6 +86,7 @@ typedef struct sensorData_t {
     BOOL_T IsHilite;
     char * name;
     char * script;
+    char * state;
 } sensorData_t, *sensorData_p;
 
 static sensorData_p GetsensorData ( track_p trk )
@@ -103,6 +105,7 @@ static void DDrawSensor(drawCmd_p d, coOrd orig, DIST_T scaleRatio,
     
     p1 = orig;
     DrawFillCircle(d,p1, RADIUS * sensor_SF / scaleRatio,color);
+    DrawArc(d,p1, RADIUS * sensor_SF / scaleRatio,0.0,360.0,0,0,drawColorBlack);
     Translate (&p2, orig, 45, RADIUS * sensor_SF / scaleRatio);
     DrawLine(d, p1, p2, 2, wDrawColorWhite);
     Translate (&p2, orig, 45+90, RADIUS * sensor_SF / scaleRatio);
@@ -116,7 +119,10 @@ static void DDrawSensor(drawCmd_p d, coOrd orig, DIST_T scaleRatio,
 static void DrawSensor (track_p t, drawCmd_p d, wDrawColor color )
 {
     sensorData_p xx = GetsensorData(t);
-    DDrawSensor(d,xx->orig,GetScaleRatio(GetTrkScale(t)),color);
+    if (strncmp(xx->state,"ON",2))
+    	DDrawSensor(d,xx->orig,GetScaleRatio(GetTrkScale(t)),drawColorBlue);
+    else
+    	DDrawSensor(d,xx->orig,GetScaleRatio(GetTrkScale(t)),drawColorWhite);
 }
 
 static void SensorBoundingBox (coOrd orig, DIST_T scaleRatio, coOrd *hi, 
@@ -327,6 +333,74 @@ static void FlipSensor (track_p trk, coOrd orig, ANGLE_T angle )
     ComputeSensorBoundingBox(trk);
 }
 
+/*
+ * Do Pub/Sub work
+ *
+ * The Events are ACTIVE  and INACTVE
+ * The Actions are ACTIVE or INACTIVE
+ *
+ * The Name is the sensorName
+ *
+ */
+static int pubSubSensor(track_p trk, pubSubParmList_p parm) {
+	sensorData_p s = GetsensorData(trk);
+	ParmName_p n;
+	switch(parm->command) {
+	case GET_STATE:
+		DYNARR_RESET(ParmName_t,parm->actions);
+		parm->type = TYPE_SENSOR;
+		if (strncmp(s->name,parm->name,50) == 0) {
+			parm->state = s->state;
+		} else return 4;
+		break;
+	case FIRE_ACTION:
+		if (parm->type != TYPE_SENSOR) return 4;
+		if (strncmp(s->name,parm->name,50) == 0) {
+			if (strncmp(parm->action, "ACTIVE",6) ==0 ) {
+				s->state = "ACTIVE";
+				publishEvent(s->name,TYPE_TURNOUT,s->state);
+			}
+			if (strncmp(parm->action, "INACTIVE",10) ==0 ) {
+				s->state = "INACTIVE";
+				publishEvent(s->name,TYPE_TURNOUT,s->state);
+			}
+		}
+		break;
+	case DESCRIBE_NAMES:
+		DYNARR_RESET(ParmName_t,parm->names);
+		DYNARR_APPEND(ParmName_t,parm->names,1);
+		n = &DYNARR_LAST(ParmName_t,parm->names);
+		parm->type = TYPE_SENSOR;
+		n->name = s->name;
+		break;
+	case DESCRIBE_STATES:
+		if (parm->type != TYPE_SENSOR) return 4;
+		DYNARR_RESET(ParmName_t,parm->states);
+		if (strncmp(s->name,parm->name,50) == 0) {
+			DYNARR_APPEND(ParmName_t,parm->states,1);
+			n = &DYNARR_LAST(ParmName_t,parm->states);
+			n->name = "ACTIVE";
+			DYNARR_APPEND(ParmName_t,parm->states,1);
+			n = &DYNARR_LAST(ParmName_t,parm->states);
+			n->name = "INACTIVE";
+		}
+		break;
+	case DESCRIBE_ACTIONS:
+		if (parm->type != TYPE_SENSOR) return 4;
+		DYNARR_RESET(ParmName_t,parm->actions);
+		if (strncmp(s->name,parm->name,50) == 0) {
+			DYNARR_APPEND(ParmName_t,parm->actions,1);
+			n = &DYNARR_LAST(ParmName_t,parm->actions);
+			n->name = "ACTIVE";
+			DYNARR_APPEND(ParmName_t,parm->actions,1);
+			n = &DYNARR_LAST(ParmName_t,parm->actions);
+			n->name = "INACTIVE";
+		}
+		break;
+	}
+	return 0;
+}
+
 
 static trackCmd_t sensorCmds = {
     "SENSOR",
@@ -358,7 +432,13 @@ static trackCmd_t sensorCmds = {
     NULL, /* advancePositionIndicator */
     NULL, /* checkTraverse */
     NULL, /* makeParallel */
-    NULL  /* drawDesc */
+    NULL, /* drawDesc */
+	NULL, /*rebuild*/
+	NULL, /*store*/
+	NULL, /*replay*/
+	NULL, /*activate*/
+	pubSubSensor  /* pubSub */
+
 };
 
 static coOrd sensorEditOrig;

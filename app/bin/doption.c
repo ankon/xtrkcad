@@ -29,6 +29,7 @@
 #include "messages.h"
 #include "param.h"
 #include "track.h"
+#include "csignal.h"
 
 static paramIntegerRange_t i0_64 = { 0, 64 };
 static paramIntegerRange_t i1_64 = { 1, 64 };
@@ -41,6 +42,7 @@ static paramIntegerRange_t i10_100 = { 10, 100 };
 static paramFloatRange_t r0o1_1 = { 0.1, 1 };
 static paramFloatRange_t r1_10 = { 1, 10 };
 static paramFloatRange_t r1_1000 = { 1, 1000 };
+static paramFloatRange_t r0_1000 = { 0, 1000 };
 static paramFloatRange_t r0_180 = { 0, 180 };
 
 static long colorTrack;
@@ -121,6 +123,7 @@ static char * drawEndPtLabels3[] = { N_("None"), N_("Turnouts"), N_("All"), NULL
 static char * drawEndPtUnconnectedSize[] = { N_("Normal"), N_("Thick"), N_("Exception"), NULL };
 static char * tiedrawLabels[] = { N_("None"), N_("Outline"), N_("Solid"), NULL };
 static char * drawCenterCircle[] = { N_("Off"), N_("On"), NULL };
+static char * drawBlocksLabel[] = { N_("Off"), N_("On"), NULL };
 static char * labelEnableLabels[] = { N_("Track Descriptions"), N_("Lengths"), N_("EndPt Elevations"), N_("Track Elevations"), N_("Cars"), NULL };
 static char * hotBarLabelsLabels[] = { N_("Part No"), N_("Descr"), NULL };
 static char * listLabelsLabels[] = { N_("Manuf"), N_("Part No"), N_("Descr"), NULL };
@@ -142,6 +145,7 @@ static paramData_t displayPLs[] = {
 	{ PD_RADIO, &drawUnconnectedEndPt, "unconnected-endpt", PDO_NOPSHUPD|PDO_DRAW, drawEndPtUnconnectedSize, N_("Draw Unconnected EndPts"), BC_HORZ, (void*)(CHANGE_MAIN) },
 	{ PD_RADIO, &tieDrawMode, "tiedraw", PDO_NOPSHUPD|PDO_DRAW, tiedrawLabels, N_("Draw Ties"), BC_HORZ, (void*)(CHANGE_MAIN) },
 	{ PD_RADIO, &centerDrawMode, "centerdraw", PDO_NOPSHUPD|PDO_DRAW, drawCenterCircle, N_("Draw Centers"), BC_HORZ, (void*)(CHANGE_MAIN | CHANGE_MAP) },
+	{ PD_RADIO, &drawBlocksMode, "blockDraw", PDO_NOPSHUPD|PDO_DRAW, drawBlocksLabel, N_("Draw Blocks"), BC_HORZ, (void*)(CHANGE_MAIN) },
 	{ PD_LONG, &twoRailScale, "tworailscale", PDO_NOPSHUPD, &i1_64, N_("Two Rail Scale"), 0, (void*)(CHANGE_MAIN) },
 	{ PD_LONG, &mapScale, "mapscale", PDO_NOPSHUPD, &i1_256, N_("Map Scale"), 0, (void*)(CHANGE_MAP) },
 	{ PD_TOGGLE, &zoomCorner, "zoom-corner", PDO_NOPSHUPD, zoomCornerLabels, "", BC_HORZ },
@@ -169,16 +173,6 @@ static void DisplayOk( void * junk )
 	wHide( displayW );
 	DoChangeNotification(changes);
 }
-
-
-#ifdef LATER
-static void DisplayChange( long changes )
-{
-	if (changes & (CHANGE_SCALE|CHANGE_UNITS))
-		if (displayW != NULL && wWinIsVisible(displayW) )
-			ParamLoadControls( &displayPG );
-}
-#endif
 
 
 static void DoDisplay( void * junk )
@@ -214,6 +208,54 @@ EXPORT addButtonCallBack_t DisplayInit( void )
 	RegisterChangeNotification( DisplayChange );
 #endif
 	return &DoDisplay;
+}
+
+/*
+ * Signal Dialog
+ */
+
+static wWin_p signalW;
+
+static char * signalDisplayLabels[] = { N_("Diagram"),  N_("Plan"), N_("Elevation"), NULL };
+static char * signalSideLabels[] = { N_("Left"),  N_("Right"), NULL };
+static paramData_t signalPLs[] = {
+	{ PD_RADIO, &SignalDisplay, "signal-display", PDO_NOPSHUPD, signalDisplayLabels, N_("Signal Display"), BC_HORZ },
+	{ PD_RADIO, &SignalSide, "signal-side", PDO_NOPSHUPD, signalSideLabels, N_("Signal Side"), 0 },
+
+};
+static paramGroup_t signalPG = { "signal", PGO_RECORD|PGO_PREFMISC, signalPLs, sizeof signalPLs/sizeof signalPLs[0] };
+
+static void SignalsOk( void * junk )
+{
+	long changes;
+	changes = GetChanges( &signalPG );
+	wHide( signalW );
+	DoChangeNotification(changes);
+}
+
+static void DoSignals( void * junk )
+{
+	if (signalW == NULL) {
+		signalW = ParamCreateDialog( &signalPG, MakeWindowTitle(_("Signal Options")), _("Ok"), SignalsOk, OptionDlgCancel, TRUE, NULL, 0, OptionDlgUpdate );
+	}
+	ParamLoadControls( &signalPG );
+	wShow( signalW );
+}
+
+static void CmdSigChange( long changes )
+{
+	if (changes & CHANGE_SIGNAL)
+		if (signalW != NULL && wWinIsVisible(signalW) )
+			ParamLoadControls( &signalPG );
+}
+
+
+EXPORT addButtonCallBack_t SignalInit( void )
+{
+	ParamRegister( &signalPG );
+	RegisterChangeNotification( CmdSigChange );
+	wEnableBalloonHelp( (int)enableBalloonHelp );
+	return &DoSignals;
 }
 
 /****************************************************************************
@@ -514,7 +556,8 @@ static paramData_t colorPLs[] = {
 	{ PD_COLORLIST, &selectedColor, "selected", PDO_NOPSHUPD, NULL, N_("Selected Track"), 0, (void*)(CHANGE_MAIN) },
 	{ PD_COLORLIST, &profilePathColor, "profile", PDO_NOPSHUPD, NULL, N_("Profile Path"), 0, (void*)(CHANGE_MAIN) },
 	{ PD_COLORLIST, &exceptionColor, "exception", PDO_NOPSHUPD, NULL, N_("Exception Track"), 0, (void*)(CHANGE_MAIN) },
-	{ PD_COLORLIST, &tieColor, "tie", PDO_NOPSHUPD, NULL, N_("Track Ties"), 0, (void*)(CHANGE_MAIN) } };
+	{ PD_COLORLIST, &tieColor, "tie", PDO_NOPSHUPD, NULL, N_("Track Ties"), 0, (void*)(CHANGE_MAIN) },
+	{ PD_COLORLIST, &blockColor, "block", PDO_NOPSHUPD, NULL, N_("Track Blocks"), 0, (void*)(CHANGE_MAIN)} };
 static paramGroup_t colorPG = { "rgbcolor", PGO_RECORD|PGO_PREFGROUP, colorPLs, sizeof colorPLs/sizeof colorPLs[0] };
 
 
