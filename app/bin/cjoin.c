@@ -397,6 +397,12 @@ static STATUS_T DoMoveToJoin( coOrd pos )
 			return C_CONTINUE;
 		if (!CheckTrackLayer( Dj.inp[Dj.joinMoveState].trk ) )
 			return C_CONTINUE;
+		if ( Dj.joinMoveState == 1 ) {
+			if (GetTrkScale(Dj.inp[0].trk) != GetTrkScale(Dj.inp[1].trk)) {
+				ErrorMessage( MSG_JOIN_GAUGE );
+				return C_CONTINUE;  //Match Gauge
+			}
+		}
 		Dj.inp[Dj.joinMoveState].params.ep = PickUnconnectedEndPoint( pos, Dj.inp[Dj.joinMoveState].trk ); /* CHECKME */
 		if ( Dj.inp[Dj.joinMoveState].params.ep == -1 ) {
 #ifdef LATER
@@ -513,6 +519,10 @@ LOG( log_join, 1, ("JOIN: 1st track %d @[%0.3f %0.3f]\n",
 				return C_CONTINUE;
 			if (!CheckTrackLayer( Dj.inp[1].trk ) )
 				return C_CONTINUE;
+			if ( GetTrkScale(Dj.inp[1].trk) != GetTrkScale(Dj.inp[0].trk)) {
+				ErrorMessage( MSG_JOIN_GAUGE);
+				return C_CONTINUE;		//Reject different Gauges
+			}
 			Dj.inp[1].pos = pos;
 			if (!GetTrackParams( PARAMS_2ND_JOIN, Dj.inp[1].trk, pos, &Dj.inp[1].params ))
 				return C_CONTINUE;

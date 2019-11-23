@@ -183,6 +183,7 @@ static STATUS_T ModifyDraw(wAction_t action, coOrd pos) {
 			break;
 		case C_TEXT:
 			//Delete or '0' - continues
+
 			if (action>>8 == 127 || action>>8 == 8 || 	// Del or backspace
 					action>>8 == 'o' || action>>8 == 'p' ||
 					action>>8 == 'l' || action>>8 == 'c' ||

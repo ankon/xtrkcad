@@ -208,7 +208,7 @@ You cannot select a \f{Turntable} as the second track in \f{Join} command. If yo
 Refer to \k{cmdJoin} for detail.
 END
 
- ccornu.c
+# ccornu.c
 MESSAGE MSG_JOIN_CORNU_SAME
 Cannot Join; Selected endpoints are on same track.
 HELP
@@ -224,6 +224,13 @@ HELP
 You are trying to \f{Join} a section of track with itself. Different tracks must selected when using the \f{Join} command.
 
 Refer to \k{cmdJoin} for detail.
+END
+
+#cjoin.c 
+MESSAGE MSG_JOIN_GAUGE
+Cannot Join; Selected tracks are different scale and gauge.
+HELP
+You are trying to \f{Join} two tracks that are different gauges.
 END
 
 # cjoin.c
@@ -1520,9 +1527,95 @@ Moved beyond the end of the track
 END
 
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_HEADTYPE
+The Signal %s has a head %s with a headtype %s that doesn't exist
+HELP
+Fix the parm file
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_HEAD
+The Signal %s has a missing head %s specified which is specified in Aspect %s
+HELP
+Fix the parm file
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_APPEARANCE
+The Signal %s has a missing Aspect %s in Head %s Aspect %s 
+HELP
+Fix the parm file
+END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_DUPLICATE_APPEARANCE
+The Appearance %s already exists for Head Type %s
+HELP
+Fix the Head Type definition
+END
+
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_TRACK_HERE
+There isn't a track end point here
+HELP
+Move to a Track End Point
+END
+
+# csignal.c
+MESSAGE MSG_SIGNAL_MISSING_POST
+In Signal %s Post %s is missing
+HELP
+Correct the signal defintion, or load a parm file with the Post in it
+END
+
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_SIGNAL
+No Signal selected to Modify
+Select a Signal
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_DUPLICATE_ASPECT
+The Signal %s has a duplicate Aspect %s 
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_GRP_ASPECT_INVALID
+Signal %s, Group %d is tracking an invalid Aspect %s 
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_GRP_GROUPHEAD_INVALID
+Signal %s, Group %d names an invalid Head %d  
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_GRP_IND_INVALID
+Signal %s, Group %d for Head %d names an invalid Indication %s  
+HELP
+Fix the parm file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_MISSING_ASPECT_TYPE
+Signal %s, Aspect %s refers to a missing Type %s  
+HELP
+Fix the parm file
+END
+
+#csignalparm.c
+MESSAGE MSG_SIGNAL_ASPECT_DUPLICATE
+Repeated Aspect %s with different Base Aspect %s from prior defined Base Aspect %s
+HELP
+Fix the parm file
+END
 
 ############################################################
 # Message Archive

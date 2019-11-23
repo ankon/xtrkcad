@@ -43,6 +43,8 @@
 #include "paths.h"
 #include "track.h"
 #include "utility.h"
+#include "condition.h"
+#include "csignal.h"
 
 #ifndef TRACKDEP
 #ifndef FASTTRACK
@@ -78,8 +80,12 @@ EXPORT wIndex_t trackCount;
 EXPORT long drawEndPtV = 2;
 EXPORT long drawUnconnectedEndPt = 0;		/**< How do we draw Unconnected EndPts */
 
+EXPORT long drawBlocksMode = FALSE;			/**< How do we draw Blocks */
+
 EXPORT long centerDrawMode = FALSE;			/**< flag to control drawing of circle centers */
 EXPORT long printCenterLines = FALSE; 		/**< flag to control drawing of centerline in Print */
+
+EXPORT wDrawColor BlockColor;
 
 static BOOL_T exportingTracks = FALSE;
 
@@ -124,6 +130,13 @@ EXPORT void ActivateTrack( track_cp trk) {
 
 }
 
+EXPORT BOOL_T PubSubTrack( track_cp trk, pubSubParmList_p parmlist ) {
+	int inx = GetTrkType(trk);
+	if (trackCmds( inx )->pubSubCommand != NULL)
+		return trackCmds( inx )->pubSubCommand(trk, parmlist);
+	return FALSE;
+}
+
 
 EXPORT void DescribeTrack( track_cp trk, char * str, CSIZE_T len )
 {
@@ -151,10 +164,11 @@ EXPORT DIST_T GetTrkDistance( track_cp trk, coOrd * pos )
  * \param complain IN show error message if there is no other piece of track
  * \param track IN 
  * \param ignoreHidden IN decide whether hidden track is ignored or not
+ * \param sameGauge IN does the gauge need to match
  * \return   NULL if there is no track, pointer to track otherwise 
  */
 
-EXPORT track_p OnTrack2( coOrd * fp, BOOL_T complain, BOOL_T track, BOOL_T ignoreHidden, track_p t )
+EXPORT track_p OnTrack2( coOrd * fp, BOOL_T complain, BOOL_T track, BOOL_T ignoreHidden, BOOL_T sameGauge, track_p t )
 {
 	track_p trk;
 	DIST_T distance, closestDistance = 1000000;
@@ -170,6 +184,7 @@ EXPORT track_p OnTrack2( coOrd * fp, BOOL_T complain, BOOL_T track, BOOL_T ignor
 		if ( track && !IsTrack(trk) )
 			continue;
 		if (trk == t) continue;
+		if (sameGauge && t && GetTrkGauge(t) != GetTrkGauge(trk)) continue;
 		if (trk->hi.x < q0.x ||
 			trk->lo.x > q1.x ||
 			trk->hi.y < q0.y ||
@@ -208,11 +223,11 @@ EXPORT track_p OnTrack2( coOrd * fp, BOOL_T complain, BOOL_T track, BOOL_T ignor
 
 EXPORT track_p OnTrack( coOrd * fp, BOOL_T complain, BOOL_T track )
 {
-	return OnTrack2( fp, complain, track, TRUE, NULL );
+	return OnTrack2( fp, complain, track, TRUE, FALSE, NULL );
 }
 
-EXPORT track_p OnTrackIgnore (coOrd * fp, BOOL_T complain, BOOL_T track, track_p t ) {
-	return OnTrack2(fp, complain, track, TRUE, t);
+EXPORT track_p OnTrackIgnore (coOrd * fp, BOOL_T complain, BOOL_T track, BOOL_T sameGauge, track_p t ) {
+	return OnTrack2(fp, complain, track, TRUE, sameGauge, t);
 }
 
 
@@ -769,6 +784,7 @@ EXPORT EPINX_T GetNearestEndPtConnectedToMe( track_p trk, track_p me, coOrd pos)
 	DIST_T dd;
 		for (ep=0; ep<trk->endCnt; ep++) {
 			if (trk->endPt[ep].track == me) {
+				if (GetTrkGauge(me) != GetTrkGauge(trk->endPt[ep].track)) continue;  /*Different gauge*/
 				dd = FindDistance(pos,trk->endPt[ep].pos);
 				if (dd<d) {
 					found = ep;
@@ -1317,6 +1333,11 @@ if (bsearchRead) {
 		 }
 	}
 }
+	if (strncmp( line, "CONDITIONGROUP",15) == 0)
+		return ReadConditionGroup( line );
+	if (strncmp( line, "HEADTYPE", 8) == 0)
+		return ReadHeadTypeParam ( line );
+
 	if (strncmp( paramLine, "TABLEEDGE ", 10 ) == 0)
 		return ReadTableEdge( paramLine+10 );
 	if (strncmp( paramLine, "TEXT ", 5 ) == 0)
@@ -1329,11 +1350,13 @@ EXPORT BOOL_T WriteTracks( FILE * f )
 {
 	track_p trk;
 	BOOL_T rc = TRUE;
+	rc &= WriteSignalSystem( f );
 	RenumberTracks();
 	TRK_ITERATE( trk ) {
 		rc &= trackCmds(GetTrkType(trk))->write( trk, f );
 	}
 	rc &= WriteCars( f );
+	rc &= WriteConditions( f );
 	return rc;
 }
 
@@ -2276,6 +2299,10 @@ EXPORT BOOL_T IsTrack( track_p trk )
 	return ( trk && QueryTrack( trk, Q_ISTRACK ) );
 }
 
+EXPORT BOOL_T IsTrain( track_p trk )
+{
+	return ( trk && QueryTrack( trk, Q_ISTRAIN) );
+}
 
 EXPORT void UngroupTrack( track_p trk )
 {
@@ -2388,6 +2415,7 @@ EXPORT long drawTunnel = DRAW_TUNNEL_DASH;
  */
 
 EXPORT long tieDrawMode = TIEDRAWMODE_SOLID;
+
 EXPORT wDrawColor tieColor;
 
 EXPORT void DrawTie(
@@ -2546,14 +2574,21 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) R%0.3f A%0.3f..%0.3f)\n",
 			DrawArc( d, p, r, a0, a1, 0, 0, color );
 			d->options = options;
 		}
-		DrawArc( d, p, r+trackGauge/2.0, a0, a1, 0, width, color );
-		DrawArc( d, p, r-trackGauge/2.0, a0, a1, (centerDrawMode && !(options&DTS_NOCENTER) ? 1: 0), width, color );
+		if (options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)) {
+			if (options&DTS_BLOCK_LEFT)
+				DrawArc( d, p, r+1.5*trackGauge/2.0, a0, a1, 0, 3, blockColor );
+			else
+				DrawArc( d, p, r-1.5*trackGauge/2.0, a0, a1, 0, 3, blockColor );
+		} else {
+			DrawArc( d, p, r+trackGauge/2.0, a0, a1, 0, width, color );
+			DrawArc( d, p, r-trackGauge/2.0, a0, a1, (centerDrawMode && !(options&DTS_NOCENTER) ? 1: 0), width, color );
+		}
 		if ( (d->options&DC_PRINT) && roadbedWidth > trackGauge && d->scale <= scale2rail/2 ) {
 			 wDrawWidth rbw = (wDrawWidth)floor(roadbedLineWidth*(d->dpi/d->scale)+0.5);
-			 if ( options&DTS_RIGHT ) {
+			 if ( options&(DTS_RIGHT)) {
 				DrawArc( d, p, r+roadbedWidth/2.0, a0, a1, 0, rbw, color );
 			 }
-			 if ( options&DTS_LEFT ) {
+			 if ( options&(DTS_LEFT)) {
 				DrawArc( d, p, r-roadbedWidth/2.0, a0, a1, 0, rbw, color );
 			 }
 		}
@@ -2699,24 +2734,40 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 			DrawLine( d, p0, p1, 0, color );
 			d->options = options;
 		}
-		Translate( &pp0, p0, angle+90, trackGauge/2.0 );
-		Translate( &pp1, p1, angle+90, trackGauge/2.0 );
-		DrawLine( d, pp0, pp1, width, color );
-		Translate( &pp0, p0, angle-90, trackGauge/2.0 );
-		Translate( &pp1, p1, angle-90, trackGauge/2.0 );
-		DrawLine( d, pp0, pp1, width, color );
+		if ( options&(DTS_BLOCK_RIGHT|DTS_BLOCK_LEFT)) {
+			if (options&(DTS_BLOCK_RIGHT)) {
+				Translate( &pp0, p0, angle+90, 1.5*trackGauge/2.0 );
+				Translate( &pp1, p1, angle+90, 1.5*trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, 3, blockColor );
+			} else {
+				Translate( &pp0, p0, angle-90, 1.5*trackGauge/2.0 );
+				Translate( &pp1, p1, angle-90, 1.5*trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, 3, blockColor );
+			}
+		} else {
+			if ( options&(DTS_RIGHT)) {
+				Translate( &pp0, p0, angle+90, trackGauge/2.0 );
+				Translate( &pp1, p1, angle+90, trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, width, color );
+			}
+			if ( options&(DTS_LEFT)) {
+				Translate( &pp0, p0, angle-90, trackGauge/2.0 );
+				Translate( &pp1, p1, angle-90, trackGauge/2.0 );
+				DrawLine( d, pp0, pp1, width, color );
+			}
+		}
 		if ( (d->options&DC_PRINT) && roadbedWidth > trackGauge && d->scale <= scale2rail/2.0) {
 			 wDrawWidth rbw = (wDrawWidth)floor(roadbedLineWidth*(d->dpi/d->scale)+0.5);
-			 if ( options&DTS_RIGHT ) {
+			if (options&(DTS_RIGHT)) {
 				Translate( &pp0, p0, angle+90, roadbedWidth/2.0 );
 				Translate( &pp1, p1, angle+90, roadbedWidth/2.0 );
-				DrawLine( d, pp0, pp1, rbw, color );
-			 }
-			 if ( options&DTS_LEFT ) {
+				DrawLine( d, pp0, pp1, rbw, color);
+			}
+			if (options&(DTS_LEFT)) {
 				Translate( &pp0, p0, angle-90, roadbedWidth/2.0 );
 				Translate( &pp1, p1, angle-90, roadbedWidth/2.0 );
-				DrawLine( d, pp0, pp1, rbw, color );
-			 }
+				DrawLine( d, pp0, pp1, rbw, color);
+			}
 		}
 	}
 	if (options & DTS_BRIDGE) {
@@ -2764,6 +2815,9 @@ EXPORT wDrawColor GetTrkColor( track_p trk, drawCmd_p d )
 				grade = fabs( (elev1-elev0)/len )*100.0;
 			}
 		}
+	}
+	if ( d->options &(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) {
+		return blockColor;
 	}
 	if ( (d->options&(DC_GROUP)) == 0 ) {
 		if ( grade > GetLayoutMaxTrackGrade())

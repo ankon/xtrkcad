@@ -60,6 +60,7 @@ static const char rcsid[] = "@(#) : $Id$";
 #include "trackx.h"
 #include "utility.h"
 #include "messages.h"
+#include "condition.h"
 
 EXPORT TRKTYP_T T_CONTROL = -1;
 
@@ -87,6 +88,7 @@ typedef struct controlData_t {
     char * name;
     char * onscript;
     char * offscript;
+    char * state;
 } controlData_t, *controlData_p;
 
 static controlData_p GetcontrolData ( track_p trk )
@@ -108,22 +110,25 @@ static void DDrawControl(drawCmd_p d, coOrd orig, DIST_T scaleRatio,
     DrawFillCircle(d,p1, RADIUS * control_SF / scaleRatio,color);
     Translate (&p1, orig, 45, RADIUS * control_SF / scaleRatio);
     Translate (&p2, p1, 45, LINE * control_SF / scaleRatio);
-    DrawLine(d, p1, p2, 2, color);
+    DrawLine(d, p1, p2, 0, drawColorBlack);
     Translate (&p1, orig, 45+90, RADIUS * control_SF / scaleRatio);
     Translate (&p2, p1, 45+90, LINE * control_SF / scaleRatio);
-    DrawLine(d, p1, p2, 2, color);
+    DrawLine(d, p1, p2, 0, drawColorBlack);
     Translate (&p1, orig, 45+180, RADIUS * control_SF / scaleRatio);
     Translate (&p2, p1, 45+180, LINE * control_SF / scaleRatio);
-    DrawLine(d, p1, p2, 2, color);
+    DrawLine(d, p1, p2, 0, drawColorBlack);
     Translate (&p1, orig, 45+270, RADIUS * control_SF / scaleRatio);
     Translate (&p2, p1, 45+270, LINE * control_SF / scaleRatio);
-    DrawLine(d, p1, p2, 2, color);
+    DrawLine(d, p1, p2, 0, drawColorBlack);
 }
 
 static void DrawControl (track_p t, drawCmd_p d, wDrawColor color )
 {
     controlData_p xx = GetcontrolData(t);
-    DDrawControl(d,xx->orig,GetScaleRatio(GetTrkScale(t)),color);
+    if (strncmp(xx->state,"ON",2)==0)
+    	DDrawControl(d,xx->orig,GetScaleRatio(GetTrkScale(t)),drawColorGreen);
+    else
+    	DDrawControl(d,xx->orig,GetScaleRatio(GetTrkScale(t)),drawColorWhite);
 }
 
 static void ControlBoundingBox (coOrd orig, DIST_T scaleRatio, coOrd *hi, 
@@ -363,6 +368,64 @@ static void FlipControl (track_p trk, coOrd orig, ANGLE_T angle )
     ComputeControlBoundingBox(trk);
 }
 
+/*
+ * Do Pub/Sub work
+ *
+ * There are no Events
+ * The Actions are ON or OFF
+ *
+ * The Name is the controlName
+ *
+ */
+static int pubSubControl(track_p trk, pubSubParmList_p parm) {
+	controlData_p c = GetcontrolData(trk);
+	ParmName_p n;
+	switch(parm->command) {
+	case GET_STATE:
+		DYNARR_RESET(ParmName_t,parm->actions);
+		parm->type = TYPE_CONTROL;
+		if (strncmp(c->name,parm->name,50) == 0) {
+			parm->state = c->state;
+		} else return 4;
+		break;
+	case FIRE_ACTION:
+		if (parm->type != TYPE_CONTROL) return 4;
+		if (strncmp(c->name,parm->name,50) == 0) {
+			if (strncmp(parm->action, "ON",2) ==0 ) {
+				c->state = "ON";
+				publishEvent(c->name,TYPE_TURNOUT,c->state);
+			}
+			if (strncmp(parm->action, "OFF",3) ==0 ) {
+				c->state = "OFF";
+				publishEvent(c->name,TYPE_TURNOUT,c->state);
+			}
+		}
+		break;
+	case DESCRIBE_NAMES:
+		DYNARR_RESET(ParmName_t,parm->names);
+		DYNARR_APPEND(ParmName_t,parm->names,1);
+		n = &DYNARR_LAST(ParmName_t,parm->names);
+		parm->type = TYPE_CONTROL;
+		n->name = c->name;
+		break;
+	case DESCRIBE_STATES:
+		break;
+	case DESCRIBE_ACTIONS:
+		if (parm->type != TYPE_CONTROL) return 4;
+		DYNARR_RESET(ParmName_t,parm->actions);
+		if (strncmp(c->name,parm->name,50) == 0) {
+			DYNARR_APPEND(ParmName_t,parm->actions,1);
+			n = &DYNARR_LAST(ParmName_t,parm->actions);
+			n->name = "ON";
+			DYNARR_APPEND(ParmName_t,parm->actions,1);
+			n = &DYNARR_LAST(ParmName_t,parm->actions);
+			n->name = "OFF";
+		}
+		break;
+	}
+	return 0;
+}
+
 static trackCmd_t controlCmds = {
     "CONTROL",
     DrawControl,
@@ -393,7 +456,13 @@ static trackCmd_t controlCmds = {
     NULL, /* advancePositionIndicator */
     NULL, /* checkTraverse */
     NULL, /* makeParallel */
-    NULL  /* drawDesc */
+    NULL,  /* drawDesc */
+	NULL, /*rebuild*/
+	NULL, /*store*/
+	NULL, /*replay*/
+	NULL, /*activate*/
+	pubSubControl  /* pubSub */
+
 };
 
 static coOrd controlEditOrig;

@@ -402,7 +402,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 		}
 		BOOL_T xing = FALSE;
 		coOrd p0 = pos, p2=pos;
-		if ((trk0 = OnTrack2(&p0,FALSE, TRUE, FALSE, NULL)) != NULL) {
+		if ((trk0 = OnTrack2(&p0,FALSE, TRUE, FALSE, FALSE, NULL)) != NULL) {
 			EPINX_T ep0 = 0, ep1 = 1;
 			DIST_T elev0, elev1;
 			if (GetTrkEndPtCnt(trk0) == 2) {
@@ -414,7 +414,7 @@ static STATUS_T CmdElevation( wAction_t action, coOrd pos )
 				InfoMessage( _("Move to End-Point or Track Crossing") );
 				return C_CONTINUE;
 			}
-			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, trk0)) != NULL) {
+			if ((trk1 = OnTrack2(&p2,FALSE, TRUE, FALSE, FALSE, trk0)) != NULL) {
 				if (GetEndPtConnectedToMe(trk0,trk1) == -1) {	//Not simply connected to each other!!!
 					if (GetTrkEndPtCnt(trk1) == 2) {
 						if (GetPointElev(trk1,p2,&elev1)) {

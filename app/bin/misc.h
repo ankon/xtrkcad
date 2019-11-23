@@ -293,7 +293,8 @@ void InitDebug( char *, long * );
 #define CHANGE_TOOLBAR	(1<<8)
 #define CHANGE_CMDOPT	(1<<9)
 #define CHANGE_LIMITS	(1<<10)
-#define CHANGE_ALL		(CHANGE_SCALE|CHANGE_PARAMS|CHANGE_MAIN|CHANGE_MAP|CHANGE_UNITS|CHANGE_TOOLBAR|CHANGE_CMDOPT|CHANGE_BACKGROUND)
+#define CHANGE_SIGNAL   (1<<11)
+#define CHANGE_ALL		(CHANGE_SCALE|CHANGE_PARAMS|CHANGE_MAIN|CHANGE_MAP|CHANGE_UNITS|CHANGE_TOOLBAR|CHANGE_CMDOPT|CHANGE_SIGNAL|CHANGE_BACKGROUND)
 typedef void (*changeNotificationCallBack_t)( long );
 void RegisterChangeNotification( changeNotificationCallBack_t );
 void DoChangeNotification( long );
@@ -409,6 +410,7 @@ void IncrementLayerObjects(unsigned int index);
 
 /* doption.c */
 long GetDistanceFormat( void );
+addButtonCallBack_t SignalInit( void );
 
 /* ctrain.c */
 BOOL_T WriteCars( FILE * );
@@ -433,6 +435,8 @@ void InitCmdControl ( wMenu_p menu );
 /* csensor.c */
 void SensorMgmLoad ( void );
 void InitCmdSensor ( wMenu_p menu );
+/* condition.c */
+BOOL_T WriteConditions(FILE *);
 /* cmodify.c */
 STATUS_T CmdModify(wAction_t action,coOrd pos );
 #endif
