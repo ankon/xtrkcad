@@ -651,6 +651,7 @@ EXPORT void SaveState(void) {
 	SaveParamFileList();
 	ParamUpdatePrefs();
 
+
 	wPrefSetString( "misc", "lastlayout", GetLayoutFullPath());
 	wPrefSetInteger( "misc", "lastlayoutexample", bExample );
 
@@ -702,6 +703,7 @@ static void DoClearAfter(void) {
 	DoLayout(NULL);
 	checkPtMark = 0;
 	Reset();
+
 	DoChangeNotification( CHANGE_MAIN|CHANGE_MAP );
 	bReadOnly = TRUE;
 	EnableCommands();
@@ -1567,10 +1569,12 @@ EXPORT wIndex_t AddMenuButton(wMenu_p menu, procCommand_t command,
 			stickyLabels[stickyCnt - 1] = buttonGroupStickyLabel;
 		}
 		stickyLabels[stickyCnt] = NULL;
+
 		long stickyMask = 1L<<(stickyCnt-1);
 		commandList[cmdInx].stickyMask = stickyMask;
 		if ( ( commandList[cmdInx].options & IC_INITNOTSTICKY ) == 0 )
 			stickySet |= stickyMask;
+
 	}
 	if (buttonGroupPopupM) {
 		commandList[cmdInx].menu[0] = wMenuPushCreate(buttonGroupPopupM,
@@ -2443,6 +2447,9 @@ static void CreateMenus(void) {
 	MiscMenuItemCreate(optionM, NULL, "cmdSticky", _("Stic&ky ..."),
 			ACCL_STICKY, (void*) (wMenuCallBack_p) DoSticky, IC_MODETRAIN_TOO,
 			(void *) 0);
+	MiscMenuItemCreate(optionM, NULL, "cmdSigOpt", _("&Signal ..."),
+			ACCL_SIGNALW, (void*) SignalInit(), IC_MODETRAIN_TOO, (void*) 0);
+
 	if (extraButtons) {
 		menuPLs[menuPG.paramCnt].context = debugW;
 		MiscMenuItemCreate(optionM, NULL, "cmdDebug", _("&Debug ..."), 0,
@@ -2484,6 +2491,7 @@ static void CreateMenus(void) {
 	wMenuListAdd(messageList_ml, 0, _(MESSAGE_LIST_EMPTY), NULL);
 
 	/* tip of the day */
+
 	wMenuSeparatorCreate( helpM );
 	wMenuPushCreate( helpM, "cmdTip", _("Tip of the Day..."), 0, (wMenuCallBack_p)ShowTip, (void *)(SHOWTIP_FORCESHOW | SHOWTIP_NEXTTIP));
 	demoM = wMenuMenuCreate( helpM, "cmdDemo", _("&Demos") );
@@ -2795,6 +2803,7 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	profilePathColor = drawColorPurple;
 	exceptionColor = wDrawFindColor(wRGB(255, 0, 128));
 	tieColor = wDrawFindColor(wRGB(255, 128, 0));
+	blockColor = drawColorPurple;
 
 	newToolbarMax = (1 << BG_COUNT) - 1;
 	wPrefGetInteger("misc", "toolbarset", &toolbarSet, newToolbarMax);

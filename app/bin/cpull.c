@@ -742,7 +742,7 @@ static STATUS_T CmdPull(
 					if (t_turn1) DrawTrack(t1,&mainD,wDrawColorBlue);
 					else CreateConnectAnchor(t_ep1,t1,FALSE);
 				}
-				if ((t2= OnTrackIgnore( &pos, FALSE, TRUE, t1 )) != NULL) {
+				if ((t2= OnTrackIgnore( &pos, FALSE, TRUE, TRUE, t1 )) != NULL) {
 					if ((t_ep2 = PickUnconnectedEndPointSilent( pos, t2 )) < 0) {
 						if (QueryTrack(t2, Q_CAN_ADD_ENDPOINTS)) {
 							DrawTrack(t2,&mainD,wDrawColorBlue);
@@ -781,10 +781,13 @@ static STATUS_T CmdPull(
 
 				}
 			} else {
-				if ((trk2 = OnTrackIgnore( &pos, TRUE, TRUE, trk1 )) != NULL) {
+				if ((trk2 = OnTrackIgnore( &pos, TRUE, TRUE, TRUE, trk1 )) != NULL) {
 					if (trk2 == trk1) {
 						InfoMessage( _("Same Track! - please select another") );
 						return C_CONTINUE;
+					}
+					if (GetTrkGauge(trk2) != GetTrkGauge(trk1)) {
+						InfoMessage(_("Different Scale/Gauge Track - please select another") );
 					}
 					if ((ep2 = PickUnconnectedEndPoint( pos, trk2 )) >= 0 ) {
 						PullTracks( trk1, ep1, trk2, ep2 );
@@ -816,6 +819,7 @@ static STATUS_T CmdPull(
 			return C_TERMINATE;
 		}
 		return C_CONTINUE;
+
 
 	case C_REDRAW:
 		if (anchors_da.cnt)

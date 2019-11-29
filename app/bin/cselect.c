@@ -540,7 +540,8 @@ static BOOL_T doingDouble;
 EXPORT void SelectDelete( void )
 {
 	if (GetCurrentCommand() != selectCmdInx) return;
-	if (doingDouble) return;
+	
+    if (doingDouble) return;
 
 	if (SelectedTracksAreFrozen())
 		return;
@@ -1551,7 +1552,7 @@ wBool_t FindEndIntersection(coOrd base, coOrd orig, ANGLE_T angle, track_p * t1,
 			coOrd pos2;
 			pos2 = pos1;
 			track_p tt;
-			if ((tt=OnTrackIgnore(&pos2,FALSE,TRUE,ts))!=NULL) {
+			if ((tt=OnTrackIgnore(&pos2,FALSE,TRUE,TRUE, ts))!=NULL) {
 				if (!GetTrkSelected(tt)) {							//Ignore if new track is selected
 					EPINX_T epp = PickUnconnectedEndPointSilent(pos2, tt);
 					if (epp>=0) {
@@ -2270,6 +2271,13 @@ track_p FindTrackDescription(coOrd pos, EPINX_T * ep_o, int * mode_o, BOOL_T sho
 				hidden = hidden_t;
 				cpos = dpos;
 			}
+            d = BlockDescriptionDistance(pos, trk1);
+            if ( d < dd ) {
+                dd = d;
+                trk = trk1;
+                ep = -1;
+                mode = 5;
+            }
 		}
 		if ((trk != NULL && (trk == OnTrack(&pos, FALSE, FALSE))) ||
 			IsClose(d) || IsClose(FindDistance( pos, cpos) )) {  //Only when close to a label or the track - not anywhere on layout!
@@ -2378,6 +2386,8 @@ STATUS_T CmdMoveDescription(
 				return CornuDescriptionMove( trk, action, pos );
 			case 4:
 				return BezierDescriptionMove( trk, action, pos );
+			case 5:
+				return BlockDescriptionMove( trk, action, pos);
 			}
 		}
 		hidden = FALSE;
@@ -3071,6 +3081,7 @@ static STATUS_T CmdSelect(
 		break;
 	case C_FINISH:
 		if (doingMove) UndoEnd();
+
 		doingDouble = FALSE;
 		break;
 	default:
