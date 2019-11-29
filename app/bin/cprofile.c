@@ -222,7 +222,11 @@ static void DrawProfile( drawCmd_p D, wFontSize_t fontSize, BOOL_T printVert )
 	pb.x = 0.0; pb.y = prof.minE;
 	pt = points(0).pt;
 	DrawLine( D, pb, pt, lw, borderColor );
-	sprintf( message, "%0.1f", PutDim(profElem(0).elev) );
+	if (units==UNITS_ENGLISH) {
+		sprintf( message, "%0.1f\"", PutDim(profElem(0).elev)+0.05 );
+	} else {
+		sprintf( message, "%0.1fmm", PutDim(profElem(0).elev)+0.05 );
+	}
 	if (printVert) {
 		pl.x = pt.x + LABELH/2.0/prof.scaleX*D->scale;
 		pl.y = pt.y + 2.0/mainD.dpi/prof.scaleY*D->scale;
@@ -1313,7 +1317,7 @@ static STATUS_T CmdProfile( wAction_t action, coOrd pos )
 			profileColorDefinedProfile = drawColorBlue;
 			profileColorUndefinedProfile = drawColorRed;
 			profileColorFill = drawColorAqua;
-			DrawTextSize( &mainD, "999", wStandardFont( F_HELV, FALSE, FALSE ), screenProfileFontSize, FALSE, &textsize );
+			DrawTextSize( &mainD, "999.9", wStandardFont( F_HELV, FALSE, FALSE ), screenProfileFontSize, FALSE, &textsize );
 			labelH = textsize.y;
 			labelW = textsize.x;
 			profileW = ParamCreateDialog( &profilePG, MakeWindowTitle(_("Profile")), _("Done"), DoProfileDone, (paramActionCancelProc)Reset, TRUE, NULL, F_RESIZE, NULL );

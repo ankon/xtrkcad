@@ -40,6 +40,8 @@
 #define DC_DOT          (1<<12)
 #define DC_DASHDOT      (1<<13)
 #define DC_DASHDOTDOT   (1<<14)
+#define DC_BLOCK_LEFT   (1<<15)
+#define DC_BLOCK_RIGHT  (1<<16)
 
 #define DC_NOTSOLIDLINE (DC_DASH|DC_DOT|DC_DASHDOT|DC_DASHDOTDOT)
 

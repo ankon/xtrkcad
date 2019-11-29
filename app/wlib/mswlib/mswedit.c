@@ -76,6 +76,7 @@ long FAR PASCAL _export pushEdit(
 	long inx = GetWindowLong( hWnd, GWL_ID );
 #else
 	short inx = GetWindowWord( hWnd, GWW_ID );
+
 #endif
 	wControl_p b = mswMapIndex(inx);
 
@@ -97,7 +98,6 @@ long FAR PASCAL _export pushEdit(
 	        }
 	    }
 	    break;
-
 	}
 	return CallWindowProc(oldEditProc, hWnd, message, wParam, lParam);
 }

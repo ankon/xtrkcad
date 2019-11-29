@@ -1365,6 +1365,7 @@ static void RescaleDraw( track_p trk, FLOAT_T ratio )
 
 static void DoConvertFill(void) {
 
+
 }
 
 static void DrawModRedraw( void )
@@ -1439,7 +1440,6 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 	drawModCmdContext.segCnt = xx->segCnt;
 	drawModCmdContext.segPtr = xx->segs;
 	drawModCmdContext.selected = GetTrkSelected(trk);
-
 
 	switch(action&0xFF) {     //Remove Text value
 	case C_START:

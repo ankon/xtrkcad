@@ -764,6 +764,10 @@ static void DrawJointSegment(
 	}
 
 	widthOptions |= DTS_RIGHT|DTS_LEFT|DTS_TIES;
+	if (d->options&DC_BLOCK_LEFT)
+		widthOptions |= DTS_BLOCK_LEFT;
+	if (d->options&DC_BLOCK_RIGHT)
+		widthOptions |= DTS_BLOCK_RIGHT;
 	if (GetTrkBridge(trk)) widthOptions |= DTS_BRIDGE;
 		else widthOptions &=~DTS_BRIDGE;
 	GetJointPos( &p0, NULL, l0, R, L, P, A, N );
@@ -849,20 +853,6 @@ EXPORT void DrawJointTrack(
 		return;
 	}
 LOG( log_ease, 4, ( "DJT( (X%0.3f Y%0.3f A%0.3f) \n", pos.x, pos.y, angle ) )
-#ifdef LATER
-	scale2rail = (d->options&DC_PRINT)?(twoRailScale*2+1):twoRailScale;
-
-	if (options&DTS_THICK2)
-		width = 2;
-	if (options&DTS_THICK3)
-		width = 3;
-#ifdef WINDOWS
-	width *= (wDrawWidth)(d->dpi/mainD.dpi);
-#else
-	if (d->options&DC_PRINT)
-		width *= 300/75;
-#endif
-#endif
 	if (color == wDrawColorBlack)
 		color = normalColor;
 	if (!Scurve) {
@@ -883,7 +873,7 @@ LOG( log_ease, 4, ( "DJT( (X%0.3f Y%0.3f A%0.3f) \n", pos.x, pos.y, angle ) )
 		DrawJointSegment( d, cnt, 0, l1, R, L, pos,
 						angle+180, negate, trackGauge, color, options, trk );
 	}
-	if ( (d->funcs->options & wDrawOptTemp) == 0 && (d->options&DC_QUICK) == 0 ) {
+	if ( (d->funcs->options & wDrawOptTemp) == 0 && (d->options&(DC_QUICK|DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) == 0 ) {
 		DrawEndPt( d, trk, ep0, color );
 		DrawEndPt( d, trk, ep1, color );
 	}

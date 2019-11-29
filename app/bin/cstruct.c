@@ -1019,7 +1019,7 @@ static STATUS_T CmdStructureHotBar(
 	switch (action & 0xFF) {
 
 	case C_START:
-		structureChange( CHANGE_PARAMS );
+		//structureChange( CHANGE_PARAMS );
 		if (curStructure == NULL) {
 			NoticeMessage( MSG_STRUCT_NO_STRUCTS, _("Ok"), NULL );
 			return C_TERMINATE;

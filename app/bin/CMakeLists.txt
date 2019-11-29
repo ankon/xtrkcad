@@ -1,3 +1,4 @@
+
 include( CheckSymbolExists )
 
 ADD_EXECUTABLE(cnvdsgn cnvdsgn.c utility.c)
@@ -63,6 +64,7 @@ SET(SOURCES
 	ccornu.c
 	ccurve.c
 	ccontrol.c
+	condition.c
 	cdraw.c
 	celev.c
 	cgroup.c
@@ -83,6 +85,7 @@ SET(SOURCES
 	csnap.c
 	csplit.c
 	csignal.c
+	csignalparm.c
 	cstraigh.c
 	cstruct.c
 	cswitchmotor.c

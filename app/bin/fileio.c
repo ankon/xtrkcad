@@ -721,11 +721,12 @@ int LoadTracks(
 
 	assert( fileName != NULL );
 	assert( cnt == 1 ); 
-
+        
 	if ( ! bExample )
 		SetCurrentPath(LAYOUTPATHKEY, fileName[0]);
 	bReadOnly = bExample;
 	paramVersion = -1;
+        
 	wSetCursor( mainD.d, wCursorWait );
 	Reset();
 	ClearTracks();

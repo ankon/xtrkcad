@@ -512,6 +512,10 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 	struct extraData *xx = GetTrkExtraData(t);
 	long widthOptions = DTS_LEFT|DTS_RIGHT;
 
+	if (d->options&DC_BLOCK_LEFT)
+		widthOptions |= DTS_BLOCK_LEFT;
+	if (d->options&DC_BLOCK_RIGHT)
+		widthOptions |= DTS_BLOCK_RIGHT;
 
 	if (GetTrkType(t) == T_BZRLIN) {
 		unsigned long NotSolid = ~(DC_NOTSOLIDLINE);
@@ -549,7 +553,9 @@ static void DrawBezier( track_p t, drawCmd_p d, wDrawColor color )
 	else
 		DrawSegsO(d,t,zero,0.0,xx->bezierData.arcSegs.ptr,xx->bezierData.arcSegs.cnt, GetTrkGauge(t), color, widthOptions);
 	if ( (d->funcs->options & wDrawOptTemp) == 0 &&
-		 (d->options&DC_QUICK) == 0) {
+		 (d->options&DC_QUICK) == 0 &&
+		 ((d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT))==0)) {
+
 		DrawEndPt( d, t, 0, color );
 		DrawEndPt( d, t, 1, color );
 	}
