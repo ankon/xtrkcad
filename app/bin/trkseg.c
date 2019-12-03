@@ -1150,7 +1150,7 @@ EXPORT BOOL_T ReadSegs( void )
 	DYNARR_RESET( trkEndPt_t, tempEndPts_da );
 	pathCnt = 0;
 	while ( (cp = GetNextLine()) != NULL ) {
-		while (isspace(*cp)) cp++;
+		while (isspace(*cp) || *cp == '\t') cp++;
 		hasElev = FALSE;
 		improvedEnds = FALSE;
 		if ( strncmp( cp, "END", 3 ) == 0 ) {
@@ -2034,11 +2034,11 @@ EXPORT void CleanSegs(dynArr_t * seg_p) {
 EXPORT void AppendSegsToArray(dynArr_t * seg_to, dynArr_t * seg_from) {
 	if (seg_from->cnt ==0) return;
 	int j = 0;
-	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
 	for (int i=0; i<seg_from->cnt;i++,j++) {
+		DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
 		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
-		trkSeg_p to_p = &DYNARR_N(trkSeg_t, * seg_to,i);
-		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
+		trkSeg_p to_p = &DYNARR_LAST(trkSeg_t, * seg_to);
+		memcpy((void *)to_p,(void *)from_p,sizeof(trkSeg_t));
 		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
 			if (from_p->bezSegs.ptr) {
 				to_p->bezSegs.ptr = memdup(from_p->bezSegs.ptr,from_p->bezSegs.cnt*sizeof(trkSeg_t));
@@ -2055,10 +2055,10 @@ EXPORT void AppendSegsToArray(dynArr_t * seg_to, dynArr_t * seg_from) {
 EXPORT void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd orig, coOrd rotateOrig, ANGLE_T angle) {
 	if (seg_from->cnt ==0) return;
 	int j = 0;
-	DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
 	for (int i=0; i<seg_from->cnt;i++,j++) {
+		DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
 		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
-		trkSeg_p to_p = &DYNARR_N(trkSeg_t, * seg_to,i);
+		trkSeg_p to_p = &DYNARR_LAST(trkSeg_t, * seg_to);
 		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
 		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
 			if (from_p->bezSegs.ptr) {
