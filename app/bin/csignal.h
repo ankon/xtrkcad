@@ -82,7 +82,7 @@ typedef struct signalAspectType_t {
  * A Signal Post contains up to 3 drawings (Plan, Elevation and Drawing)
  */
 typedef struct signalPost_t {
-	char * name;
+	char * postName;
 	SCALEINX_T scale;
 	dynArr_t drawings[3];
 	char * title;
@@ -106,7 +106,7 @@ typedef struct headAspectMap_t {
 typedef struct signalAspect_t {
     char * 		aspectName;					//Aspect
     char * 		aspectScript;
-    dynArr_t 	headMap;					//Array of all Head settings for this Aspect
+    dynArr_t 	headAspectMap;					//Array of all Head settings for this Aspect
     signalAspectType_p aspectType;
 } signalAspect_t, *signalAspect_p;
 
@@ -137,13 +137,13 @@ typedef struct signalHead_t {
 	} signalHead_t, *signalHead_p;
 
 /*
- * A Signal Parameter Record - this links together Posts, Aspects and Groups into a Signal that can be copied to the Layout
+ * A Signal Part Record - this links together Posts, Aspects and Groups into a Signal that can be copied to the Layout
  */
 
 typedef enum {SIGNAL_DIAGRAM, SIGNAL_PLAN, SIGNAL_ELEVATION } SIGNAL_LOOK_e;
 
 
-typedef struct signalParm_t {
+typedef struct signalPart_t {
 		SCALEINX_T scaleInx;
 		char * title;
 		coOrd orig;
@@ -155,7 +155,21 @@ typedef struct signalParm_t {
 		int paramFileIndex;
 		DIST_T barScale;
 		char * contentsLabel;
-		} signalParm_t,*signalParm_p;
+		} signalPart_t, * signalPart_p;
+
+/*
+ * A Signal Prototype - this has soft links to Posts, Heads
+ */
+
+typedef struct signalProto_t {
+		char * title;
+		char * postname;
+		dynArr_t heads;
+		dynArr_t aspectNames;
+		dynArr_t groups;
+		int paramFileIndex;
+		char * contentsLabel;
+} signalProto_t, *signalProto_p;
 
 /* SignalGroupInstance_p
  * For a group, the set of heads, appearances and conditions
@@ -167,10 +181,11 @@ typedef struct {
 	char * conditions;				//Condition that has to be true to set the Appearance On
 } signalGroupInstance_t,*signalGroupInstance_p;
 
+/* List of Aspects in which this Group is active */
 typedef struct {
 	signalAspect_p aspect;			//Aspect
 	char * aspectName;				//AspectName
-} AspectList_t,*AspectList_p;
+} groupAspectList_t,*groupAspectList_p;
 
 /*signalGroup_p
  * The Group is a way of connecting one Head's Appearances to another Head having an Appearance and some Conditions
@@ -181,19 +196,19 @@ typedef struct signalGroup_t {
 	dynArr_t aspects;					//List of Aspects that this group works for
 	dynArr_t groupInstances;			//List of conditions and Appearances
 	int currInstanceDisplay;			//Just to show Instances
-} signalGroup_t, *signalGroup_p;
+} signalGroup_t, * signalGroup_p;
 
 /*
- * An Appearance is a unique display by one Head
+ * A Signal Appearance is a unique display by one Head
  */
-typedef struct Appearance_t {
-	char * appearanceName;				//Appearance name
+typedef struct HeadAppearance_t {
+	char * appearanceName;				//Appearance postName
 	dynArr_t appearanceSegs; 			//How to Draw it
 	coOrd orig;
 	ANGLE_T angle;
-} Appearance_t, *Appearance_p;
+} HeadAppearance_t, * HeadAppearance_p;
 
-typedef enum baseIndicators {IND_DIAGRAM,
+typedef enum baseSignalIndicators {IND_DIAGRAM,
 			IND_UNLIT,
 			IND_RED,
 			IND_GREEN,
@@ -205,24 +220,25 @@ typedef enum baseIndicators {IND_DIAGRAM,
 			IND_FLASHLUNAR,
 			IND_ON,
 			IND_OFF,
-			IND_LIT} baseIndicators; //Eight predefined Appearances
+			IND_LIT} baseSignalIndicators; //Eight predefined Appearances
 
 /*
  * An IndicatorType maps an IndicatorName to a default Aspect
  */
-typedef struct indicatorType_t {
+typedef struct signalIndicatorType_t {
 	char * aspectName;
-	baseIndicators indicator;
+	baseSignalIndicators indicator;
 	signalBaseAspects_e aspect;
-} indicatorType_t, *indicatorType_p;
+} signalIndicatorType_t, *signalIndicatorType_p;
 
 void FormatSignalParmTitle(long format,char * title );
-BOOL_T ReadSignalParam ( char * line );
+BOOL_T ReadSignalPart ( char * line );
 BOOL_T ReadSignalPost (char * line);
 signalPost_p CreateSignalPost(char* scale, char * name);
 BOOL_T WriteSignalSystem(FILE * f);
-signalParm_p FindSignalDef(char* scale, char * name);
-BOOL_T ReadSignalParm(char* line);
+signalPart_p FindSignalDef(char* scale, char * name);
+BOOL_T ReadSignalProto (char* line);
 void SetSignalHead(track_p sig,int head, char* app);
+BOOL_T ResolveSignalTrack ( track_p trk );
 
 #endif /* APP_BIN_CSIGNAL_H_ */

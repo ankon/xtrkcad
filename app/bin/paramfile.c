@@ -166,7 +166,7 @@ ReadParamFile(const char *fileName)
 }
 
 /**
- * Paramter file reader and interpreter
+ * Parameter file reader and interpreter
  * 
  * \param key unused
  * \param dirName prefix for parameter file path

@@ -429,6 +429,8 @@ void SwitchmotorMgmLoad( void );
 /* csignal.c */
 void InitCmdSignal ( wMenu_p menu );
 void SignalMgmLoad ( void );
+BOOL_T ReadHeadType ( char * line);
+BOOL_T WriteHeadTypes(FILE * f);
 /* ccontrol.c */
 void ControlMgmLoad ( void );
 void InitCmdControl ( wMenu_p menu );

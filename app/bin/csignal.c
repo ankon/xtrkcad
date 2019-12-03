@@ -149,7 +149,7 @@ static signalAspectType_t defaultAspectsMap[] = {
 
 #define headaspect(N) DYNARR_N( headAspectMap_t, headMap, N )
 
-static indicatorType_t defaultBaseIndicatorsMap[] =
+static signalIndicatorType_t defaultBaseIndicatorsMap[] =
 {
 		{N_("Diagram"),IND_DIAGRAM,ASPECT_NONE},
 		{N_("Unlit"),IND_UNLIT,ASPECT_NONE},
@@ -194,6 +194,7 @@ static dynArr_t signalAspect_da;
 typedef struct signalData_t {
     coOrd orig;							//Relative to a track/structure or to the origin
     ANGLE_T angle;						//Relative to a track/structure or to the origin
+    TRKINX_T index;						//Index Number of Track
     track_p track;						//Track/Structure for Signal to align to or NULL
     EPINX_T ep;							//EndPoint of Track
     char * signalName;					//Unique Name of Signal
@@ -253,7 +254,7 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 	CleanSegs(&sp->currSegs);
 	AppendSegsToArray(&sp->currSegs,&sp->staticSignalSegs[display]);
 	signalAspect_t aspect;
-	for (int i=0;i<sp->signalHeads.cnt-1;i++) {
+	for (int i=0;i<sp->signalHeads.cnt;i++) {
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->signalHeads,i);
 		AppendTransformedSegs(&sp->currSegs,&head->headSegs[display],head->headPos,zero,0.0);
@@ -273,7 +274,7 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 		if ((indIndex >=0) && (indIndex <= type->headAppearances.cnt)) {
 			/* Note Segs already moved to appearance origin and rotated */
 			/* Now only need to be be placed relative to the rest */
-			Appearance_p a = &DYNARR_N(Appearance_t,type->headAppearances,indIndex);
+			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,type->headAppearances,indIndex);
 			AppendTransformedSegs(&sp->currSegs,&a->appearanceSegs, head->headPos, zero, 0.0 );
 		}
 	}
@@ -320,8 +321,8 @@ LOG( log_signal, 3, (" selected (action=%d) %ld\n", action, curSignalAspect ) )
 
 void setAspect(track_p t, signalAspect_t a) {
 	signalData_p xx = getSignalData(t);
-	for (int i=0;i<a.headMap.cnt-1;i++) {
-		headAspectMap_p ham = &DYNARR_N(headAspectMap_t,a.headMap,i);
+	for (int i=0;i<a.headAspectMap.cnt-1;i++) {
+		headAspectMap_p ham = &DYNARR_N(headAspectMap_t,a.headAspectMap,i);
 		int hi = ham->aspectMapHeadAppearanceNumber;
 		if (hi<xx->signalHeads.cnt) {
 			signalHead_p head = &DYNARR_N(signalHead_t,xx->signalHeads,hi);
@@ -341,7 +342,7 @@ static void ComputeSignalBoundingBox (track_p t, long display )
     hi.x += lo.x;
     hi.y += lo.y;
 	for (int i=0;i<xx->signalHeads.cnt;i++) {
-		signalHead_p h = &signalHead(i);
+		signalHead_p h = &DYNARR_N(signalHead_t,xx->signalHeads,i);
 		coOrd orig_h = h->headPos;
 		Rotate(&orig_h,zero,xx->angle);
 		orig_h.x +=xx->orig.x;
@@ -352,23 +353,40 @@ static void ComputeSignalBoundingBox (track_p t, long display )
 		/*Draw fixed HeadSegs */
 		GetSegBounds(orig_h,xx->angle,ht->headSegs.cnt,(trkSeg_p)ht->headSegs.ptr,&lo2,&hi2);
 		hi2.x +=lo2.x;
-		hi2.y +=hi2.x;
+		hi2.y +=lo2.y;
 		if (lo.x>lo2.x) lo.x = lo2.x;
 		if (lo2.y>lo2.y) lo.x = lo2.y;
 		if (hi.x<hi2.x)  hi.x = hi2.x;
 		if (hi.y<hi2.y)  hi.y = hi2.y;
 		for (int j=0;j<ht->headAppearances.cnt;j++) {
-			Appearance_p si = &DYNARR_N(Appearance_t,ht->headAppearances,j);  /* Base state is always appearance 0 */
+			HeadAppearance_p si = &DYNARR_N(HeadAppearance_t,ht->headAppearances,j);  /* Base state is always appearance 0 */
 			GetSegBounds(orig_h,xx->angle,si->appearanceSegs.cnt,(trkSeg_p)si->appearanceSegs.ptr,&lo2,&hi2);
 			hi2.x +=lo2.x;
-			hi2.y +=hi2.x;
-			Rotate(&lo2,xx->orig,xx->angle);
-			Rotate(&hi2,xx->orig,xx->angle);
+			hi2.y +=lo2.y;
+			Rotate(&lo2,si->orig,si->angle);
+			Rotate(&hi2,si->orig,si->angle);
 			if (lo.x>lo2.x) lo.x = lo2.x;
 			if (lo2.y>lo2.y) lo.x = lo2.y;
 			if (hi.x<hi2.x)  hi.x = hi2.x;
 			if (hi.y<hi2.y)  hi.y = hi2.y;
 		}
+	}
+	if (xx->track && (xx->ep != -1)) {						//Reset origin if track attached
+	   coOrd p = GetTrkEndPos(xx->track,xx->ep);
+	   ANGLE_T a = GetTrkEndAngle(xx->track, xx->ep);
+	   coOrd pos[4];
+	   pos[0] = lo; pos[1].x = lo.x; pos[1].y = hi.y;
+	   pos[2] = hi; pos[3].x = hi.x; pos[3].y = lo.y;
+	   for (int i=0;i<4;i++) {
+		   REORIGIN(pos[i],pos[i], a+180, xx->orig);
+	   }
+	   lo = hi = pos[0];
+	   for (int i=1;i<4;i++) {
+		   if (lo.x>pos[i].x) lo.x = pos[i].x;
+		   if (lo.y>pos[i].y) lo.x = pos[i].y;
+		   if (hi.x<pos[i].x) hi.x = pos[i].x;
+		   if (hi.y<pos[i].y) hi.y = pos[i].y;
+	   }
 	}
     SetBoundingBox(t, hi, lo);
 }
@@ -573,13 +591,13 @@ static void DeleteSignal ( track_p trk )
     	MyFree(DYNARR_N(signalAspect_t,xx->signalAspects,ia).aspectName);
         MyFree(DYNARR_N(signalAspect_t,xx->signalAspects,ia).aspectScript);
         signalAspect_p sa = &DYNARR_N(signalAspect_t,xx->signalAspects,ia);
-        for (int hm = 0; hm < sa->headMap.cnt; hm++) {
-        	headAspectMap_p headm = &DYNARR_N(headAspectMap_t,sa->headMap,hm);
+        for (int hm = 0; hm < sa->headAspectMap.cnt; hm++) {
+        	headAspectMap_p headm = &DYNARR_N(headAspectMap_t,sa->headAspectMap,hm);
         	MyFree(headm->aspectMapHeadAppearance);
         }
-        MyFree(sa->headMap.ptr); sa->headMap.ptr = NULL;
-        sa->headMap.max = 0;
-        sa->headMap.cnt = 0;
+        MyFree(sa->headAspectMap.ptr); sa->headAspectMap.ptr = NULL;
+        sa->headAspectMap.max = 0;
+        sa->headAspectMap.cnt = 0;
     }
     MyFree(xx->signalAspects.ptr); xx->signalAspects.ptr = NULL;
     for (int h = 0; h <xx->signalHeads.cnt; h++) {
@@ -593,7 +611,7 @@ static void DeleteSignal ( track_p trk )
     	MyFree(DYNARR_N(signalGroup_t,xx->signalGroups,g).name);
     	signalGroup_p sg = &DYNARR_N(signalGroup_t,xx->signalGroups,g);
     	for (int a = 0; a < sg->aspects.cnt;a++) {
-    		MyFree(DYNARR_N(AspectList_t,sg->aspects,a).aspectName);
+    		MyFree(DYNARR_N(groupAspectList_t,sg->aspects,a).aspectName);
     	}
     	MyFree(sg->aspects.ptr); sg->aspects.ptr = NULL;
     	sg->aspects.max = 0;
@@ -637,11 +655,13 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
     BOOL_T rc = TRUE;
     wIndex_t ia,ih,im;
     signalData_p xx = getSignalData(t);
-    rc &= fprintf(f, "SIGNAL6 %d %d %s %d %0.6f %0.6f %0.6f %d \"%s\"\n",
+    rc &= fprintf(f, "SIGNAL %d %d %s %d %0.6f %0.6f %0.6f %d \"%s\"\n",
                   GetTrkIndex(t), GetTrkLayer(t), GetTrkScaleName(t), 
                   GetTrkVisible(t), xx->orig.x, xx->orig.y, xx->angle, 
                   xx->numberHeads, xx->signalName)>0;
-
+    if (xx->track) {
+    	rc &= fprintf(f, "\tTRACK %d %d\n",xx->index,xx->ep);
+    }
     for (int i=0;i<3;i++) {
     	if (xx->staticSignalSegs[i].cnt == 0) continue;
     	char * type = i==0?"DIAGRAM":i==1?"ELEVATION":"PLAN";
@@ -660,21 +680,22 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
     }
     for (ia = 0; ia < xx->signalAspects.cnt; ia++) {
     	signalAspect_p sa = &DYNARR_N(signalAspect_t,xx->signalAspects,ia);
-        rc &= fprintf(f, "\tASPECT %s %s \"%s\"\n",
+        rc &= fprintf(f, "\tASPECT \"%s\" %s \"%s\"\n",
 			  (sa->aspectName),
 			  (sa->aspectType->aspectName),
 			  (sa->aspectScript))>0;
-        for (im = 0; im < sa->headMap.cnt; im++) {
-			rc &= fprintf(f, "\t\tASPECTMAP %d %s \n",
-			  (DYNARR_N(headAspectMap_t,sa->headMap,im).aspectMapHeadNumber),
-			  (DYNARR_N(headAspectMap_t,sa->headMap,im).aspectMapHeadAppearance))>0;
+        for (im = 0; im < sa->headAspectMap.cnt; im++) {
+			rc &= fprintf(f, "\t\tASPECTMAP %d \"%s\" \n",
+			  (DYNARR_N(headAspectMap_t,sa->headAspectMap,im).aspectMapHeadNumber),
+			  (DYNARR_N(headAspectMap_t,sa->headAspectMap,im).aspectMapHeadAppearance))>0;
         }
+        rc &= fprintf(f, "\tENDASPECT\n");
     }
     for (int gn=0; gn< xx->signalGroups.cnt; gn++) {
     	signalGroup_p sg = &DYNARR_N(signalGroup_t,xx->signalGroups,gn);
     	rc &= fprintf(f, "\tGROUP \"%s\" \n",sg->name ) >0;
     	for (int sa=0; sa<sg->aspects.cnt;sa++) {
-    		AspectList_p al = &DYNARR_N(AspectList_t,sg->aspects,sa);
+    		groupAspectList_p al = &DYNARR_N(groupAspectList_t,sg->aspects,sa);
     		rc &= fprintf(f, "\t\tTRACKASPECT \"%s\" \n", al->aspectName) >0;
     	}
     	for (int gi=0; gi<sg->groupInstances.cnt;gi++) {
@@ -692,7 +713,7 @@ static BOOL_T WriteHeadType ( signalHeadType_p ht, FILE * f ) {
 	rc &= fprintf(f, "HEADTYPE \"%s\" %s \n",ht->headTypeName,GetScaleName(ht->headScale))>0;
 	rc &= WriteSegs(f,ht->headSegs.cnt,ht->headSegs.ptr);
 	for (int i=0;i<ht->headAppearances.cnt;i++) {
-		Appearance_p a = &DYNARR_N(Appearance_t,ht->headAppearances,i);
+		HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,ht->headAppearances,i);
 		rc &= fprintf(f, "APPEARANCE \"%s\" %0.6f %0.6f %0.6f\n",a->appearanceName,a->orig.x,a->orig.y,a->angle)>0;
 		/* Put them back if there is rotation or an offset */
 		dynArr_t tempWriteSegs;
@@ -707,10 +728,11 @@ static BOOL_T WriteHeadType ( signalHeadType_p ht, FILE * f ) {
 	return rc;
 }
 
-BOOL_T WriteHeadTypes(FILE * f) {
+EXPORT BOOL_T WriteHeadTypes(FILE * f) {
 	BOOL_T rc = TRUE;
 	for (int i=0;i<headTypes_da.cnt;i++) {
 		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
+		//TODO Only write if used by a Signal
 		rc &= WriteHeadType(ht,f);
 	}
 	return rc;
@@ -719,14 +741,32 @@ BOOL_T WriteHeadTypes(FILE * f) {
 static dynArr_t signalDefs_da;
 static dynArr_t signalPostDefs_da;
 
+EXPORT BOOL_T ResolveSignalTrack ( track_p trk )
+{
+    int rc =0;
+    track_p t_trk;
+    if (GetTrkType(trk) != T_SIGNAL) return TRUE;
+    signalData_p xx = getSignalData(trk);
+    if (xx->index == -1 || xx->ep == -1) return 0;
+    t_trk = FindTrack(xx->index);
+    if ((t_trk == NULL) || (GetTrkEndPtCnt(t_trk)<xx->ep)) {
+        if(NoticeMessage( _("ResolveSignal: Signal T%d %s: T%d E%d doesn't exist"), _("Continue"), NULL, GetTrkIndex(trk), xx->signalName, xx->index, xx->ep )) {
+        } else {
+        	rc = 4;
+        }
 
+    }
+    xx->track = t_trk;
+    ComputeSignalBoundingBox(trk,SignalDisplay);
+    return (rc == 0);
+}
 
 /*
  * Find Appearance in Array by Name
  */
 static int FindAppearanceNum( signalHeadType_p t, char * name) {
-	for (int i=0;i<t->headAppearances.cnt-1;i++) {
-		Appearance_p a  = &DYNARR_N(Appearance_t,t->headAppearances,i);
+	for (int i=0;i<t->headAppearances.cnt;i++) {
+		HeadAppearance_p a  = &DYNARR_N(HeadAppearance_t,t->headAppearances,i);
 		if ((strlen(a->appearanceName) == strlen(name)) &&
 				(strncmp(a->appearanceName,name,50) == 0)) {
 			return i;
@@ -735,11 +775,11 @@ static int FindAppearanceNum( signalHeadType_p t, char * name) {
 	return -1;
 }
 
-BOOL_T ReadHeadTypeParam ( char * line) {
+BOOL_T ReadHeadType ( char * line) {
 	char * typename;
 	char * cp = NULL;
-	char * scale;
-	if (!GetArgs(line+6,"q q",&typename,&scale)) {
+	char scale[10];
+	if (!GetArgs(line+10,"sq",scale,&typename)) {
 	        return FALSE;
 	}
 	SCALEINX_T input_scale = LookupScale(scale);
@@ -752,7 +792,7 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 			ht = ht1;
 			CleanSegs(&ht->headSegs);
 			for (int i=0;i<ht->headAppearances.cnt;i++) {
-				Appearance_p ap = &DYNARR_N( Appearance_t, ht->headAppearances, i );
+				HeadAppearance_p ap = &DYNARR_N( HeadAppearance_t, ht->headAppearances, i );
 				CleanSegs(&ap->appearanceSegs);
 			}
 			memset(ht,0,sizeof(signalHeadType_t));
@@ -761,53 +801,45 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 	}
 	//Allocate new if not found
 	if (!ht) {
-		DYNARR_APPEND(signalHeadType_p *, headTypes_da,10);
-		signalHeadType_p ht = &DYNARR_LAST(signalHeadType_t,headTypes_da);
+		DYNARR_APPEND(signalHeadType_t, headTypes_da,10);
+		ht = &DYNARR_LAST(signalHeadType_t,headTypes_da);
 	}
 	//Fill out HeadType
 	ht->headTypeName = typename;
 	ht->headScale = GetLayoutCurScale();                                                 //Now this scale
 	CleanSegs(&tempSegs_da);
-	while (isspace((unsigned char)*cp)) cp++;
-	while ( strncmp( cp, "APPEARANCE", 10 ) != 0 ) {
-		char * appearanceType;
-		GetArgs(cp+11,"q",&appearanceType); //Ignore issues - overwrite Diagram
-		ReadSegs();
-		DIST_T ratio = GetScaleRatio(curr_scale)/GetScaleRatio(input_scale);
-		if (ratio != 1.0)
-			RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
-		AppendSegsToArray(&ht->headSegs,&tempSegs_da);
-		if ((cp = GetNextLine()) == NULL ) break;
-		while (isspace((unsigned char)*cp)) cp++;
-		if ( strncmp( cp, "APPEARANCE", 10 ) == 0 ) break;
-	}
-	ReadSegs();
-	AppendSegsToArray(&ht->headSegs,&tempSegs_da);
-	while ( (cp = GetNextLine()) != NULL ) {
-		while (isspace((unsigned char)*cp)) cp++;
-		if ( strncmp( cp, "ENDHEADTYPE", 11 ) == 0 ) break;
+	BOOL_T first = TRUE;
+	while((cp = GetNextLine()) != NULL) {
+		if ( strncmp( cp, "ENDSIGNALHEAD", 13 ) == 0 ) break;
 		if ( *cp == '\n' || *cp == '#' ) continue;
-		if ( strncmp( cp, "APPEARANCE", 10 ) == 0 ) {
-			char * appname;
+		while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
+		if (first && (strncmp( cp, "APPEARANCE ", 11 ) != 0)) {							//Static Segs for HeadType
+			ReadSegs();
+			DIST_T ratio = GetScaleRatio(curr_scale)/GetScaleRatio(input_scale);
+			if (ratio != 1.0)
+				RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
+			AppendSegsToArray(&ht->headSegs,&tempSegs_da);
+			CleanSegs(&tempSegs_da);
+			continue;
+		}
+		first = FALSE;
+		if ( strncmp( cp, "APPEARANCE ", 11 ) == 0 ) {
+			char appname[50];
 			coOrd pos;
 			DIST_T angle;
-			if (!GetArgs(cp+10,"qpf",&appname,&pos,&angle)) continue;
+			if (!GetArgs(cp+11,"spf",appname,&pos,&angle)) continue;
 			if (FindAppearanceNum(ht,appname) != -1 ) {
 				ErrorMessage(MSG_SIGNAL_DUPLICATE_APPEARANCE,appname,ht->headTypeName);
+				return FALSE;
 			} else {
-				DYNARR_APPEND( Appearance_p *, ht->headAppearances, 1 );
-				Appearance_p a = &DYNARR_N(Appearance_t,ht->headAppearances,ht->headAppearances.cnt-1);
-				a->appearanceName = appname;
+				DYNARR_APPEND(HeadAppearance_t, ht->headAppearances, 2 );
+				HeadAppearance_p a = &DYNARR_LAST(HeadAppearance_t,ht->headAppearances);
+				a->appearanceName = strdup(appname);
 				a->orig = pos;
 				a->angle = angle;
-				if ((cp = GetNextLine()) != NULL) {
-					while (isspace((unsigned char)*cp)) cp++;
-					if ( strncmp( cp, "END", 3 ) == 0 ) break;
-					if ( *cp == '\n' || *cp == '#' ) continue;
-					CleanSegs(&tempSegs_da);
-					ReadSegs();
-					AppendSegsToArray(&a->appearanceSegs,&tempSegs_da);
-				}
+				CleanSegs(&tempSegs_da);
+				ReadSegs();
+				AppendSegsToArray(&a->appearanceSegs,&tempSegs_da);
 				/* Move and Rotate Segs to be read to be added to the Signal at the SignalHead point*/
 				coOrd orig_a = a->orig;
 				orig_a.x = -orig_a.x;
@@ -816,11 +848,9 @@ BOOL_T ReadHeadTypeParam ( char * line) {
 				RotateSegs(a->appearanceSegs.cnt,(trkSeg_p)a->appearanceSegs.ptr,zero,a->angle);
 				MoveSegs(a->appearanceSegs.cnt,(trkSeg_p)a->appearanceSegs.ptr,a->orig);
 			}
-		} else {	//The fixed elements for this HeadType
-			CleanSegs(&tempSegs_da);
-			ReadSegs();
-			AppendSegsToArray(&signalHeadType(headTypes_da.cnt-1).headSegs,&tempSegs_da);
-			continue;
+		} else {
+			ErrorMessage(MSG_SIGNAL_HEADTYPE_UNEXPECTED_DATA,ht->headTypeName);
+			return FALSE;
 		}
 		if (cp == NULL) break;
 	}
@@ -831,9 +861,9 @@ BOOL_T ReadHeadTypeParam ( char * line) {
  * Look up HeadType in Array By Name and Scale
  */
 static signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
-	for (int i=0;i<headTypes_da.cnt-1;i++) {
+	for (int i=0;i<headTypes_da.cnt;i++) {
 		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
-		if ((strlen(ht->headTypeName) == strlen(name))&&strncmp(name,ht->headTypeName,strlen(name))) {
+		if ((strlen(ht->headTypeName) == strlen(name))&& (strncmp(name,ht->headTypeName,strlen(name))==0)) {
 			if (scale != -1 && ht->headScale == scale)
 				return ht;
 		}
@@ -845,10 +875,10 @@ static signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
  * Look up Head in Array By Name
  */
 static int FindHeadNum( signalData_p s, char * name) {
-	for (int i=0;i<s->signalHeads.cnt-1;i++) {
+	for (int i=0;i<s->signalHeads.cnt;i++) {
 		signalHead_p h = &DYNARR_N(signalHead_t,s->signalHeads,i);
 		if ((strlen(h->headName) == strlen(name)) &&
-				(strncmp(h->headName,name,50) == 0)) {
+				(strncmp(h->headName,name,strlen(name)) == 0)) {
 			return i;
 		}
 	}
@@ -860,9 +890,10 @@ static int FindHeadNum( signalData_p s, char * name) {
  * Look up Base Aspect in Array By Name
  */
 static signalAspectType_p FindBaseAspect(char * name) {
+	if (strlen(name) == 0) name = "None";
 	for (int i=0;i<sizeof(defaultAspectsMap);i++) {
 		signalAspectType_p a = &defaultAspectsMap[i];
-		if ((strlen(a->aspectName) == strlen(name)) && strncmp(name,a->aspectName,50)) {
+		if ((strlen(a->aspectName) == strlen(name)) && (strncmp(name,a->aspectName,strlen(name))==0)) {
 			return a;
 		}
 	}
@@ -871,30 +902,42 @@ static signalAspectType_p FindBaseAspect(char * name) {
 
 static int FindSignalHeadAppearance(track_p sig, int headId, char * appearanceName) {
 	signalData_p xx = getSignalData(sig);
-	signalHead_p h = &DYNARR_N(signalHead_t,xx->signalHeads,headId);
+	if (headId>xx->signalHeads.cnt) return -1;
+	signalHead_p h = &DYNARR_N(signalHead_t,xx->signalHeads,headId-1);
 	signalHeadType_p ht = h->headType;
 	for (int i=0;i<ht->headAppearances.cnt;i++) {
-		if (strcmp(appearanceName,ht->headTypeName)==0) {
+		HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,ht->headAppearances,i);
+		if ((strlen(a->appearanceName) == strlen(appearanceName)) && (strcmp(appearanceName,a->appearanceName)==0)) {
 			return i;
 		}
 	}
 	return -1;
 }
 
-static signalAspect_p SignalFindAspect(track_p sig,char * aspect) {
+static signalAspect_p FindSignalAspect(track_p sig,char * aspect) {
 	signalData_p xx = getSignalData(sig);
 	for (int i=0; i<xx->signalAspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,xx->signalAspects,i);
-		if (strcmp(sa->aspectName, aspect) == 0)
+		if ((strlen(sa->aspectName) == strlen(aspect)) && (strcmp(sa->aspectName, aspect) == 0))
 			return sa;
 	}
 	return NULL;
 }
 
+void Purge(char * end) {
+	char * cp = NULL;
+	while ( (cp = GetNextLine()) != NULL ) {
+		if ( strncmp( cp, end, strlen(end) ) == 0 ) {
+            break;
+        }
+	}
+	return;
+}
+
 
 void ReadSignal( char * line ) {
-	    /*TRKINX_T trkindex;*/
-	    wIndex_t index, trkIndex, ep;
+	    TRKINX_T index, trkIndex = -1;
+	    EPINX_T ep=-1;
 	    track_p trk;
 	    char * cp = NULL;
 	    wIndex_t ia;
@@ -908,18 +951,13 @@ void ReadSignal( char * line ) {
 	    wIndex_t layer;
 	    signalData_p xx;
 
-	    if (*cp+7 == '6') {
-			if (!GetArgs(line+6,"dLsdpfdqdd",&index,&layer,scale, &visible, &orig,
-						 &angle, &numHeads, &name, &trkIndex, &ep)) {
+		ep = -1;
+		if (!GetArgs(line+6,"dLsdpfdq",&index,&layer,scale, &visible, &orig,
+					&angle, &numHeads, &name)) {
+				NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+				Purge("ENDSIGNAL");
 				return;
-			}
-	    } else {
-	    	ep = -1;
-	    	if (!GetArgs(line+6,"dLsdpfddq",&index,&layer,scale, &visible, &orig,
-	    				&angle, &numHeads, &trkIndex, &name)) {
-	    			return;
-	    		}
-	    }
+		}
 
 	    SCALEINX_T input_scale = LookupScale(scale);
 	    SCALEINX_T curr_scale = GetLayoutCurScale();
@@ -935,110 +973,141 @@ void ReadSignal( char * line ) {
 		xx->numberHeads = numHeads;         //Legacy
 		xx->orig = orig;
 		xx->angle = angle;
+		xx->scaleInx = curr_scale;
 
 	    DYNARR_RESET( signalAspect_t, xx->signalAspects );
 	    while ( (cp = GetNextLine()) != NULL ) {
-	        while (isspace((unsigned char)*cp)) cp++;
+	        while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
 	        if ( strncmp( cp, "END", 3 ) == 0 ) {
 	            break;
 	        }
 	        if ( *cp == '\n' || *cp == '#' ) {
 	            continue;
 	        }
-	        if (strncmp( cp, "VIEW", 4) == 0) {
-	        	char * viewname;
-	        	if (!GetArgs(cp+4,"s",&viewname)) return;
+	        if (strncmp( cp, "TRACK", 5) ==0) {
+	        	if (!GetArgs(cp+6,"dd",&trkIndex,&ep)) {
+	        		NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+	        		Purge("ENDSIGNAL");
+	        		return;
+	        	}
+	        	xx->index = trkIndex;
+	        	xx->ep = ep;
+	        } else if (strncmp( cp, "VIEW", 4) == 0) {
+	        	char viewname[10];
+	        	if (!GetArgs(cp+4,"s",viewname)) {
+	        		NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+	        		Purge("ENDSIGNAL");
+	        		return;
+	        	}
 	        	int type;
-	        	if (strcmp(viewname,"ELEV")==0) type = SIGNAL_DISPLAY_ELEV;
-	        	else if (strcmp(viewname,"PLAN")==0) type = SIGNAL_DISPLAY_PLAN;
+	        	if (strncmp(viewname,"ELEV",4)==0) type = SIGNAL_DISPLAY_ELEV;
+	        	else if (strncmp(viewname,"PLAN",4)==0) type = SIGNAL_DISPLAY_PLAN;
 	        	else type = SIGNAL_DISPLAY_DIAG;
 	        	ReadSegs();
 	        	RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
 	        	AppendSegsToArray(&xx->staticSignalSegs[type],&tempSegs_da);
-	        }
-	        if (strncmp( cp, "HEAD", 4) == 0) {
+	        } else if (strncmp( cp, "HEAD", 4) == 0) {
 	        	char * headName;
 	        	char * headType;
 	        	coOrd pos;
-	        	if (!GetArgs(cp+4,"pqq",&pos, &headName, &headType)) return;
+	        	if (!GetArgs(cp+4,"pqq",&pos, &headName, &headType)) {
+	        		NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+	        		Purge("ENDSIGNAL");
+	        		return;
+	        	}
 	        	DYNARR_APPEND(signalHead_t, xx->signalHeads, 1);
 	        	signalHead_p sh = &DYNARR_LAST(signalHead_t, xx->signalHeads);
 	        	sh->headName = headName;
 	        	sh->headTypeName = headType;
 	        	sh->headPos = pos;
-	        	if ((sh->headType = FindHeadType(headType,xx->scaleInx))==NULL)
-	        		ErrorMessage(MSG_SIGNAL_MISSING_HEADTYPE,xx->signalName,headName,headType);
-	        	signalHeadType_p ht = sh->headType;
-	        	sh->currentHeadAppearance = 0;
-	        	DIST_T ratioh = GetScaleRatio(curr_scale)/GetScaleRatio(sh->headType->headScale);
-	        	AppendSegsToArray(&sh->headSegs[SIGNAL_DISPLAY_ELEV],&ht->headSegs);
-	        	RescaleSegs(sh->headSegs[SIGNAL_DISPLAY_ELEV].cnt,sh->headSegs[SIGNAL_DISPLAY_ELEV].ptr,ratioh,ratioh,ratioh);
-	        }
-	        if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
-	        	char * baseaspect;
-	            if (!GetArgs(cp+4,"ssq",&aspname,&baseaspect,&aspscript)) return;
-	            DYNARR_APPEND( signalAspect_t, xx->signalAspects, 2 );
-	            signalAspect_p sa = &DYNARR_LAST(signalAspect_t, xx->signalAspects);
-	            sa->aspectName = aspname;
-	            sa->aspectType = FindBaseAspect(baseaspect);
-	            sa->aspectScript = aspscript;
-
-	            while ( (cp = GetNextLine()) != NULL ) {
-	            	if ( strncmp( cp, "END", 3 ) == 0 ) {
+	        	if ((sh->headType = FindHeadType(headType,curr_scale))==NULL)
+	        		NoticeMessage(MSG_SIGNAL_MISSING_HEADTYPE, _("Yes"), NULL, xx->signalName,headName,headType);
+	        	else {
+	        		signalHeadType_p ht = sh->headType;
+	        		sh->currentHeadAppearance = 0;
+	        		DIST_T ratioh = GetScaleRatio(curr_scale)/GetScaleRatio(sh->headType->headScale);
+	        		AppendSegsToArray(&sh->headSegs[SIGNAL_DISPLAY_ELEV],&ht->headSegs);
+	        		RescaleSegs(sh->headSegs[SIGNAL_DISPLAY_ELEV].cnt,sh->headSegs[SIGNAL_DISPLAY_ELEV].ptr,ratioh,ratioh,ratioh);
+	        	}
+	        } else if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
+				char baseaspect[20];
+				if (!GetArgs(cp+4,"qsq",&aspname,baseaspect,&aspscript)) {
+					NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+					Purge("ENDASPECT");
+					break;
+				}
+				DYNARR_APPEND( signalAspect_t, xx->signalAspects, 2 );
+				signalAspect_p sa = &DYNARR_LAST(signalAspect_t, xx->signalAspects);
+				sa->aspectName = aspname;
+				sa->aspectType = FindBaseAspect(baseaspect);
+				sa->aspectScript = aspscript;
+				while ( (cp = GetNextLine()) != NULL ) {
+					while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
+					if ( *cp == '\n' || *cp == '#' ) continue;
+					if ( strncmp( cp, "ENDASPECT", 9 ) == 0 ) {     //END of Aspect
 						break;
-					}
-					if ( *cp == '\n' || *cp == '#' ) {
-						continue;
-					}
-					while (strncmp(cp, "ASPECTMAP",9) == 0) {
-						DYNARR_APPEND(headAspectMap_t,sa->headMap,1);
-						headAspectMap_p ha = &DYNARR_LAST(headAspectMap_t,sa->headMap);
+					} else if (strncmp(cp, "ASPECTMAP",9) == 0) {
+						DYNARR_APPEND(headAspectMap_t,sa->headAspectMap,1);
+						headAspectMap_p ha = &DYNARR_LAST(headAspectMap_t,sa->headAspectMap);
 						int headNum;
 						char * app;
-						if (!GetArgs(line+10,"ds",&headNum,&app)) {
-							 return;
+						if (!GetArgs(cp+10,"dq",&headNum,&app)) {
+							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+							Purge("ENDASPECT");
+							break;
 						}
 						ha->aspectMapHeadAppearance = app;
 						ha->aspectMapHeadNumber = headNum;
 						if (headNum>xx->signalHeads.cnt)
-							ErrorMessage(MSG_SIGNAL_MISSING_HEAD,xx->signalName,headNum);
+							NoticeMessage(MSG_SIGNAL_MISSING_HEAD, _("Yes"), NULL, xx->signalName,headNum);
 						else
 							ha->aspectMapHeadAppearanceNumber = FindSignalHeadAppearance(trk,headNum,app);
-					}
-	            }
-	        }
-	        if ( strncmp (cp, "GROUP", 5) == 0) {
+					} else
+						NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
+				}
+	        } else if ( strncmp (cp, "GROUP", 5) == 0) {
 				char * groupName;
-				if (!GetArgs(cp+12,"q",&groupName)) return;
+				if (!GetArgs(cp+12,"q",&groupName)) {
+					NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
+					Purge("ENDGROUP");
+					return;
+				}
 				DYNARR_APPEND(signalGroup_t, xx->signalGroups, 1 );
 				signalGroup_p sg =  &DYNARR_LAST(signalGroup_t, xx->signalGroups);
 				sg->name = groupName;
 				while ( (cp = GetNextLine()) != NULL ) {
-					while (isspace((unsigned char)*cp)) cp++;
+					while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
 					if ( *cp == '\n' || *cp == '#' ) continue;
-					if ( strncmp( cp, "END", 3) == 0 ) break;  //END of Signal or of ASPECTS
+					if ( strncmp( cp, "ENDGROUP", 8) == 0 ) break;  //END of Group
 					char *aspect;
 					if ( strncmp( cp, "TRACKASPECT", 11 ) == 0 ) {
 						char * groupAspect;
-						if (!GetArgs(cp+12,"s",&groupAspect)) return;
-						signalAspect_p sa = SignalFindAspect(trk,groupAspect);
-						if (!sa) ErrorMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, name,  xx->signalGroups.cnt, groupAspect);
-						else {
-							DYNARR_APPEND(AspectList_t,sg->aspects,1);
-							DYNARR_LAST(AspectList_t,sg->aspects).aspectName = groupAspect;
-							DYNARR_LAST(AspectList_t,sg->aspects).aspect = sa;
+						if (!GetArgs(cp+12,"s",&groupAspect)) {
+							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
+							Purge("ENDGROUP");
+							break;
 						}
-					}
-					if ( strncmp( cp, "INDICATE", 8 ) == 0 ) {
+						signalAspect_p sa = FindSignalAspect(trk,groupAspect);
+						if (!sa) NoticeMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, _("Yes"), NULL, name,  xx->signalGroups.cnt, groupAspect);
+						else {
+							DYNARR_APPEND(groupAspectList_t,sg->aspects,1);
+							DYNARR_LAST(groupAspectList_t,sg->aspects).aspectName = groupAspect;
+							DYNARR_LAST(groupAspectList_t,sg->aspects).aspect = sa;
+						}
+					} else if ( strncmp( cp, "INDICATE", 8 ) == 0 ) {
 						char* indOnName, *indOffName, *conditions;
 						int headNum;
-						if (!GetArgs(cp+8,"dssq",&headNum,&indOnName,&indOffName,&conditions)) return;
-						if (headNum > xx->signalHeads.cnt)
-								ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, name, xx->signalGroups.cnt, headNum );
+						if (!GetArgs(cp+8,"dssq",&headNum,&indOnName,&indOffName,&conditions)) {
+							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
+							Purge("ENDGROUP");
+							break;
+						}
+						if (headNum >xx->signalHeads.cnt)
+								ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, headNum );
 						else {
 							signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,headNum);
 							if(FindAppearanceNum(sh->headType, indOffName) == -1)
-								ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, xx->signalGroups.cnt, indOffName);
+								NoticeMessage(MSG_SIGNAL_GRP_IND_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, indOffName);
 							else {
 								DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
 								signalGroupInstance_p gi = &DYNARR_LAST(signalGroupInstance_t, sg->groupInstances);
@@ -1048,13 +1117,16 @@ void ReadSignal( char * line ) {
 								gi->conditions = conditions;            //Dont check yet
 							}
 						}
-					}
+					} else
+						NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 				}
+	        } else {
+	        	NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 	        }
+	        if ( strncmp( cp, "ENDSIGNAL", 9) == 0 ) break;
 	    }
 	    ComputeSignalBoundingBox(trk,SignalDisplay);
 	    return;
-
 }
 
 
@@ -1120,7 +1192,7 @@ static int pubSubSignal(track_p trk, pubSubParmList_p parm) {
 			for (int i=0;i<sd->signalHeads.cnt;i++) {
 				signalHead_p sh = &DYNARR_N(signalHead_t,sd->signalHeads,i);
 				if (strcmp(cp,sh->headName) == 0) {
-					Appearance_p a = &DYNARR_N(Appearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
+					HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
 					parm->state = a->appearanceName;
 					return 0;
 				}
@@ -1149,7 +1221,7 @@ static int pubSubSignal(track_p trk, pubSubParmList_p parm) {
 						signalHead_p sh = &DYNARR_N(signalHead_t,sd->signalHeads,i);
 						if (strncmp(cp,sh->headName,strlen(sh->headName)) == 0) {
 							for (int j=0;j<sh->headType->headAppearances.cnt;j++) {
-								Appearance_p a = &DYNARR_N(Appearance_t,sh->headType->headAppearances,j);
+								HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,sh->headType->headAppearances,j);
 								if ((strncmp(a->appearanceName,parm->action,strlen(parm->action)) == 0)) {
 									sh->currentHeadAppearance = j;
 									// No Head Events to publish - publishEvent(sd->signalName,TYPE_HEAD,a->appearanceName);
@@ -1206,7 +1278,7 @@ static int pubSubSignal(track_p trk, pubSubParmList_p parm) {
 					signalHead_p sh = &DYNARR_N(signalHead_t,sd->signalHeads,i);
 					if (strcmp(cp,sh->headName) == 0) {
 						for (int j=0;j<sh->headType->headAppearances.cnt;j++) {
-							Appearance_p ha = &DYNARR_LAST(Appearance_t,sh->headType->headAppearances);
+							HeadAppearance_p ha = &DYNARR_LAST(HeadAppearance_t,sh->headType->headAppearances);
 							DYNARR_APPEND(ParmName_t,parm->actions,1);
 							ParmName_p p = &DYNARR_LAST(ParmName_t,parm->actions);
 							p->name = ha->appearanceName;
@@ -1339,7 +1411,7 @@ void AdvanceDisplayAspect( wAction_t action, coOrd pos) {
 	for (int i=0;i<xx->signalGroups.cnt;i++) {
 		signalGroup_p g = &DYNARR_N(signalGroup_t,xx->signalGroups,i);
 		for (int j=0;j<g->aspects.cnt;j++) {
-			AspectList_p ap = &DYNARR_N(AspectList_t,g->aspects,j);
+			groupAspectList_p ap = &DYNARR_N(groupAspectList_t,g->aspects,j);
 			if (&DYNARR_N(signalAspect_t,xx->signalAspects,xx->currentAspect)==ap->aspect) {
 				for (int k=0;k<g->groupInstances.cnt;k++) {
 					signalGroupInstance_p gi = &DYNARR_N(signalGroupInstance_t,g->groupInstances,k);
@@ -1552,7 +1624,7 @@ static void SignalEditDlgUpdate (paramGroup_p pg, int inx, void *valueP )
 static void aspectEditOK ( void * junk )
 {
     if (signalAspectEditIndex < 0) {
-        DYNARR_APPEND( signalAspect_p *, signalAspect_da, 10 );
+        DYNARR_APPEND( signalAspect_t, signalAspect_da, 10 );
         signalAspect(signalAspect_da.cnt-1).aspectName = MyStrdup(signalAspectEditName);
         signalAspect(signalAspect_da.cnt-1).aspectScript = MyStrdup(signalAspectEditScript);
         snprintf(message,sizeof(message),"%s\t%s",signalAspectEditName,signalAspectEditScript);
@@ -1661,17 +1733,17 @@ static void MoveAspectUp (wIndex_t inx)
     
     MyFree(signalAspect(inx).aspectName);
     MyFree(signalAspect(inx).aspectScript);
-    for(int i=0;i<signalAspect(inx).headMap.cnt;i++) {
-    	headAspectMap_t hm = DYNARR_N(headAspectMap_t,signalAspect(inx).headMap,i);
+    for(int i=0;i<signalAspect(inx).headAspectMap.cnt;i++) {
+    	headAspectMap_t hm = DYNARR_N(headAspectMap_t,signalAspect(inx).headAspectMap,i);
     	MyFree(hm.aspectMapHeadAppearance);
     }
-    MyFree(signalAspect(inx).headMap.ptr);
+    MyFree(signalAspect(inx).headAspectMap.ptr);
     for (ia = inx+1; ia < cnt; ia++) {
         signalAspect(ia-1).aspectName = signalAspect(ia).aspectName;
         signalAspect(ia-1).aspectScript = signalAspect(ia).aspectScript;
-        signalAspect(ia-1).headMap.cnt = signalAspect(ia).headMap.cnt;
-        signalAspect(ia-1).headMap.max = signalAspect(ia).headMap.max;
-        signalAspect(ia-1).headMap.ptr = signalAspect(ia).headMap.ptr;
+        signalAspect(ia-1).headAspectMap.cnt = signalAspect(ia).headAspectMap.cnt;
+        signalAspect(ia-1).headAspectMap.max = signalAspect(ia).headAspectMap.max;
+        signalAspect(ia-1).headAspectMap.ptr = signalAspect(ia).headAspectMap.ptr;
     }
     DYNARR_SET(signalAspect_t,signalAspect_da,cnt-1);
 }
@@ -1766,7 +1838,7 @@ LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") )
 	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
 		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
 		DrawSegs (&signalD, sh->headPos, 0.0, sh->headType->headSegs.ptr, sh->headType->headSegs.cnt, trackGauge, wDrawColorBlack);
-		Appearance_p a = &DYNARR_N(Appearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
+		HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
 		DrawSegs (&signalD, sh->headPos, 0.0, a->appearanceSegs.ptr, a->appearanceSegs.cnt, trackGauge, wDrawColorBlack);
 	}
 }
@@ -1823,7 +1895,7 @@ LOG( log_signal, 2, ( "SelSignal(%s)\n", (curSignal?curSignal->title:"<NULL>") )
 	for (int i=0;i<curSignal->signalHeads.cnt;i++) {
 		signalHead_p sh = &DYNARR_N(signalHead_t,curSignal->signalHeads,i);
 		DrawSegs (&signalEditD, sh->headPos, 0.0, sh->headType->headSegs.ptr, sh->headType->headSegs.cnt, trackGauge, wDrawColorBlack);
-		Appearance_p a = &DYNARR_N(Appearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
+		HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,sh->headType->headAppearances,sh->currentHeadAppearance);
 		DrawSegs (&signalEditD, sh->headPos, 0.0, a->appearanceSegs.ptr, a->appearanceSegs.cnt, trackGauge, wDrawColorBlack);
 	}
 }
@@ -1865,7 +1937,7 @@ static void EditSignalDialog()
 		snprintf(message,sizeof(message),"%s\t%s",(DYNARR_N(signalAspect_t,xx->signalAspects,ia)).aspectName,
 				(DYNARR_N(signalAspect_t,xx->signalAspects,ia)).aspectScript);
 		wListAddValue( aspectSelL, message, NULL, NULL );
-		DYNARR_APPEND( signalAspect_p *, signalAspect_da, 10 );
+		DYNARR_APPEND( signalAspect_t, signalAspect_da, 10 );
 		signalAspect(signalAspect_da.cnt-1).aspectName = MyStrdup((DYNARR_N(signalAspect_t,xx->signalAspects,ia)).aspectName);
 		signalAspect(signalAspect_da.cnt-1).aspectScript = MyStrdup((DYNARR_N(signalAspect_t,xx->signalAspects,ia)).aspectScript);
 	}
@@ -1910,10 +1982,10 @@ EXPORT track_p NewSignal(
 		sa->aspectName = strdup(sa1->aspectName);
 		sa->aspectScript = strdup(sa1->aspectScript);
 		sa->aspectType = sa1->aspectType;
-		for (int j=0;j<sa1->headMap.cnt;j++) {
-			DYNARR_APPEND(headAspectMap_t,sa->headMap,sa1->headMap.cnt);
-			headAspectMap_p hm = &DYNARR_N(headAspectMap_t,sa->headMap,j);
-			headAspectMap_p hm1 = &DYNARR_N(headAspectMap_t,sa1->headMap,j);
+		for (int j=0;j<sa1->headAspectMap.cnt;j++) {
+			DYNARR_APPEND(headAspectMap_t,sa->headAspectMap,sa1->headAspectMap.cnt);
+			headAspectMap_p hm = &DYNARR_N(headAspectMap_t,sa->headAspectMap,j);
+			headAspectMap_p hm1 = &DYNARR_N(headAspectMap_t,sa1->headAspectMap,j);
 			hm->aspectMapHeadAppearance = strdup(hm1->aspectMapHeadAppearance);
 			hm->aspectMapHeadAppearanceNumber = hm1->aspectMapHeadAppearanceNumber;
 			hm->aspectMapHeadNumber = hm1->aspectMapHeadNumber;
@@ -1936,7 +2008,7 @@ EXPORT track_p NewSignal(
 		signalGroup_p g = &DYNARR_N(signalGroup_t,xx->signalGroups,i);
 		signalGroup_p g1 = &DYNARR_N(signalGroup_t,groups,i);
 		for (int j=0;j<g1->groupInstances.cnt;j++) {
-			DYNARR_APPEND(signalGroupInstance_p,g->groupInstances,5);
+			DYNARR_APPEND(signalGroupInstance_t,g->groupInstances,5);
 			signalGroupInstance_p gi = &DYNARR_N(signalGroupInstance_t,g->groupInstances,j);
 			signalGroupInstance_p gi1 = &DYNARR_N(signalGroupInstance_t,g1->groupInstances,j);
 			gi->conditions = strdup(gi1->conditions);
@@ -2046,7 +2118,7 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
 			int pre_cnt = signal->currSegs.cnt;
 			/* Note Segs already moved to appearance origin and rotated */
 			/* Now only need to be be placed relative to the rest */
-			Appearance_p a = &DYNARR_N(Appearance_t,type->headAppearances,SIGNAL_DISPLAY_DIAG);
+			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,type->headAppearances,SIGNAL_DISPLAY_DIAG);
 			AppendTransformedSegs(&signal->currSegs,&a->appearanceSegs, head->headPos, zero, 0.0 );
 		}
 
@@ -2328,9 +2400,10 @@ EXPORT void InitTrkSignal ( void )
 {
     log_signal = LogFindIndex ( "signal" );
     //InitSignalSystem();
-    AddParam( "SIGNALPART", ReadSignalParam);
-    AddParam( "HEADTYPE", ReadHeadTypeParam );
-    //AddParam( "SIGNALSYSTEM ", ReadSignalSystemParam);
-    AddParam( "SIGNALPOST", ReadSignalPost);
+    AddParam( "SIGNALPART", ReadSignalPart);
+    //AddParam( "SIGNALHEADPROTO", ReadHeadType );
+    //AddParam( "SIGNALSYSTEM ", ReadSignalSystem);
+    //AddParam( "SIGNALPOSTPROTO", ReadSignalPost );
+    //AddParam( "SIGNALPROTO", ReadSignalProto);
     T_SIGNAL = InitObject(&signalCmds);
 }
