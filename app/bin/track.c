@@ -1099,8 +1099,9 @@ EXPORT void ResolveIndex( void )
 					NoticeMessage( MSG_RESOLV_INDEX_BAD_TRK, _("Continue"), NULL, trk->index, ep, trk->endPt[ep].index );
 				}
 			}
-                ResolveBlockTrack (trk);
-                ResolveSwitchmotorTurnout (trk);
+			ResolveBlockTrack (trk);
+			ResolveSwitchmotorTurnout (trk);
+			ResolveSignalTrack(trk);
         }
 	AuditTracks( "readTracks" );
 }
@@ -1333,10 +1334,10 @@ if (bsearchRead) {
 		 }
 	}
 }
-	if (strncmp( line, "CONDITIONGROUP",15) == 0)
+	if (strncmp( line, "CONDITIONGROUP ",15) == 0)
 		return ReadConditionGroup( line );
-	if (strncmp( line, "HEADTYPE", 8) == 0)
-		return ReadHeadTypeParam ( line );
+	if (strncmp( line, "SIGNALHEAD ", 11) == 0)
+		return ReadHeadType ( line );
 
 	if (strncmp( paramLine, "TABLEEDGE ", 10 ) == 0)
 		return ReadTableEdge( paramLine+10 );
@@ -1355,6 +1356,7 @@ EXPORT BOOL_T WriteTracks( FILE * f )
 	TRK_ITERATE( trk ) {
 		rc &= trackCmds(GetTrkType(trk))->write( trk, f );
 	}
+	rc &= WriteHeadTypes(f);
 	rc &= WriteCars( f );
 	rc &= WriteConditions( f );
 	return rc;

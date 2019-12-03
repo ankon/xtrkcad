@@ -1,6 +1,14 @@
 /*
  * csignalparm.c
  *
+ * Handle the Parameter files for Signals
+ * SIGNALPART - A signal you can install
+ * SIGNALPROTO - A signal you can build Parts out of
+ * SIGNALHEADPROTO - Part of a Proto signal
+ * SIGNALPOSTPROTO - Part of a Proto signal
+ * SIGNALSYSTEM - The container that holds SIGNALPROTO, SIGNALHEADPROTO, SIGNALPOSTPROTO
+ *
+ *
  *  Created on: Jul 29, 2019
  *      Author: richardsa
  */
@@ -139,8 +147,8 @@ EXPORT void FormatSignalParmTitle(
  * SignalParm
  */
 
-signalParm_p FindSignalParm(char* scale, char * name) {
-	signalParm_p si = NULL;
+signalPart_p FindSignalPart(char* scale, char * name) {
+	signalPart_p si = NULL;
 	SCALEINX_T scaleInx;
 	if ( scale )
 			scaleInx = LookupScale( scale );
@@ -148,7 +156,7 @@ signalParm_p FindSignalParm(char* scale, char * name) {
 			scaleInx = -1;
 
 	for (int i=0;i<Da.signalParms.cnt;i++) {
-		si = &DYNARR_N(signalParm_t, Da.signalParms,i);
+		si = &DYNARR_N(signalPart_t, Da.signalParms,i);
 		if ( IsParamValid(si->paramFileIndex) &&
 			((scaleInx == -1) || (si->scaleInx == scaleInx) || (si->scaleInx == SCALE_ANY)) &&
 			strcmp( si->title, name ) == 0 ) {
@@ -158,11 +166,11 @@ signalParm_p FindSignalParm(char* scale, char * name) {
 	return NULL;
 }
 
-signalParm_p CreateSignalParm(char* scale, char * name) {
+signalPart_p CreateSignalPart(char* scale, char * name) {
 
-	signalParm_p si = NULL;
+	signalPart_p si = NULL;
 
-	si = FindSignalParm(scale, name);
+	si = FindSignalPart(scale, name);
 
 	if (!si) {
 		for (int i=0;i<3;i++) {
@@ -173,8 +181,8 @@ signalParm_p CreateSignalParm(char* scale, char * name) {
 		si->heads.cnt = 0;
 		//wipe out
 	} else {
-		DYNARR_APPEND( signalParm_t, Da.signalParms, 10 );
-		si = &DYNARR_LAST(signalParm_t, Da.signalParms);
+		DYNARR_APPEND( signalPart_t, Da.signalParms, 10 );
+		si = &DYNARR_LAST(signalPart_t, Da.signalParms);
 		si->title = MyStrdup( name );
 		si->scaleInx = LookupScale( scale );
 		si->barScale = curBarScale>0?curBarScale:-1;
@@ -184,10 +192,10 @@ signalParm_p CreateSignalParm(char* scale, char * name) {
 
 }
 
-void setSignalParmOrig(signalParm_p si, coOrd orig) {si->orig = orig;}
-coOrd getSignalParmSize(signalParm_p si) { return si->size; }
+void setSignalParmOrig(signalPart_p si, coOrd orig) {si->orig = orig;}
+coOrd getSignalParmSize(signalPart_p si) { return si->size; }
 
-int FindHeadNum(signalParm_p si, char * headname) {
+int FindHeadNum(signalPart_p si, char * headname) {
 
 	for (int i=0;i<si->heads.cnt;i++) {
 		signalHead_p sh = &DYNARR_N(signalHead_t,si->heads,i);
@@ -202,7 +210,7 @@ int FindHeadNum(signalParm_p si, char * headname) {
  * SignalAspect
  */
 
-signalAspect_p FindAspectParm(signalParm_p si, char * name) {
+signalAspect_p FindAspectParm(signalPart_p si, char * name) {
 
 	for (int i=0;i<si->aspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,si->aspects,i);
@@ -213,7 +221,7 @@ signalAspect_p FindAspectParm(signalParm_p si, char * name) {
 	return NULL;
 }
 
-signalAspect_p GetAspectParm(signalParm_p si,int num) {
+signalAspect_p GetAspectParm(signalPart_p si,int num) {
 	if (num<si->aspects.cnt)
 		return &DYNARR_N(signalAspect_t,si->aspects,num);
 	else return NULL;
@@ -277,7 +285,7 @@ BOOL_T ReadSignalPost (char * line) {
 
 	sp = CreateSignalPost(scale,name);
 
-	sp->name = name;
+	sp->postName = name;
 	while ( (cp = GetNextLine()) != NULL ) {
 		if ( strncmp( cp, "END", 3 ) == 0 ) {
 			break;
@@ -310,7 +318,7 @@ BOOL_T ReadSignalPost (char * line) {
 
 int FindAppearanceNum(signalHeadType_p headtype,char * name) {
 	for (int i=0;i<headtype->headAppearances.cnt;i++) {
-		Appearance_p ha = &DYNARR_N(Appearance_t,headtype->headAppearances,i);
+		HeadAppearance_p ha = &DYNARR_N(HeadAppearance_t,headtype->headAppearances,i);
 		if (strcmp(ha->appearanceName,name) == 0) return i;
 	}
 	return -1;
@@ -329,7 +337,7 @@ signalHeadType_p FindHeadType(char* name) {
  * SignalParm
  */
 
-signalAspect_p SignalParmFindAspect(signalParm_p sig, char*name) {
+signalAspect_p SignalParmFindAspect(signalPart_p sig, char*name) {
 	for (int i=0;i<sig->aspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,sig->aspects,i);
 		if (strcmp(sa->aspectName, name) == 0) {
@@ -344,15 +352,15 @@ signalAspect_p SignalParmFindAspect(signalParm_p sig, char*name) {
  * SIGNALITEM  - Something that can be copied to create a SIGNAL def in the layout
  */
 
-BOOL_T ReadSignalParam ( char * line ) {
+BOOL_T ReadSignalPart ( char * line ) {
 	char scale[10];
 	char * name;
 	if (!GetArgs(line+10,"sq",scale,&name)) return FALSE;
 
-	signalParm_t * sig;
+	signalPart_t * sig;
 	char *cp;
 
-	sig = CreateSignalParm(scale,name);
+	sig = CreateSignalPart(scale,name);
 
 	while ( (cp = GetNextLine()) != NULL ) {
 		 if ( strncmp( cp, "END", 3 ) == 0 ) {
@@ -405,7 +413,7 @@ BOOL_T ReadSignalParam ( char * line ) {
 			if (FindAspectParm(sig,aspname) != NULL)
 				ErrorMessage(MSG_SIGNAL_DUPLICATE_ASPECT,name,aspname);
 			else {
-				DYNARR_APPEND( signalAspect_p *, sig->aspects, 1 );
+				DYNARR_APPEND( signalAspect_t, sig->aspects, 1 );
 				signalAspect_p sa =  &DYNARR_LAST(signalAspect_t,sig->aspects);
 				sa->aspectName = aspname;
 				if ((sa->aspectType = FindAspectType(aspectType)) == NULL)
@@ -420,8 +428,8 @@ BOOL_T ReadSignalParam ( char * line ) {
 						int headNum;
 						int number = 1;
 						if (!GetArgs(cp+13,"ds",&headNum,&appName)) return FALSE;
-						DYNARR_APPEND( headAspectMap_t, sa->headMap, 1 );
-						headAspectMap_p am = &DYNARR_N(headAspectMap_t,sa->headMap,sa->headMap.cnt-1);
+						DYNARR_APPEND( headAspectMap_t, sa->headAspectMap, 1 );
+						headAspectMap_p am = &DYNARR_N(headAspectMap_t,sa->headAspectMap,sa->headAspectMap.cnt-1);
 						if (headNum>sig->heads.cnt || headNum <1 )
 							ErrorMessage(MSG_SIGNAL_MISSING_HEAD,name,headNum,aspname);
 						else {
@@ -453,9 +461,9 @@ BOOL_T ReadSignalParam ( char * line ) {
 					signalAspect_p sa = SignalParmFindAspect(sig,groupAspect);
 					if (!sa) ErrorMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, name, sig->groups.cnt, groupAspect);
 					else {
-						DYNARR_APPEND(AspectList_t,sg->aspects,1);
-						DYNARR_LAST(AspectList_t,sg->aspects).aspectName = groupAspect;
-						DYNARR_LAST(AspectList_t,sg->aspects).aspect = sa;
+						DYNARR_APPEND(groupAspectList_t,sg->aspects,1);
+						DYNARR_LAST(groupAspectList_t,sg->aspects).aspectName = groupAspect;
+						DYNARR_LAST(groupAspectList_t,sg->aspects).aspect = sa;
 					}
 				}
 				if ( strncmp( cp, "INDICATE", 8 ) == 0 ) {

@@ -659,11 +659,13 @@ static BOOL_T ReadTrackFile(
 				/*wFloatSetValue( roomSizeYPD.control, PutDim(roomSize.y) );*/
 			} else {
 				if( !(ret = InputError( "ROOMSIZE: bad value", TRUE )))
+					exit (4);
 					break;
 			}
 		} else if (strncmp( paramLine, "SCALE ", 6 ) == 0) {
 			if ( !DoSetScale( paramLine+5 ) ) {
 				if( !(ret = InputError( "SCALE: bad value", TRUE )))
+					exit (4);
 					break;
 			}
 		} else if (strncmp( paramLine, "MAPSCALE ", 9 ) == 0) {
@@ -674,8 +676,10 @@ static BOOL_T ReadTrackFile(
 		} else if (strncmp( paramLine, "LAYERS ", 7 ) == 0) {
 			ReadLayers( paramLine+7 );
 		} else {
-			if( !(ret = InputError( "unknown command", TRUE )))
+			if( !(ret = InputError( "unknown command", TRUE ))) {
+				exit (4);
 				break;
+			}
 		}
 	}
 
