@@ -240,5 +240,11 @@ signalPart_p FindSignalDef(char* scale, char * name);
 BOOL_T ReadSignalProto (char* line);
 void SetSignalHead(track_p sig,int head, char* app);
 BOOL_T ResolveSignalTrack ( track_p trk );
+BOOL_T SignalIterate( track_p * sig );
+void ClearSignals();
+void SaveSignals();
+void RestoreSignals();
+void UpdateSignals();
 
+#define SIG_ITERATE(SIG)		for (SIG=sig_first; SIG!=NULL; SIG=SIG->sig_next) if (!(SIG->deleted))
 #endif /* APP_BIN_CSIGNAL_H_ */

@@ -47,6 +47,7 @@ struct wFilSel_t {
 		int pattCount; 									/**<  number of file patterns*/
 		GtkFileFilter *filter[ MAX_ALLOWEDFILTERS ]; 	/**< array of file patterns */
 		wFilSelMode_e mode; 							/**< used for load or save */
+		wBool_t filter_set;								/**< filter already set */
 		int opt; 										/**< see FS_ options */
 		const char * title; 							/**< dialog box title */
 		wWin_p parent; 									/**< parent window */
@@ -151,6 +152,7 @@ struct wFilSel_t * wFilSelCreate(
 
 	fs->parent = w;
 	fs->window = 0;
+	fs->filter_set = FALSE;
 	fs->mode = mode;
 	fs->opt = opt;
 	fs->title = strdup( title );
@@ -248,6 +250,7 @@ int wFilSelect( struct wFilSel_t * fs, const char * dirName )
 	GError *err = NULL;
 
 	if (fs->window == NULL) {
+		fs->filter_set = FALSE;
 		fs->window = gtk_file_chooser_dialog_new( fs->title, 
 										   GTK_WINDOW( fs->parent->gtkwin ),
 										   (fs->mode == FS_LOAD ? GTK_FILE_CHOOSER_ACTION_OPEN : GTK_FILE_CHOOSER_ACTION_SAVE ),
@@ -277,8 +280,9 @@ int wFilSelect( struct wFilSel_t * fs, const char * dirName )
 			gtk_file_chooser_set_select_multiple ( GTK_FILE_CHOOSER(fs->window), TRUE);
 		}	
 		// add the file filters to the dialog box
-		if( fs->pattCount ) {
+		if( fs->pattCount && !fs->filter_set) {
 			for( i = 0; i < fs->pattCount; i++ ) {
+				fs->filter_set = TRUE;
 				gtk_file_chooser_add_filter( GTK_FILE_CHOOSER( fs->window ), fs->filter[ i ] ); 
 			}
 		}												

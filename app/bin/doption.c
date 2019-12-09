@@ -214,6 +214,19 @@ EXPORT addButtonCallBack_t DisplayInit( void )
  * Signal Dialog
  */
 
+static void SignalDlgUpdate(
+		paramGroup_p pg,
+		int inx,
+		void * valueP )
+{
+	if (pg->paramPtr[inx].valueP == &SignalDisplay) {
+		UpdateSignals();
+	} else if (pg->paramPtr[inx].valueP == &SignalDisplay) {
+		UpdateSignals();
+	}
+
+}
+
 static wWin_p signalW;
 
 static char * signalDisplayLabels[] = { N_("Diagram"),  N_("Plan"), N_("Elevation"), NULL };
@@ -236,7 +249,7 @@ static void SignalsOk( void * junk )
 static void DoSignals( void * junk )
 {
 	if (signalW == NULL) {
-		signalW = ParamCreateDialog( &signalPG, MakeWindowTitle(_("Signal Options")), _("Ok"), SignalsOk, OptionDlgCancel, TRUE, NULL, 0, OptionDlgUpdate );
+		signalW = ParamCreateDialog( &signalPG, MakeWindowTitle(_("Signal Options")), _("Ok"), SignalsOk, wHide, TRUE, NULL, 0, SignalDlgUpdate );
 	}
 	ParamLoadControls( &signalPG );
 	wShow( signalW );

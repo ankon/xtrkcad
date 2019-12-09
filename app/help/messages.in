@@ -1536,7 +1536,7 @@ END
 
 # csignal.c
 MESSAGE MSG_SIGNAL_MISSING_HEAD
-The Signal %s has a missing head %s specified which is specified in Aspect %s
+The Signal %s has a missing head %d specified which is in Aspect %s
 HELP
 Fix the parm file
 END
