@@ -430,7 +430,7 @@ void SwitchmotorMgmLoad( void );
 void InitCmdSignal ( wMenu_p menu );
 void SignalMgmLoad ( void );
 BOOL_T ReadHeadType ( char * line);
-BOOL_T WriteHeadTypes(FILE * f);
+BOOL_T WriteHeadTypes(FILE * f, SCALEINX_T);
 /* ccontrol.c */
 void ControlMgmLoad ( void );
 void InitCmdControl ( wMenu_p menu );

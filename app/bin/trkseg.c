@@ -2053,13 +2053,13 @@ EXPORT void AppendSegsToArray(dynArr_t * seg_to, dynArr_t * seg_from) {
 }
 
 EXPORT void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd orig, coOrd rotateOrig, ANGLE_T angle) {
-	if (seg_from->cnt ==0) return;
-	int j = 0;
-	for (int i=0; i<seg_from->cnt;i++,j++) {
+	if (seg_from->cnt == 0) return;
+	int start_inx = seg_to->cnt;
+	for (int i=0; i<seg_from->cnt;i++) {
 		DYNARR_APPEND(trkSeg_t, * seg_to, seg_from->cnt);
-		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,j);
+		trkSeg_p from_p = &DYNARR_N(trkSeg_t, * seg_from,i);
 		trkSeg_p to_p = &DYNARR_LAST(trkSeg_t, * seg_to);
-		memcpy((void *)to_p,(void *)from_p,sizeof( trkSeg_t));
+		memcpy((void *)to_p,(void *)from_p,sizeof(trkSeg_t));
 		if (from_p->type == SEG_BEZLIN || from_p->type == SEG_BEZTRK) {
 			if (from_p->bezSegs.ptr) {
 				to_p->bezSegs.ptr = memdup(from_p->bezSegs.ptr,from_p->bezSegs.cnt*sizeof(trkSeg_t));
@@ -2070,12 +2070,13 @@ EXPORT void AppendTransformedSegs(dynArr_t * seg_to, dynArr_t * seg_from, coOrd 
 				to_p->u.p.pts = memdup(from_p->u.p.pts,from_p->u.p.cnt*sizeof(pts_t));
 			}
 		}
-		RotateSegs(1,to_p,rotateOrig,angle);
-		coOrd move;
-		move.x = orig.x - rotateOrig.x;
-		move.y = orig.y - rotateOrig.y;
-		MoveSegs(1,to_p,move);
 	}
+	trkSeg_p start_p = &DYNARR_N(trkSeg_t,*seg_to,start_inx);
+	RotateSegs(seg_from->cnt,start_p,rotateOrig,angle);
+	coOrd move;
+	move.x = orig.x - rotateOrig.x;
+	move.y = orig.y - rotateOrig.y;
+	MoveSegs(seg_from->cnt,start_p,move);
 }
 
 EXPORT void CopyPoly(trkSeg_p p, wIndex_t segCnt) {

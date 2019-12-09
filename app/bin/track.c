@@ -1062,6 +1062,7 @@ EXPORT void ClearTracks( void )
 	track_p curr, next;
 	UndoClear();
 	ClearNote();
+	ClearSignals();
 	for (curr = to_first; curr; curr=next) {
 		next = curr->next;
 		FreeTrack( curr );
@@ -1163,6 +1164,7 @@ EXPORT void SaveTrackState( void )
 	changed = 0;
 	max_index = 0;
 	SaveCarState();
+	SaveSignals();
 	InfoCount( trackCount );
 }
 
@@ -1174,6 +1176,7 @@ EXPORT void RestoreTrackState( void )
 	changed = savedTrackState.changed;
 	max_index = savedTrackState.max_index;
 	RestoreCarState();
+	RestoreSignals();
 	InfoCount( trackCount );
 }
 
@@ -1352,11 +1355,11 @@ EXPORT BOOL_T WriteTracks( FILE * f )
 	track_p trk;
 	BOOL_T rc = TRUE;
 	rc &= WriteSignalSystem( f );
+	rc &= WriteHeadTypes(f, LookupScale("*"));
 	RenumberTracks();
 	TRK_ITERATE( trk ) {
 		rc &= trackCmds(GetTrkType(trk))->write( trk, f );
 	}
-	rc &= WriteHeadTypes(f);
 	rc &= WriteCars( f );
 	rc &= WriteConditions( f );
 	return rc;

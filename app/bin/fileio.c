@@ -921,7 +921,7 @@ static BOOL_T DoSaveTracks(
 	rc &= WriteMainNote( f );
 	rc &= WriteTracks( f );
 	rc &= fprintf(f, "END\n")>0;
-	if ( !rc )
+	if ( rc )
 		NoticeMessage( MSG_WRITE_FAILURE, _("Ok"), NULL, strerror(errno), fileName );
 	fclose(f);
 	bReadOnly = FALSE;
