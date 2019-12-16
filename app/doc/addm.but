@@ -310,19 +310,25 @@ The \f{Turntable Angle} control on the Preferences (\K{cmdPref}) dialog controls
 
 \G{png.d/bblock.png}
 
+A Block is a list of connected tracks that detect the presence or absence of a train. 
+
+In XTrackCAD Train Mode issues a State Change message when a Train enters or leaves the tracks. 
+
+This Message can be detected by a Condition to drive other behavior, like changing Signal Aspects or changing a Control.
+
 A block is created by first selecting the track segments in the block and then 
 selecting \f{Create Block} from either the Add menu \K{cmdAdd} or from the block menu on the 
-hotbar.  A block gets a name and a script.  The name is only used for 
-identification and the script is used by the layout control software.  The 
-script should provide whatever information is needed by the layout control 
-software to determine block occupancy.  This could be a code snippet to 
+hotbar.  A block gets a name and a script.  The name is used for 
+identification and the script is used by the layout control software and XTrackCAD Conditions and must be unique within the Layout.  
+The script should provide whatever information is needed by the layout control 
+software to determine block occupancy. This could be a code snippet to 
 retrieve the state of the block occupancy or it could be the address of the 
 sensor, etc. 
 
 \G{png.d/block.png}
 
 The create block dialog has spaces for two text strings. One is the name and
-the other is a block occupancy script. The name identifies the block and the
+the other is a block occupancy script. The name uniquely identifies the block and the
 script is information used by the layout control software to detect block
 occupancy. The script could be a code snippet or I/O device address
 information, etc. 
@@ -335,8 +341,8 @@ information, etc.
 
 A switchmotor is created by selecting \f{Create SwitchMotor} from either the Add
 menu \K{cmdAdd} or from the switchmotor menu on the hotbar and then clicking on a turnout.
-A switchmotor gets a name and three scripts. The name is only used for
-identification and the three scripts are used by the layout control software.
+A switchmotor gets a name and three scripts. The name is used for
+identification and must be unique in the layout and the three scripts are used by the layout control software.
 The three scripts are for throwing the turnout to its "normal" position,
 throwing the turnout to its "reverse" position, and a script to read a point
 position sensor. These scripts could be code snippets or they could be
@@ -357,21 +363,28 @@ could be code snippets or I/O device address information, etc.
 
 \G{png.d/bsignal.png}
 
+Signals in XTrackCAD serve to affect running Trains in Train Mode, and can be extracted for use in Train Control software. 
+Each change in Aspect publishes a state change message in Train Mode that can trigger a Condition Rule. Conditions can set Aspects.
+
 A signal is created by selecting \f{Create Signal} from either the Add menu \K{cmdAdd} or
-from the hotbar. Use the mouse to select a location (left button) and then
-draging (left button down) the signal to set its orientation. Once the left 
-button is released, a Create/Edit Signal dialog box is displayed, and you can 
-fill in the signal's properties: name, fine tune the location and orientation, 
-number of heads, and the aspects.
+from the hotbar. The position of the Signal will be at a track end and its orientation will be locked to be the same as the track at that end. 
+This is the track the Signal will "protect". The position of the Signal can be offset.
+Use the mouse to select a track end location (left button) and then
+draging (left button down) the signal will create an offset from that position. Once the left 
+button is released, a Create/Edit Signal dialog box is displayed, and you can
+select the SignalPart you need from the list of those included from the parameter files and custom elements.  
+You then fill in the signal's properties: name, fine tune the offset, name the heads and the aspects.
 
 \G{png.d/signal.png}
 
-The create/edit signal dialog has spaces for the name of the signal, its 
-location and orientation, the number of heads (1, 2, or 3), and a list of 
-aspects.  Each aspect has a name and a script.  The name could be a rule book 
-name (Clear, Aproach, Stop, etc.) or the actual color(s) displayed (green, 
-yellow, red, etc.).  The script is just some information for the layout 
-control software to actually effect the display of the aspect -- this could be 
+The create/edit signal dialog has spaces for the name of the signal which must be unique in the layout, its 
+offset from the normal position, either with a number of heads (1, 2, or 3) of a default signaltype or a defined signaltype.
+The heads can be named and must be unique within the signal.  Each aspect has a unique name within the signal and a script.  
+You may choose fo the name to be a rule book name (Clear, Aproach, Stop, etc.) or the perhaps the actual color(s) displayed (green, 
+yellow, red, etc.).  These names can be used in Condition definitions to define logic.
+
+The script is just some information for the layout 
+control software, like JMRI, to effect the display of the aspect -- this might be 
 the LCC event id to trigger the aspect or it could be a code snippet that 
 causes the aspect to be displayed.
 
@@ -380,6 +393,9 @@ causes the aspect to be displayed.
 \S{cmdControl} Control
 
 \G{png.d/bControl.png}
+
+A Control is something that can be controlled by Train Control software like a control panel light, 
+or a physical element like a level crossing gate, or a virtual element like a "flag" that can be set and tested by a Condition.
 
 A control is created by selecting \f{Create Control} from either the Add menu \K{cmdAdd} or 
 from the hotbar. Use the mouse to select a location (left button) and then 
@@ -401,6 +417,9 @@ software to actually effect the state on the control (on or off).
 
 \G{png.d/bSensor.png}
 
+A Sensor is means to get a value into layout control software. It can also be an input to a Condition. 
+Examples include Levers and switches. Each Sensor publishes messages when it changes state in Train Mode.
+
 A sensor is created by selecting \f{Create Sensor} from either the Add menu \K{cmdAdd} or
 from the hotbar. Use the mouse to select a location (left button) and then
 dragging (left button down) the sensor to where you want it. Once the left
@@ -412,3 +431,13 @@ fill in the sensor's properties: name, fine tune the location, and the script.
 The create/edit sensor dialog has spaces for the name of the sensor, its 
 location, and a script. The script is just some information for the layout 
 control software to actually return the state of the sensor (on or off).
+
+\S{cmdCondition} Condition
+
+A Condition is a set of rules that are executed in response to a message from another object, runs tests and can change state of other objects based on logical rules.
+The Ruleset is based on JMRI Conditions and can be used to populate rules in Train Control software. 
+
+Sensors, Blocks and Signals all publish state changes as a Message which will drive re-evaluation of Conditions that include them.
+
+When Condition is run it can test the state of Sensors, Blocks, Signals, Switches and Controls. It can in turn drive Signal Aspects, Switch Positions and Controls.
+

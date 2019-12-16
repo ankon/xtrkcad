@@ -1952,7 +1952,7 @@ LogPrintf( "ctoDes2: R(%f) A0(%f) A1(%f) C(%f,%f) P(%f,%f) EP(%f,%f) RP0(%f,%f) 
 				pathLen += strlen(&pathChar[pathLen])+1;
 			} else {
 				strcpy(pathChar,"Left");
-				pathLen += strlen(&pathChar[pathLen])+1;
+				pathLen = strlen(pathChar)+1;
 			}
 			for (uint8_t i=0;i<Toe1Seg;i++) {
 				pathChar[pathLen] = i+1;

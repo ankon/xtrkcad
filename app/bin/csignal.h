@@ -10,6 +10,7 @@
 
 extern long SignalDisplay;
 extern long SignalSide;
+extern double SignalDiagramFactor;
 
 #define SIGNAL_DISPLAY_PLAN (1)
 #define SIGNAL_DISPLAY_DIAG (0)
@@ -155,6 +156,7 @@ typedef struct signalPart_t {
 		int paramFileIndex;
 		DIST_T barScale;
 		char * contentsLabel;
+		dynArr_t currSegs;
 		} signalPart_t, * signalPart_p;
 
 /*
@@ -245,6 +247,8 @@ void ClearSignals();
 void SaveSignals();
 void RestoreSignals();
 void UpdateSignals();
+
+void Purge(char * end);
 
 #define SIG_ITERATE(SIG)		for (SIG=sig_first; SIG!=NULL; SIG=SIG->sig_next) if (!(SIG->deleted))
 #endif /* APP_BIN_CSIGNAL_H_ */

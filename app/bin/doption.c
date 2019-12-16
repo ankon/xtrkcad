@@ -221,7 +221,9 @@ static void SignalDlgUpdate(
 {
 	if (pg->paramPtr[inx].valueP == &SignalDisplay) {
 		UpdateSignals();
-	} else if (pg->paramPtr[inx].valueP == &SignalDisplay) {
+	} else if (pg->paramPtr[inx].valueP == &SignalSide) {
+		UpdateSignals();
+	} else if (pg->paramPtr[inx].valueP == &SignalDiagramFactor) {
 		UpdateSignals();
 	}
 
@@ -231,10 +233,11 @@ static wWin_p signalW;
 
 static char * signalDisplayLabels[] = { N_("Diagram"),  N_("Plan"), N_("Elevation"), NULL };
 static char * signalSideLabels[] = { N_("Left"),  N_("Right"), NULL };
+static paramFloatRange_t sf1_10 = { 1.0, 10.0 };
 static paramData_t signalPLs[] = {
 	{ PD_RADIO, &SignalDisplay, "signal-display", PDO_NOPSHUPD, signalDisplayLabels, N_("Signal Display"), BC_HORZ },
 	{ PD_RADIO, &SignalSide, "signal-side", PDO_NOPSHUPD, signalSideLabels, N_("Signal Side"), 0 },
-
+	{ PD_FLOAT, &SignalDiagramFactor, "signal-factor", PDO_NOPSHUPD, &sf1_10, N_("Diagram Scale Factor") }
 };
 static paramGroup_t signalPG = { "signal", PGO_RECORD|PGO_PREFMISC, signalPLs, sizeof signalPLs/sizeof signalPLs[0] };
 
