@@ -1589,6 +1589,15 @@ HELP
 Correct the signal defintion
 END
 
+# csignal.c
+MESSAGE MSG_SIGNAL_NO_BASE_ASPECT
+SIGNAL %s Aspect entry %s contains invalid baseaspect %s
+HELP
+Correct the signal defintion
+END
+
+
+
 # csignalparm.c
 MESSAGE MSG_SIGNAL_DUPLICATE_ASPECT
 The Signal %s has a duplicate Aspect %s 

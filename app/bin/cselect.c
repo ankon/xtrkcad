@@ -38,6 +38,7 @@
 #include "messages.h"
 #include "param.h"
 #include "track.h"
+#include "csignal.h"
 #include "utility.h"
 #include "draw.h"
 #include "misc.h"
@@ -1461,6 +1462,8 @@ static void MoveTracks(
 							ANGLE_T end_angle;
 							end_pos = trackParms.cornuEnd[i];
 							Rotate( &end_pos, orig, angle );
+							end_center = trackParms.cornuCenter[i];
+							Rotate( &end_center, orig, angle );
 							end_angle = NormalizeAngle( trackParms.cornuAngle[i] + angle );
 							SetCornuEndPt(trk,i,end_pos,end_center,end_angle,trackParms.cornuRadius[i]);
 						}
@@ -1484,6 +1487,7 @@ static void MoveTracks(
 		DrawSelectedTracksD( &mapD, wDrawColorBlack );
 		DrawMapBoundingBox( TRUE );
 	}
+	UpdateSignals();
 	wSetCursor( mainD.d, defaultCursor );
 	if (undo) UndoEnd();
 	tempSegDrawFuncs.options = 0;
