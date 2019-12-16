@@ -307,17 +307,13 @@ static signalData_p getSignalData ( track_p trk )
 static void RebuildSignalSegs(signalData_p sp, int display) {
 	CleanSegs(&sp->currSegs);
 	AppendSegsToArray(&sp->currSegs,&sp->staticSignalSegs[display]);
-	if (SignalDiagramFactor != 1.0)
-		RescaleSegs(sp->staticSignalSegs[display].cnt,&DYNARR_N(trkSeg_t,sp->currSegs,0),SignalDiagramFactor,SignalDiagramFactor,SignalDiagramFactor);
 	signalAspect_t aspect;
+	DIST_T ratioh = 1.0;
 	for (int i=0;i<sp->signalHeads.cnt;i++) {
-
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->signalHeads,i);
 		int start_inx = sp->currSegs.cnt;
-		AppendTransformedSegs(&sp->currSegs,&head->headSegs[display],head->headPos,zero,0.0);
-		if (SignalDiagramFactor != 1.0)
-				RescaleSegs(head->headSegs[display].cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),SignalDiagramFactor,SignalDiagramFactor,SignalDiagramFactor);
+		AppendTransformedSegs(&sp->currSegs,&head->headSegs[display],head->headPos,zero,0.0);       //Already scaled
 		int indIndex;
 		switch(display) {
 			case SIGNAL_DISPLAY_ELEV:
@@ -332,26 +328,28 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 		signalHeadType_p type = head->headType;
 		if (type == NULL) continue;
 		start_inx = sp->currSegs.cnt;
-		DIST_T ratioh = (GetScaleRatio(type->headScale)*SignalDiagramFactor)/GetScaleRatio(sp->scaleInx);
-		if (display == SIGNAL_DISPLAY_ELEV) {
-			AppendTransformedSegs(&sp->currSegs,&type->headSegs, head->headPos, zero, 0.0);
-			if (ratioh != 1.0) {
-				RescaleSegs(type->headSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),ratioh,ratioh,ratioh);
-			}
-		}
+
+		DIST_T ratioh = GetScaleRatio(type->headScale)/GetScaleRatio(sp->scaleInx);
+		//if (display == SIGNAL_DISPLAY_ELEV) {
+		//	AppendTransformedSegs(&sp->currSegs,&type->headSegs, zero, zero, 0.0);
+		//	if (ratioh != 1.0) {
+		//		RescaleSegs(type->headSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),ratioh,ratioh,ratioh);
+		//	}
+		//	MoveSegs(type->headSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
+		//}
 		if ((indIndex >=0) && (indIndex <= type->headAppearances.cnt)) {
 			/* Now need to be be placed relative to the rest, rotated and scaled*/
 			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,type->headAppearances,indIndex);
 			start_inx = sp->currSegs.cnt;
-			AppendTransformedSegs(&sp->currSegs,&a->appearanceSegs, a->orig, a->orig, a->angle);
+			AppendTransformedSegs(&sp->currSegs,&a->appearanceSegs, zero, a->orig, a->angle);
 			if (ratioh != 1.0) {
 				RescaleSegs(a->appearanceSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),ratioh,ratioh,ratioh);
 			}
-			coOrd newPos = head->headPos;
-			newPos.x *=SignalDiagramFactor;
-			newPos.y *=SignalDiagramFactor;
-			MoveSegs(a->appearanceSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),newPos);
+			MoveSegs(a->appearanceSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
 		}
+	}
+	if (SignalDiagramFactor != 1.0) {
+		RescaleSegs(sp->currSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,0),SignalDiagramFactor,SignalDiagramFactor,SignalDiagramFactor);
 	}
 }
 
@@ -830,9 +828,10 @@ static BOOL_T WriteHeadType ( signalHeadType_p ht, FILE * f, SCALEINX_T out_scal
 	}
 	for (int i=0;i<ht->headAppearances.cnt;i++) {
 		HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,ht->headAppearances,i);
-		a->orig.x *=ratio;   //Scale rotate origin
-		a->orig.y *=ratio;
-		rc &= fprintf(f, "APPEARANCE %s %0.6f %0.6f %0.6f\n",a->appearanceName,a->orig.x,a->orig.y,a->angle)>0;
+		coOrd scaled_orig = a->orig;
+		scaled_orig.x *=ratio;   //Scale rotate origin
+		scaled_orig.y *=ratio;
+		rc &= fprintf(f, "APPEARANCE %s %0.6f %0.6f %0.6f\n",a->appearanceName,scaled_orig.x,scaled_orig.y,a->angle)>0;
 		/* Put them back if there is rotation or an offset */
 		CleanSegs(&tempWriteSegs);
 		AppendSegsToArray(&tempWriteSegs,&a->appearanceSegs);
