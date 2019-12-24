@@ -354,6 +354,8 @@ EXPORT SCALEINX_T LookupScale( const char * name )
 {
 	wIndex_t si;
 	DIST_T gauge;
+	if ( strcmp( name, "*" ) == 0 )
+			 return SCALE_ANY;							//Has entry in scale table now as well.
 	for ( si=0; si<scaleInfo_da.cnt; si++ ) {
 		if (strcmp( scaleInfo(si).scale, name ) == 0)
 			return si;
@@ -365,8 +367,6 @@ EXPORT SCALEINX_T LookupScale( const char * name )
 				return si;
 		}
 	}
-	if ( strcmp( name, "*" ) == 0 )
-		 return SCALE_ANY;							//Has entry in scale table now, but just in case.
 	NoticeMessage( MSG_BAD_SCALE_NAME, "Ok", NULL, name, sProdNameLower );
 	si = scaleInfo_da.cnt;
 	DYNARR_APPEND( scaleInfo_t, scaleInfo_da, 10 );

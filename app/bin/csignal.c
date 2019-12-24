@@ -215,11 +215,12 @@ typedef struct signalData_t {
     int numberHeads;					//Legacy Number of Heads
     int currentAspect;					//Current Aspect index within Aspects
     DIST_T barscale;
-    coOrd size;
-    SCALEINX_T scaleInx;				// Scale of Signal Def (or SCALE_ANY)
+    coOrd size;							//Drawing Bounds
+    SCALEINX_T scaleInx;				//Scale of Signal Def (or SCALE_ANY)
     int paramFileIndex;
     struct signalData_t * next_signal;
     track_p signal_track;
+    BOOL_T track_side;					//Left or Right of Track
 	} signalData_t, *signalData_p;
 
 
@@ -313,7 +314,11 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->signalHeads,i);
 		int start_inx = sp->currSegs.cnt;
-		AppendTransformedSegs(&sp->currSegs,&head->headSegs[display],head->headPos,zero,0.0);       //Already scaled
+		AppendTransformedSegs(&sp->currSegs,&head->headSegs[display],zero,zero,0.0);       //Already scaled
+		if (SignalDiagramFactor != 1.0) {
+			RescaleSegs(head->headSegs[display].cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),SignalDiagramFactor,SignalDiagramFactor,SignalDiagramFactor);
+		}
+		MoveSegs(head->headSegs[display].cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
 		int indIndex;
 		switch(display) {
 			case SIGNAL_DISPLAY_ELEV:
@@ -329,7 +334,7 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 		if (type == NULL) continue;
 		start_inx = sp->currSegs.cnt;
 
-		DIST_T ratioh = GetScaleRatio(type->headScale)/GetScaleRatio(sp->scaleInx);
+		DIST_T ratioh = (GetScaleRatio(type->headScale)*SignalDiagramFactor)/GetScaleRatio(sp->scaleInx);
 		//if (display == SIGNAL_DISPLAY_ELEV) {
 		//	AppendTransformedSegs(&sp->currSegs,&type->headSegs, zero, zero, 0.0);
 		//	if (ratioh != 1.0) {
@@ -337,7 +342,7 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 		//	}
 		//	MoveSegs(type->headSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
 		//}
-		if ((indIndex >=0) && (indIndex <= type->headAppearances.cnt)) {
+		if ((indIndex >=0) && (type->headAppearances.cnt>0) && (indIndex <= type->headAppearances.cnt)) {
 			/* Now need to be be placed relative to the rest, rotated and scaled*/
 			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,type->headAppearances,indIndex);
 			start_inx = sp->currSegs.cnt;
@@ -347,9 +352,6 @@ static void RebuildSignalSegs(signalData_p sp, int display) {
 			}
 			MoveSegs(a->appearanceSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
 		}
-	}
-	if (SignalDiagramFactor != 1.0) {
-		RescaleSegs(sp->currSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,0),SignalDiagramFactor,SignalDiagramFactor,SignalDiagramFactor);
 	}
 }
 
@@ -381,8 +383,8 @@ static void DrawSignal (track_p t, drawCmd_p d, wDrawColor color )
 			DIST_T ds, ws;
 			int inx;
 			ds = GetTrkGauge(sp->track);
-			Translate(&p0,o,a-90+(SignalSide?180:0),ds/2);
-			Translate(&p1,p0,a-90+(SignalSide?180:0),ds*1.5);
+			Translate(&p0,o,a-90+(sp->track_side?180:0),ds/2);
+			Translate(&p1,p0,a-90+(sp->track_side?180:0),ds*1.5);
 			coOrd offset;
 			offset = sp->orig;
 			Rotate(&offset,zero,a);
@@ -430,17 +432,21 @@ LOG( log_signal, 3, (" selected (action=%d) %ld\n", action, curSignalAspect ) )
 
 void setAspect(track_p t, int aspect) {
 	signalData_p xx = getSignalData(t);
+	if (aspect>xx->signalAspects.cnt) aspect = 0;
 	signalAspect_p a = &DYNARR_N(signalAspect_t,xx->signalAspects,aspect);
-	for (int i=0;i<a->headAspectMap.cnt;i++) {
-		headAspectMap_p ham = &DYNARR_N(headAspectMap_t,a->headAspectMap,i);
-		int hi = ham->aspectMapHeadNumber;
-		if (hi<xx->signalHeads.cnt) {
-			signalHead_p head = &DYNARR_N(signalHead_t,xx->signalHeads,hi);
-			head->currentHeadAppearance = ham->aspectMapHeadAppearanceNumber;
+	if (a && (a->headAspectMap.cnt != 0)) {
+		for (int i=0;i<a->headAspectMap.cnt;i++) {
+			headAspectMap_p ham = &DYNARR_N(headAspectMap_t,a->headAspectMap,i);
+			int hi = ham->aspectMapHeadNumber;
+			if (hi<xx->signalHeads.cnt) {
+				signalHead_p head = &DYNARR_N(signalHead_t,xx->signalHeads,hi);
+				head->currentHeadAppearance = ham->aspectMapHeadAppearanceNumber;
+			}
 		}
 	}
-	RebuildSignalSegs(xx, (programMode==MODE_TRAIN)?SIGNAL_DISPLAY_ELEV:SignalDisplay);
-	ComputeSignalBoundingBox (t, (programMode==MODE_TRAIN)?SIGNAL_DISPLAY_ELEV:SignalDisplay);
+	int display = (programMode==MODE_TRAIN)?SIGNAL_DISPLAY_ELEV:SignalDisplay;
+	RebuildSignalSegs(xx, display);
+	ComputeSignalBoundingBox (t, display);
 }
 
 
@@ -502,13 +508,15 @@ static struct {
     char manuf[STR_SHORT_SIZE];
     char name[STR_SHORT_SIZE];
     char partno[STR_SHORT_SIZE];
+    BOOL_T side;
 } signalProperties;
 
-typedef enum { SN, LN, PS, OR, HD, HN, AS, MN, NM, PN } signalDesc_e;
+typedef enum { SN, LN, PS, SD, OR, HD, HN, AS, MN, NM, PN } signalDesc_e;
 static descData_t signalDesc[] = {
     /* SN */ { DESC_STRING, N_("Name"),     &signalProperties.signalName, sizeof(signalProperties.signalName) },
 	/* LN */ { DESC_LONG,   N_("Lever"),    &signalProperties.leverNum },
     /* PS */ { DESC_POS,    N_("Position"), &signalProperties.pos },
+	/* SD */ { DESC_LIST, 	N_("Track Side"), &signalProperties.side},
     /* OR */ { DESC_ANGLE,  N_("Angle"),    &signalProperties.orient },
     /* HN */ { DESC_STRING, N_("Head"),     &signalProperties.headName, sizeof(signalProperties.headName) },
 	/* AS */ { DESC_STRING, N_("Aspect"),   &signalProperties.aspectName, sizeof(signalProperties.aspectName) },
@@ -583,8 +591,10 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
 			xx->title = newTitle;
 
 
-        if (signalProperties.pos.x != xx->orig.x ||
-            signalProperties.pos.y != xx->orig.y) {
+        if ((signalProperties.pos.x != xx->orig.x ||
+            signalProperties.pos.y != xx->orig.y) ||
+            (xx->track_side != signalProperties.side)){
+
             pChanged = changed = TRUE;
         }
         if (signalProperties.orient != xx->angle) {
@@ -603,6 +613,7 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
         }
         if (pChanged) {
             xx->orig = signalProperties.pos;
+            xx->track_side = signalProperties.side;
         }
         if (oChanged) {
             xx->angle = signalProperties.orient;
@@ -633,6 +644,7 @@ static void UpdateSignalProperties ( track_p trk, int inx, descData_p
 			xx->orig.y = signalProperties.pos.y - GetTrkEndPos(xx->track,0).y;
 			ComputeSignalBoundingBox( trk, SignalDisplay );
         	break;
+        case SD: break;
         case HN: break;
         case AS: break;
         case MN: break;
@@ -646,6 +658,8 @@ static void DescribeSignal (track_p trk, char * str, CSIZE_T len )
 {
     signalData_p xx = getSignalData(trk);
     
+    signalDesc[SD].control0 = NULL;
+
     strcpy( str, _(GetTrkTypeName( trk )) );
     str++;
     while (*str) {
@@ -669,9 +683,19 @@ static void DescribeSignal (track_p trk, char * str, CSIZE_T len )
     signalDesc[HN].mode = DESC_RO;
     signalDesc[AS].mode = DESC_RO;
     signalDesc[MN].mode = DESC_RO;
+    signalDesc[SD].mode = 0;
     signalDesc[NM].mode = DESC_NOREDRAW;
 
     DoDescribe( _("Signal"), trk, signalDesc, UpdateSignalProperties );
+
+
+    if (signalDesc[SD].control0 != NULL) {
+		wListClear( (wList_p)signalDesc[SD].control0 );
+		wListAddValue( (wList_p)signalDesc[SD].control0, _("Left"), NULL, (void*)0 );
+		wListAddValue( (wList_p)signalDesc[SD].control0, _("Right"), NULL, (void*)1 );
+		wListSetIndex( (wList_p)signalDesc[SD].control0, signalProperties.side);
+    }
+
 }
 
 static void DeleteSignal ( track_p trk )
@@ -740,7 +764,7 @@ static void DeleteSignal ( track_p trk )
 }
 
 int WriteStaticSegs(FILE * f, dynArr_t * staticSegs) {
-    int rc = 0;
+    int rc = TRUE;
 	for (int i=0;i<3;i++) {
     	char * disp;
     	switch(i) {
@@ -753,8 +777,8 @@ int WriteStaticSegs(FILE * f, dynArr_t * staticSegs) {
     		default:
     			disp = "DIAG";
     	}
-    	rc &= fprintf(f, "\tVIEW %s\n",disp);
-    	rc &= WriteSegs(f,staticSegs[i].cnt,staticSegs[i].ptr);
+    	rc &= fprintf(f, "\tVIEW %s\n",disp)>0;
+    	rc &= WriteSegs(f,staticSegs[i].cnt,staticSegs[i].ptr)>0;
     }
     return rc;
 }
@@ -764,14 +788,16 @@ static BOOL_T WriteSignal ( track_p t, FILE * f )
     BOOL_T rc = TRUE;
     wIndex_t ia,ih,im;
     signalData_p xx = getSignalData(t);
+    rc = TRUE;
+
     rc &= fprintf(f, "SIGNAL %d %d %s %d %0.6f %0.6f %0.6f %d \"%s\"\n",
                   GetTrkIndex(t), GetTrkLayer(t), GetTrkScaleName(t), 
                   GetTrkVisible(t), xx->orig.x, xx->orig.y, xx->angle, 
                   xx->numberHeads, xx->signalName)>0;
     if (xx->track) {
-    	rc &= fprintf(f, "\tTRACK %d %d\n",xx->index,xx->ep);
+    	rc &= fprintf(f, "\tTRACK %d %d\n",xx->index,xx->ep)>0;
     }
-    rc &= WriteStaticSegs(f, &xx->staticSignalSegs[0]);
+    rc &= WriteStaticSegs(f, &xx->staticSignalSegs[0])>0;
 
     for (ih = 0; ih < xx->signalHeads.cnt; ih++) {
     	signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,ih);
@@ -817,14 +843,14 @@ static dynArr_t tempWriteSegs;
 
 static BOOL_T WriteHeadType ( signalHeadType_p ht, FILE * f, SCALEINX_T out_scale ) {
 	BOOL_T rc = TRUE;
-	DIST_T ratio = GetScaleRatio(out_scale)/GetScaleRatio(ht->headScale);
+	DIST_T ratio = GetScaleRatio(ht->headScale)/GetScaleRatio(out_scale);
 	rc &= fprintf(f, "SIGNALHEAD %s \"%s\"\n",GetScaleName(out_scale),ht->headTypeName)>0;
 	if (ht->headSegs.cnt>0) {
 		CleanSegs(&tempWriteSegs);
 		AppendSegsToArray(&tempWriteSegs,&ht->headSegs);
 		if (ratio != 1.0)
 			RescaleSegs(tempWriteSegs.cnt, (trkSeg_p)tempWriteSegs.ptr, ratio, ratio, ratio);
-		rc &= WriteSegs(f,tempWriteSegs.cnt,(trkSeg_p)tempWriteSegs.ptr);
+		rc &= WriteSegs(f,tempWriteSegs.cnt,(trkSeg_p)tempWriteSegs.ptr)>0;
 	}
 	for (int i=0;i<ht->headAppearances.cnt;i++) {
 		HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,ht->headAppearances,i);
@@ -837,7 +863,7 @@ static BOOL_T WriteHeadType ( signalHeadType_p ht, FILE * f, SCALEINX_T out_scal
 		AppendSegsToArray(&tempWriteSegs,&a->appearanceSegs);
 		if (ratio != 1.0)
 			RescaleSegs(tempWriteSegs.cnt, (trkSeg_p)tempWriteSegs.ptr, ratio, ratio, ratio);
-		rc &= WriteSegs(f,tempWriteSegs.cnt,(trkSeg_p)tempWriteSegs.ptr);
+		rc &= WriteSegs(f,tempWriteSegs.cnt,(trkSeg_p)tempWriteSegs.ptr)>0;
 	}
 	rc &= fprintf( f, "ENDSIGNALHEAD\n" )>0;
 	return rc;
@@ -848,7 +874,7 @@ EXPORT BOOL_T WriteHeadTypes(FILE * f, SCALEINX_T out_scale) {
 	for (int i=0;i<headTypes_da.cnt;i++) {
 		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
 		//TODO Only write if used by a Signal
-		rc &= WriteHeadType(ht,f,out_scale);
+		rc &= WriteHeadType(ht,f,out_scale)>0;
 	}
 	return rc;
 }
@@ -866,10 +892,10 @@ EXPORT BOOL_T ResolveSignalTrack ( track_p trk )
     t_trk = FindTrack(xx->index);
     if ((t_trk == NULL) || (GetTrkEndPtCnt(t_trk)<xx->ep)) {
         if(NoticeMessage( _("ResolveSignal: Signal T%d %s: T%d E%d doesn't exist"), _("Continue"), NULL, GetTrkIndex(trk), xx->signalName, xx->index, xx->ep )) {
+        	t_trk = NULL;
         } else {
         	rc = 4;
         }
-
     }
     xx->track = t_trk;
     ComputeSignalBoundingBox(trk,SignalDisplay);
@@ -891,31 +917,48 @@ static int FindAppearanceNum( signalHeadType_p t, char * name) {
 	return -1;
 }
 
+/*
+ * Look up HeadType in Array By Name and Scale - match scale first and then match any
+ */
+static signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
+	signalHeadType_p found = NULL;
+	for (int i=0;i<headTypes_da.cnt;i++) {
+		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
+		if ((strlen(ht->headTypeName) == strlen(name))&& (strncmp(name,ht->headTypeName,strlen(name))==0)) {
+			if (ht->headScale != SCALE_DEMO && ht->headScale == scale)     // Ignore Demo scale
+				return ht;    									//Closest first
+			if (ht->headScale == SCALE_ANY) {
+				found = ht;
+			}
+		}
+	}
+	if (found) return found;									//Match on any
+	return NULL;
+}
+
+
 BOOL_T ReadHeadType ( char * line) {
 	char * typename;
 	char * cp = NULL;
 	char scale[10];
-	if (!GetArgs(line+10,"sq",scale,&typename)) {
+	if (!GetArgs(line+10,"sq",scale,&typename) || strlen(typename) == 0 ) {
+			PurgeLinesUntil("ENDSIGNALHEAD");
 	        return FALSE;
 	}
 	SCALEINX_T input_scale = LookupScale(scale);
 	signalHeadType_p ht = NULL;
-	// Find if dup name and overwrite it, regardless of scale //
-	for (int i=0;i<headTypes_da.cnt;i++) {
-		signalHeadType_p ht1 = &DYNARR_N(signalHeadType_t,headTypes_da,i);
-		if (strncmp(ht1->headTypeName,typename,50) ==0) {  //What will it be?
-			ht = ht1;
-			CleanSegs(&ht->headSegs);
-			for (int i=0;i<ht->headAppearances.cnt;i++) {
-				HeadAppearance_p ap = &DYNARR_N( HeadAppearance_t, ht->headAppearances, i );
-				CleanSegs(&ap->appearanceSegs);
-			}
-			memset(ht,0,sizeof(signalHeadType_t));
-			break;
+	// Find if dup name at same scale, overwrite it //
+	signalHeadType_p ht1 = FindHeadType(typename,input_scale);
+	if (ht1 && (ht1->headScale == input_scale)) {
+		ht = ht1;
+		CleanSegs(&ht->headSegs);
+		for (int i=0;i<ht->headAppearances.cnt;i++) {
+			HeadAppearance_p ap = &DYNARR_N( HeadAppearance_t, ht->headAppearances, i );
+			CleanSegs(&ap->appearanceSegs);
 		}
-	}
-	//Allocate new if not found
-	if (!ht) {
+		memset(ht,0,sizeof(signalHeadType_t));
+	} else {
+		//Allocate new if not found
 		DYNARR_APPEND(signalHeadType_t, headTypes_da,10);
 		ht = &DYNARR_LAST(signalHeadType_t,headTypes_da);
 	}
@@ -930,9 +973,6 @@ BOOL_T ReadHeadType ( char * line) {
 		while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
 		if (first && (strncmp( cp, "APPEARANCE ", 11 ) != 0)) {							//Static Segs for HeadType
 			ReadSegs();
-			//DIST_T ratio = GetScaleRatio(input_scale)/GetScaleRatio(curr_scale);
-			//if (ratio != 1.0)
-			//	RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);			//Don't rescale here
 			AppendSegsToArray(&ht->headSegs,&tempSegs_da);
 			CleanSegs(&tempSegs_da);
 			continue;
@@ -965,24 +1005,6 @@ BOOL_T ReadHeadType ( char * line) {
 	return TRUE;
 }
 
-/*
- * Look up HeadType in Array By Name and Scale - match scale first and then match any
- */
-static signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
-	signalHeadType_p found = NULL;
-	for (int i=0;i<headTypes_da.cnt;i++) {
-		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
-		if ((strlen(ht->headTypeName) == strlen(name))&& (strncmp(name,ht->headTypeName,strlen(name))==0)) {
-			if (ht->headScale != -1 && ht->headScale == scale)     // Ignore Demo scale
-				return ht;    									//Closest first
-			if (ht->headScale == SCALE_ANY) {
-				found = ht;
-			}
-		}
-	}
-	if (found) return found;									//Match on any
-	return NULL;
-}
 
 /*
  * Look up Head in Array By Name
@@ -1016,7 +1038,7 @@ static signalAspectType_p FindBaseAspect(char * name) {
 
 static int FindSignalHeadAppearance(track_p sig, int headId, char * appearanceName) {
 	signalData_p xx = getSignalData(sig);
-	if (headId>xx->signalHeads.cnt) return -1;
+	//if (headId>xx->signalHeads.cnt) return -1;
 	signalHead_p h = &DYNARR_N(signalHead_t,xx->signalHeads,headId-1);
 	signalHeadType_p ht = h->headType;
 	if (ht) {
@@ -1040,15 +1062,6 @@ static signalAspect_p FindSignalAspect(track_p sig,char * aspect) {
 	return NULL;
 }
 
-void Purge(char * end) {
-	char * cp = NULL;
-	while ( (cp = GetNextLine()) != NULL ) {
-		if ( strncmp( cp, end, strlen(end) ) == 0 ) {
-            break;
-        }
-	}
-	return;
-}
 
 
 void ReadSignal( char * line ) {
@@ -1071,7 +1084,7 @@ void ReadSignal( char * line ) {
 		if (!GetArgs(line+6,"dLsdpfdq",&index,&layer,scale, &visible, &orig,
 					&angle, &numHeads, &name)) {
 				NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
-				Purge("ENDSIGNAL");
+				PurgeLinesUntil("ENDSIGNAL");
 				return;
 		}
 
@@ -1096,6 +1109,9 @@ void ReadSignal( char * line ) {
 		xx->angle = angle;
 		xx->scaleInx = curr_scale;
 		xx->currentAspect = 0;
+		xx->currSegs.cnt = 0;
+		xx->currSegs.max = 0;
+		xx->currSegs.ptr = NULL;
 
 	    DYNARR_RESET( signalAspect_t, xx->signalAspects );
 	    while ( (cp = GetNextLine()) != NULL ) {
@@ -1109,7 +1125,7 @@ void ReadSignal( char * line ) {
 	        if (strncmp( cp, "TRACK", 5) ==0) {
 	        	if (!GetArgs(cp+6,"dd",&trkIndex,&ep)) {
 	        		NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
-	        		Purge("ENDSIGNAL");
+	        		PurgeLinesUntil("ENDSIGNAL");
 	        		return;
 	        	}
 	        	xx->index = trkIndex;
@@ -1118,7 +1134,7 @@ void ReadSignal( char * line ) {
 	        	char viewname[10];
 	        	if (!GetArgs(cp+4,"s",viewname)) {
 	        		NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
-	        		Purge("ENDSIGNAL");
+	        		PurgeLinesUntil("ENDSIGNAL");
 	        		return;
 	        	}
 	        	int type;
@@ -1134,7 +1150,7 @@ void ReadSignal( char * line ) {
 	        	coOrd pos;
 	        	if (!GetArgs(cp+4,"pqq",&pos, &headName, &headType)) {
 	        		NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
-	        		Purge("ENDSIGNAL");
+	        		PurgeLinesUntil("ENDSIGNAL");
 	        		return;
 	        	}
 	        	DYNARR_APPEND(signalHead_t, xx->signalHeads, 1);
@@ -1156,7 +1172,7 @@ void ReadSignal( char * line ) {
 				char baseaspect[20];
 				if (!GetArgs(cp+4,"qsq",&aspname,baseaspect,&aspscript)) {
 					NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
-					Purge("ENDASPECT");
+					PurgeLinesUntil("ENDASPECT");
 					break;
 				}
 				DYNARR_APPEND( signalAspect_t, xx->signalAspects, 2 );
@@ -1178,7 +1194,7 @@ void ReadSignal( char * line ) {
 						char * app;
 						if (!GetArgs(cp+10,"dq",&headNum,&app)) {
 							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
-							Purge("ENDASPECT");
+							PurgeLinesUntil("ENDASPECT");
 							break;
 						}
 						ha->aspectMapHeadAppearance = app;
@@ -1194,7 +1210,7 @@ void ReadSignal( char * line ) {
 				char * groupName;
 				if (!GetArgs(cp+12,"q",&groupName)) {
 					NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
-					Purge("ENDGROUP");
+					PurgeLinesUntil("ENDGROUP");
 					return;
 				}
 				DYNARR_APPEND(signalGroup_t, xx->signalGroups, 1 );
@@ -1209,7 +1225,7 @@ void ReadSignal( char * line ) {
 						char * groupAspect;
 						if (!GetArgs(cp+12,"s",&groupAspect)) {
 							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
-							Purge("ENDGROUP");
+							PurgeLinesUntil("ENDGROUP");
 							break;
 						}
 						signalAspect_p sa = FindSignalAspect(trk,groupAspect);
@@ -1224,12 +1240,12 @@ void ReadSignal( char * line ) {
 						int headNum;
 						if (!GetArgs(cp+8,"dssq",&headNum,&indOnName,&indOffName,&conditions)) {
 							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
-							Purge("ENDGROUP");
+							PurgeLinesUntil("ENDGROUP");
 							break;
 						}
 						if (headNum >xx->signalHeads.cnt) {
 								ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, headNum );
-								Purge("ENDGROUP");
+								PurgeLinesUntil("ENDGROUP");
 								break;
 						} else {
 							signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,headNum);
@@ -1252,6 +1268,7 @@ void ReadSignal( char * line ) {
 	        }
 	        if ( strncmp( cp, "ENDSIGNAL", 9) == 0 ) break;
 	    }
+	    setAspect(trk,xx->currentAspect);
 	    ComputeSignalBoundingBox(trk,SignalDisplay);
 	    return;
 }
@@ -2146,6 +2163,9 @@ EXPORT track_p NewSignal(
 	xx->angle = angle;
 	xx->signalName = MyStrdup(name);
 	xx->title = MyStrdup( title );
+
+	xx->track_side = SignalSide;
+
 	for (int i=i;i<3;i++) {
 		AppendSegsToArray(&xx->staticSignalSegs[i],&staticSegs[i]);
 	}
@@ -2535,12 +2555,12 @@ static char * CmdSignalHotBarProc(
 		DoCommandB( (void*)(intptr_t)signalHotBarCmdInx ); /* continue with new signal */
 		return NULL;
 	case HB_LISTTITLE:
-		FormatSignalParmTitle( listLabels, sd->title );
+		FormatSignalPartTitle( listLabels, sd->title );
 		if (message[0] == '\0')
-			FormatSignalParmTitle( listLabels|LABEL_DESCR, sd->title );
+			FormatSignalPartTitle( listLabels|LABEL_DESCR, sd->title );
 		return message;
 	case HB_BARTITLE:
-		FormatSignalParmTitle( hotBarLabels<<1, sd->title );
+		FormatSignalPartTitle( hotBarLabels<<1, sd->title );
 		return message;
 	case HB_FULLTITLE:
 		return sd->title;
@@ -2587,7 +2607,7 @@ EXPORT void InitTrkSignal ( void )
     AddParam( "SIGNALPART", ReadSignalPart);
     AddParam( "SIGNALHEAD", ReadHeadType );
     //AddParam( "SIGNALSYSTEM ", ReadSignalSystem);
-    //AddParam( "SIGNALPOSTPROTO", ReadSignalPost );
+    AddParam( "SIGNALPOST", ReadSignalPost );
     //AddParam( "SIGNALPROTO", ReadSignalProto);
     T_SIGNAL = InitObject(&signalCmds);
 }

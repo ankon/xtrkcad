@@ -140,6 +140,8 @@ void FileInit( void );
 
 BOOL_T MacroInit( void );
 
+void PurgeLinesUntil(char * end);
+
 char *SaveLocale( char *newLocale );
 void RestoreLocale( char * locale );
 

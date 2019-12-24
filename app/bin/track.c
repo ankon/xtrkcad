@@ -1354,14 +1354,14 @@ EXPORT BOOL_T WriteTracks( FILE * f )
 {
 	track_p trk;
 	BOOL_T rc = TRUE;
-	rc &= WriteSignalSystem( f );
-	rc &= WriteHeadTypes(f, LookupScale("*"));
+	rc &= WriteSignalSystem( f )>0;
+	rc &= WriteHeadTypes(f, LookupScale("*"))>0;
 	RenumberTracks();
 	TRK_ITERATE( trk ) {
-		rc &= trackCmds(GetTrkType(trk))->write( trk, f );
+		rc &= trackCmds(GetTrkType(trk))->write( trk, f )>0;
 	}
-	rc &= WriteCars( f );
-	rc &= WriteConditions( f );
+	rc &= WriteCars( f )>0;
+	rc &= WriteConditions( f )>0;
 	return rc;
 }
 
