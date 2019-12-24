@@ -197,6 +197,16 @@ EXPORT char * GetNextLine( void )
 	return paramLine;
 }
 
+/* Read until the input is found - this is to throw-away input for bad entries */
+EXPORT void PurgeLinesUntil(char * end) {
+	char * cp = NULL;
+	while ( (cp = GetNextLine()) != NULL ) {
+		if ( strncmp( cp, end, strlen(end) ) == 0 ) {
+            break;
+        }
+	}
+	return;
+}
 
 /**
  * Show an error message if problems occur during loading of a param or layout file.
@@ -921,7 +931,7 @@ static BOOL_T DoSaveTracks(
 	rc &= WriteMainNote( f );
 	rc &= WriteTracks( f );
 	rc &= fprintf(f, "END\n")>0;
-	if ( rc )
+	if ( rc == 0 )
 		NoticeMessage( MSG_WRITE_FAILURE, _("Ok"), NULL, strerror(errno), fileName );
 	fclose(f);
 	bReadOnly = FALSE;
