@@ -1341,7 +1341,8 @@ if (bsearchRead) {
 		return ReadConditionGroup( line );
 	if (strncmp( line, "SIGNALHEAD ", 11) == 0)
 		return ReadHeadType ( line );
-
+	if (strncmp( line, "SIGNALPOST ", 11) == 0)
+			return ReadSignalPost ( line );
 	if (strncmp( paramLine, "TABLEEDGE ", 10 ) == 0)
 		return ReadTableEdge( paramLine+10 );
 	if (strncmp( paramLine, "TEXT ", 5 ) == 0)
@@ -1356,6 +1357,7 @@ EXPORT BOOL_T WriteTracks( FILE * f )
 	BOOL_T rc = TRUE;
 	rc &= WriteSignalSystem( f )>0;
 	rc &= WriteHeadTypes(f, LookupScale("*"))>0;
+	rc &= WriteSignalPosts(f, LookupScale("*"))>0;
 	RenumberTracks();
 	TRK_ITERATE( trk ) {
 		rc &= trackCmds(GetTrkType(trk))->write( trk, f )>0;

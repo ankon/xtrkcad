@@ -201,6 +201,7 @@ EXPORT char * GetNextLine( void )
 EXPORT void PurgeLinesUntil(char * end) {
 	char * cp = NULL;
 	while ( (cp = GetNextLine()) != NULL ) {
+		while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
 		if ( strncmp( cp, end, strlen(end) ) == 0 ) {
             break;
         }

@@ -1222,8 +1222,8 @@ void ReadSignal( char * line ) {
 					if ( strncmp( cp, "ENDGROUP", 8) == 0 ) break;  //END of Group
 					char *aspect;
 					if ( strncmp( cp, "TRACKASPECT", 11 ) == 0 ) {
-						char * groupAspect;
-						if (!GetArgs(cp+12,"s",&groupAspect)) {
+						char groupAspect[20];
+						if (!GetArgs(cp+12,"s",groupAspect)) {
 							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
 							PurgeLinesUntil("ENDGROUP");
 							break;
@@ -1236,22 +1236,24 @@ void ReadSignal( char * line ) {
 							DYNARR_LAST(groupAspectList_t,sg->aspects).aspect = sa;
 						}
 					} else if ( strncmp( cp, "INDICATE", 8 ) == 0 ) {
-						char* indOnName, *indOffName, *conditions;
+						char indOnName[20], indOffName[20], *conditions;
 						int headNum;
-						if (!GetArgs(cp+8,"dssq",&headNum,&indOnName,&indOffName,&conditions)) {
+						if (!GetArgs(cp+8,"dssq",&headNum,indOnName,indOffName,&conditions)) {
 							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL,  line);
 							PurgeLinesUntil("ENDGROUP");
 							break;
 						}
 						if (headNum >xx->signalHeads.cnt) {
-								ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, headNum );
+								NoticeMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, headNum );
 								PurgeLinesUntil("ENDGROUP");
 								break;
 						} else {
 							signalHead_p sh = &DYNARR_N(signalHead_t,xx->signalHeads,headNum);
-							if(FindAppearanceNum(sh->headType, indOffName) == -1)
+							if(FindAppearanceNum(sh->headType, indOffName) == -1) {
 								NoticeMessage(MSG_SIGNAL_GRP_IND_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, indOffName);
-							else {
+							} else if (FindAppearanceNum(sh->headType, indOnName) == -1) {
+								NoticeMessage(MSG_SIGNAL_GRP_IND_INVALID, _("Yes"), NULL, name, xx->signalGroups.cnt, indOnName);
+							} else {
 								DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
 								signalGroupInstance_p gi = &DYNARR_LAST(signalGroupInstance_t, sg->groupInstances);
 								gi->headId = headNum;
@@ -1263,10 +1265,11 @@ void ReadSignal( char * line ) {
 					} else
 						NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 				}
-	        } else {
+	        } else if ( strncmp( cp, "ENDSIGNAL", 9) == 0 ) break;
+
+	        else {
 	        	NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 	        }
-	        if ( strncmp( cp, "ENDSIGNAL", 9) == 0 ) break;
 	    }
 	    setAspect(trk,xx->currentAspect);
 	    ComputeSignalBoundingBox(trk,SignalDisplay);
@@ -2606,7 +2609,7 @@ EXPORT void InitTrkSignal ( void )
     //InitSignalSystem();
     AddParam( "SIGNALPART", ReadSignalPart);
     AddParam( "SIGNALHEAD", ReadHeadType );
-    //AddParam( "SIGNALSYSTEM ", ReadSignalSystem);
+    AddParam( "SIGNALSYSTEM ", ReadSignalSystem);
     AddParam( "SIGNALPOST", ReadSignalPost );
     //AddParam( "SIGNALPROTO", ReadSignalProto);
     T_SIGNAL = InitObject(&signalCmds);

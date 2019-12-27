@@ -1640,6 +1640,20 @@ HELP
 Fix the parm file
 END
 
+# csignalparm.c
+MESSAGE MSG_SIGNAL_SYSTEM_INVALID_FILE
+Can't Load File %s
+HELP
+Fix the SignalSystem file
+END
+
+# csignalparm.c
+MESSAGE MSG_SIGNAL_SYSTEM_UNEXPECTED_DATA
+Invalid Line in SignalSystem File: %s
+HELP
+Fix the SignalSystem File
+END
+
 ############################################################
 # Message Archive
 ############################################################

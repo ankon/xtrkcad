@@ -9,6 +9,7 @@ project(lib)
 add_subdirectory(demos)
 add_subdirectory(examples)
 add_subdirectory(params)
+add_subdirectory(signals)
 
 install(FILES 
 	COPYING

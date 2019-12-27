@@ -24,6 +24,8 @@
 #include "messages.h"
 #include "layout.h"
 #include "fileio.h"
+#include "i18n.h"
+#include "paramfilelist.h"
 
 /* Global Anchors for Definitional Objects*/
 static struct {
@@ -173,7 +175,7 @@ signalPart_p CreateSignalPart(SCALEINX_T scale, char * name) {
 
 	si = FindSignalPart(scale, name);
 
-	if (!si && (si->scaleInx == scale)) {
+	if (si && (si->scaleInx == scale)) {
 		for (int i=0;i<3;i++) {
 			CleanSegs(&si->staticSegs[i]);
 		}
@@ -229,9 +231,12 @@ signalAspect_p GetAspectParm(signalPart_p si,int num) {
 }
 
 /*********************************************************************************************/
-
 /*
- * Signal Post
+ * Signal Post  - Currently just has draw elements and feet.
+ *
+ */
+/*
+ *  Find one in the right scale before one in SCALE_ANY
  */
 
 signalPost_p FindSignalPost(SCALEINX_T scale, char * name) {
@@ -242,7 +247,7 @@ signalPost_p FindSignalPost(SCALEINX_T scale, char * name) {
 		sp = &DYNARR_N(signalPost_t, Da.signalPosts,i);
 		if ( IsParamValid(sp->paramFileIndex) &&
 			(scale== -1 || sp->scale == scale || sp->scale == SCALE_ANY) &&
-			strcmp( sp->title, name ) == 0 ) {
+			strcmp( sp->postTypeName, name ) == 0 ) {
 			 	 if (sp->scale == scale)
 			 		 return sp;
 			 	 found = sp;
@@ -263,13 +268,15 @@ signalPost_p CreateSignalPost(SCALEINX_T scale, char * name) {
 		for (int i=0;i<3;i++) {
 			CleanSegs(&sp->drawings[i]);
 		}
+		DYNARR_RESET(coOrd,sp->feet);
 		//wipe out
 	} else {
 		sp = (signalPost_p)MyMalloc(sizeof(signalPost_t));
 		DYNARR_APPEND(signalPost_t, Da.signalPosts, 1 );
 		sp = &DYNARR_LAST(signalPost_t, Da.signalPosts);
-		sp->title = MyStrdup(name);
+		sp->postTypeName = name;
 		sp->scale = scale;
+		DYNARR_RESET(coOrd,sp->feet);
 	}
 	return sp;
 
@@ -287,7 +294,6 @@ BOOL_T ReadSignalPost (char * line) {
 
 	sp = CreateSignalPost(scaleInx,name);
 
-	sp->postName = name;
 	DYNARR_APPEND(coOrd,sp->feet,1);
 	coOrd * p = &DYNARR_LAST(coOrd, sp->feet);
 	*p = zero;
@@ -298,9 +304,9 @@ BOOL_T ReadSignalPost (char * line) {
 		if ( *cp == '\n' || *cp == '#' ) {
 			continue;
 		}
-		if ( strncmp( cp, "APPEARANCE", 11) == 0) {
+		if ( strncmp( cp, "VIEW", 4) == 0) {
 			char * dispname;
-			if (!GetArgs(cp+12,"s",&dispname)) return FALSE;
+			if (!GetArgs(cp+4,"s",&dispname)) return FALSE;
 			ReadSegs();
 			if (tempSegs_da.cnt>0) {
 				if (strncmp("PLAN",dispname,4) == 0) {
@@ -321,8 +327,54 @@ BOOL_T ReadSignalPost (char * line) {
 		}
 	}
 	return TRUE;
-
 }
+
+dynArr_t tempWriteSegs;
+
+
+static BOOL_T WriteSignalPost ( signalPost_p pt, FILE * f, SCALEINX_T out_scale ) {
+	BOOL_T rc = TRUE;
+	DIST_T ratio = GetScaleRatio(pt->scale)/GetScaleRatio(out_scale);
+	rc &= fprintf(f, "SIGNALPOST %s \"%s\"\n",GetScaleName(out_scale),pt->postTypeName)>0;
+	for (int i=0;i<3;i++) {
+		char * disp;
+		switch(i) {
+			case SIGNAL_DISPLAY_PLAN:
+				disp = "PLAN";
+				break;
+			case SIGNAL_DISPLAY_ELEV:
+				disp = "ELEV";
+				break;
+			default:
+				disp = "DIAG";
+		}
+		rc &= fprintf(f, "\tVIEW %s\n",disp)>0;
+		CleanSegs(&tempWriteSegs);
+		AppendSegsToArray(&tempWriteSegs,&pt->drawings[i]);
+		if (ratio != 1.0)
+			RescaleSegs(tempWriteSegs.cnt, (trkSeg_p)tempWriteSegs.ptr, ratio, ratio, ratio);
+		rc &= WriteSegs(f,tempWriteSegs.cnt,tempWriteSegs.ptr)>0;
+	}
+	for (int i=0;i<pt->feet.cnt;i++) {
+		coOrd * pos = &DYNARR_N(coOrd,pt->feet,i);
+		coOrd scaled_orig = *pos;
+		scaled_orig.x *=ratio;   //Scale rotate origin
+		scaled_orig.y *=ratio;
+		rc &= fprintf(f, "FOOT %0.6f %0.6f\n",scaled_orig.x,scaled_orig.y)>0;
+	}
+	rc &= fprintf( f, "ENDSIGNALPOST\n" )>0;
+	return rc;
+}
+
+EXPORT BOOL_T WriteSignalPosts(FILE * f, SCALEINX_T out_scale) {
+	BOOL_T rc = TRUE;
+	for (int i=0;i<Da.signalPosts.cnt;i++) {
+		signalPost_p ht = &DYNARR_N(signalPost_t,Da.signalPosts,i);
+		rc &= WriteSignalPost(ht,f,out_scale)>0;
+	}
+	return rc;
+}
+
 
 /*
  * HeadType
@@ -354,7 +406,7 @@ signalHeadType_p FindHeadType(SCALEINX_T scale, char* name) {
  * SignalParm
  */
 
-signalAspect_p SignalParmFindAspect(signalPart_p sig, char*name) {
+signalAspect_p SignalPartFindAspect(signalPart_p sig, char*name) {
 	for (int i=0;i<sig->aspects.cnt;i++) {
 		signalAspect_p sa = &DYNARR_N(signalAspect_t,sig->aspects,i);
 		if (strcmp(sa->aspectName, name) == 0) {
@@ -364,6 +416,10 @@ signalAspect_p SignalParmFindAspect(signalPart_p sig, char*name) {
 	return NULL;
 
 }
+
+/*
+ * A Signal Part only shows the Diagram view and no linkage to Track
+ */
 
 static void RebuildSignalPartSegs(signalPart_p sp) {
 	CleanSegs(&sp->currSegs);
@@ -430,25 +486,29 @@ BOOL_T ReadSignalPart( char * line ) {
 		if ( *cp == '\n' || *cp == '#'  ) {
 			continue;
 		}
-		if ( strncmp(cp, "APPEARANCE", 11)==0) {
-			char * viewname;
-			if (!GetArgs(cp+11, "s", &viewname)) {
+		if ( strncmp(cp, "APPEARANCE", 10)==0) {
+			char viewname[10];
+			if (!GetArgs(cp+10, "s", viewname)) {
+				NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 				PurgeLinesUntil("ENDSIGNALPART");
 				return FALSE;
 			}
 			ReadSegs();
 			int type;
 			if (strncmp(viewname,"PLAN", 4) ==0 ) type = SIGNAL_DISPLAY_PLAN;
-			if (strncmp(viewname,"ELEV", 4) ==0 ) type = SIGNAL_DISPLAY_ELEV;
+			else if (strncmp(viewname,"ELEV", 4) ==0 ) type = SIGNAL_DISPLAY_ELEV;
 			else type = SIGNAL_DISPLAY_DIAG;
 			RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
 			AppendSegsToArray(&sig->staticSegs[type],&tempSegs_da);
-		}
-		if ( strncmp (cp, "HEAD", 4) == 0) {
+		} else if ( strncmp (cp, "HEAD", 4) == 0) {
 			char * headname;
 			coOrd headPos;
 			char * headType;
-			if (!GetArgs(cp+4, "pqq",&headPos, &headname, &headType)) return FALSE;
+			if (!GetArgs(cp+4, "pqq",&headPos, &headname, &headType)) {
+				NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
+				PurgeLinesUntil("ENDSIGNALPART");
+				return FALSE;
+			}
 			DYNARR_APPEND( signalHead_t, sig->heads, 1 );
 			signalHead_p sh = &DYNARR_LAST( signalHead_t,sig->heads);
 			sh->currentHeadAppearance = 0;
@@ -463,52 +523,52 @@ BOOL_T ReadSignalPart( char * line ) {
 				AppendSegsToArray(&sh->headSegs[SIGNAL_DISPLAY_ELEV],&sh->headType->headSegs);
 				RescaleSegs(sh->headSegs[SIGNAL_DISPLAY_ELEV].cnt,sh->headSegs[SIGNAL_DISPLAY_ELEV].ptr,ratioh,ratioh,ratioh);
 			}
-		}
-		if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
-			char *aspname = NULL, *aspectType = NULL, *aspscript = NULL;
-			if (!GetArgs(cp+6,"qqq",&aspname,&aspectType,&aspscript)) {
+		} else if ( strncmp( cp, "ASPECT", 6 ) == 0 ) {
+			char *aspname = NULL, aspectType[10], *aspscript = NULL;
+			if (!GetArgs(cp+6,"qsq",&aspname,aspectType,&aspscript)) {
+				NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 				PurgeLinesUntil("ENDASPECT");
 				return FALSE;
 			}
-			if (FindAspectPart(sig,aspname) != NULL)
-				ErrorMessage(MSG_SIGNAL_DUPLICATE_ASPECT,name,aspname);
-			else {
+			if (FindAspectPart(sig,aspname) != NULL) {
+				NoticeMessage(MSG_SIGNAL_DUPLICATE_ASPECT,_("Yes"), NULL,name,aspname);
+			} else {
 				DYNARR_APPEND( signalAspect_t, sig->aspects, 1 );
 				signalAspect_p sa =  &DYNARR_LAST(signalAspect_t,sig->aspects);
 				sa->aspectName = aspname;
-				if ((sa->aspectType = FindAspectType(aspectType)) == NULL)
-					ErrorMessage(MSG_SIGNAL_NO_BASE_ASPECT,name,aspname,aspectType);
+				if ((sa->aspectType = FindAspectType(aspectType)) == NULL) {
+					NoticeMessage(MSG_SIGNAL_NO_BASE_ASPECT,_("Yes"), NULL,name,aspname,aspectType);
+					PurgeLinesUntil("ENDASPECT");
+				}
 				sa->aspectScript = aspscript;
 				while ( (cp = GetNextLine()) != NULL ) {
-					while (isspace((unsigned char)*cp)) cp++;
-					if ( *cp == '\n' || *cp == '#' || *cp == '\t') continue;
+					while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
+					if ( *cp == '\n' || *cp == '#') continue;
 					if ( strncmp( cp, "ENDASPECT", 9) == 0 ) break;  //END of Signal or of ASPECT
 					if ( strncmp( cp, "ASPECTMAP", 9 ) == 0 ) {
-						char * appName;
+						char appName[20];
 						int headNum;
 						int number = 1;
-						if (!GetArgs(cp+13,"ds",&headNum,&appName)) {
+						if (!GetArgs(cp+13,"ds",&headNum,appName)) {
+							NoticeMessage(MSG_SIGNAL_INVALID_ENTRY, _("Yes"), NULL, line);
 							PurgeLinesUntil("ENDASPECT");
-							return FALSE;
+							break;
 						}
 						DYNARR_APPEND( headAspectMap_t, sa->headAspectMap, 1 );
 						headAspectMap_p am = &DYNARR_LAST(headAspectMap_t,sa->headAspectMap);
 						if (headNum>sig->heads.cnt || headNum <1 ) {
-							ErrorMessage(MSG_SIGNAL_MISSING_HEAD,name,headNum,aspname);
-
+							NoticeMessage(MSG_SIGNAL_MISSING_HEAD,_("Yes"), NULL,name,headNum,aspname);
 						} else {
 							am->aspectMapHeadNumber = headNum;
 							am->aspectMapHeadAppearanceNumber = FindAppearanceNum(DYNARR_N(signalHead_t,sig->heads,am->aspectMapHeadNumber).headType,appName);
 							if (am->aspectMapHeadAppearanceNumber == -1)
-								ErrorMessage(MSG_SIGNAL_MISSING_APPEARANCE,name,appName,headNum,aspname);
-							else am->aspectMapHeadAppearance = appName;
+								NoticeMessage(MSG_SIGNAL_MISSING_APPEARANCE,_("Yes"), NULL,name,appName,headNum,aspname);
+							else am->aspectMapHeadAppearance = strdup(appName);
 						}
 					}
 				}
 			}
-		}
-
-		if ( strncmp (cp, "GROUP", 5) == 0) {
+		} else if ( strncmp (cp, "GROUP", 5) == 0) {
 			char * groupName;
 			if (!GetArgs(cp+12,"q",&groupName)) {
 				PurgeLinesUntil("ENDGROUP");
@@ -523,13 +583,13 @@ BOOL_T ReadSignalPart( char * line ) {
 				if ( strncmp( cp, "ENDGROUP", 8) == 0 ) break;  //END of Signal or of ASPECTS
 				char *aspect;
 				if ( strncmp( cp, "TRACKASPECT", 11 ) == 0 ) {
-					char * groupAspect;
-					if (!GetArgs(cp+12,"s",&groupAspect)) {
+					char groupAspect[20];
+					if (!GetArgs(cp+12,"s",groupAspect)) {
 						PurgeLinesUntil("ENDGROUP");
 						return FALSE;
 					}
-					signalAspect_p sa = SignalParmFindAspect(sig,groupAspect);
-					if (!sa) ErrorMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, name, sig->groups.cnt, groupAspect);
+					signalAspect_p sa = SignalPartFindAspect(sig,groupAspect);
+					if (!sa) NoticeMessage(MSG_SIGNAL_GRP_ASPECT_INVALID, _("Yes"), NULL,name, sig->groups.cnt, groupAspect);
 					else {
 						DYNARR_APPEND(groupAspectList_t,sg->aspects,1);
 						DYNARR_LAST(groupAspectList_t,sg->aspects).aspectName = groupAspect;
@@ -537,21 +597,23 @@ BOOL_T ReadSignalPart( char * line ) {
 					}
 				}
 				if ( strncmp( cp, "INDICATE", 8 ) == 0 ) {
-					char* indOnName, *indOffName, *conditions;
+					char indOnName[20], indOffName[20], *conditions;
 					int headNum;
-					if (!GetArgs(cp+8,"dssq",&headNum,&indOnName,&indOffName,&conditions)) {
+					if (!GetArgs(cp+8,"dssq",&headNum,indOnName,indOffName,&conditions)) {
 						PurgeLinesUntil("ENDGROUP");
 						break;
 					}
 					if (headNum > sig->heads.cnt) {
-						ErrorMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, name, sig->groups.cnt, headNum );
+						NoticeMessage(MSG_SIGNAL_GRP_GROUPHEAD_INVALID, _("Yes"), NULL,name, sig->groups.cnt, headNum );
 						PurgeLinesUntil("ENDGROUP");
 						break;
 					} else {
 						signalHead_p sh = &DYNARR_N(signalHead_t,sig->heads,headNum);
-						if(FindAppearanceNum(sh->headType, indOffName) == -1)
-							ErrorMessage(MSG_SIGNAL_GRP_IND_INVALID, name, sig->groups.cnt, indOffName);
-						else {
+						if(FindAppearanceNum(sh->headType, indOffName) == -1) {
+							NoticeMessage(MSG_SIGNAL_GRP_IND_INVALID, _("Yes"), NULL,name, sig->groups.cnt, indOffName);
+						} else if (FindAppearanceNum(sh->headType, indOnName) == -1) {
+							NoticeMessage(MSG_SIGNAL_GRP_IND_INVALID, _("Yes"), NULL,name, sig->groups.cnt, indOnName);
+						} else {
 							DYNARR_APPEND(signalGroupInstance_t, sg->groupInstances, 1 );
 							signalGroupInstance_p gi = &DYNARR_LAST(signalGroupInstance_t, sg->groupInstances);
 							gi->headId = headNum;
@@ -562,12 +624,59 @@ BOOL_T ReadSignalPart( char * line ) {
 					}
 				}
 			}
+		} else if ( strncmp( cp, "ENDSIGNALPART", 13) == 0 ) {
+			break;
+		} else {
+			NoticeMessage(MSG_SIGNAL_HEADTYPE_UNEXPECTED_DATA, _("Yes"), NULL,name, line);
 		}
-		if ( strncmp( cp, "ENDSIGNALPART", 13) == 0 ) break;
+
 	}
 	ComputeSignalPartBoundingBox(sig);
 	return TRUE;
 }
+
+/*
+ * The SignalSystem file is the pointer to a set of files that together have all the types needed
+ */
+BOOL_T ReadSignalSystem( char * line) {
+	char * name[80], filename[80];
+	char** fileString = (char**)malloc(sizeof(char*));
+	fileString[0] = message;
+	if (!GetArgs(line+10,"s",name)) return FALSE;    //SIGNALPART
+	char * cp;
+	while ( (cp = GetNextLine()) != NULL ) {
+		while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
+		if ( strncmp( cp, "END", 3 ) == 0 ) {
+			break;
+		}
+		if ( *cp == '\n' || *cp == '#'  ) {
+			continue;
+		}
+		if ( strncmp(cp, "BASEASPECT", 10)==0) {
+
+		} else if ( strncmp(cp, "HEADTYPES", 9)==0) {
+			if (!GetArgs(line+10,"s",filename)) return FALSE;    //SIGNALHEAD
+			sprintf( message, "%s" FILE_SEP_CHAR "signals" FILE_SEP_CHAR "HeadTypes" FILE_SEP_CHAR "%s.xtcs", libDir, filename );
+			if (!LoadParamFile(1,fileString,(void *) 0))
+				NoticeMessage(MSG_SIGNAL_SYSTEM_INVALID_FILE, _("Yes"), NULL,name, line);
+		} else if ( strncmp(cp, "SIGNALPOSTS", 11)==0) {
+			if (!GetArgs(line+10,"s",filename)) return FALSE;    //SIGNAPOST
+			sprintf( message, "%s" FILE_SEP_CHAR "signals" FILE_SEP_CHAR "Posts" FILE_SEP_CHAR "%s.xtcs", libDir, filename );
+			if (!LoadParamFile(1,fileString,(void *) 0))
+				NoticeMessage(MSG_SIGNAL_SYSTEM_INVALID_FILE, _("Yes"), NULL,name, line);
+		} else if ( strncmp(cp, "SIGNALPARTS", 11)==0) {
+			if (!GetArgs(line+10,"s",filename)) return FALSE;    //SIGNAPOST
+			sprintf( message, "%s" FILE_SEP_CHAR "signals" FILE_SEP_CHAR "Signals" FILE_SEP_CHAR "%s.xtcs", libDir, filename );
+			if (!LoadParamFile(1,fileString,(void *) 0))
+				NoticeMessage(MSG_SIGNAL_SYSTEM_INVALID_FILE, _("Yes"), NULL,name, line);
+		} else {
+			NoticeMessage(MSG_SIGNAL_SYSTEM_UNEXPECTED_DATA, _("Yes"), NULL,name, line);
+		}
+	}
+	return TRUE;
+}
+
+
 
 
 

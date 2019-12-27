@@ -1,4 +1,5 @@
 CONTENTS BR WR Lower Quadrant Signals
+PARAM 2
 ## WR
 SIGNALHEAD * "WR-LQ-Home 5ft"
 # Standard Size
