@@ -1,4 +1,6 @@
-SIGNALLINGSYSTEM BR  British Rail - Incorporating Color Lights, WR and MR Style
+CONTENTS BR	Signals 
+PARAM 2
+SIGNALSYSTEM BR  British Rail - Incorporating Color Lights, WR and MR Style
 BASEASPECT Danger 0
 BASEASPECT Proceed 100
 BASEASPECT Caution 50
@@ -16,4 +18,4 @@ HEADTYPES BR-Feathers
 SIGNALPOSTS BR-Posts
 #
 SIGNALPARTS BR-Signals
-ENDSIGNALLINGSYSYSTEM
+ENDSIGNALSYSTEM

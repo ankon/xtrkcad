@@ -1,4 +1,5 @@
 CONTENTS BR Position and ColorLight Shunt Signals
+PARAM 2
 SIGNALHEAD * "BR-Position Light"
 APPEARANCE DIAG 0.000000 0.000000 0.000000
 	Y4 0 0.000000 6 0 

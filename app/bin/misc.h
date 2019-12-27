@@ -299,6 +299,8 @@ typedef void (*changeNotificationCallBack_t)( long );
 void RegisterChangeNotification( changeNotificationCallBack_t );
 void DoChangeNotification( long );
 
+DIST_T ClampDimension(DIST_T r);
+
 /* foreign externs */
 extern drawCmd_t mapD;
 extern STATUS_T CmdEnumerate( wAction_t, coOrd );

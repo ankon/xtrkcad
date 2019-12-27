@@ -285,6 +285,24 @@ EXPORT char * MyStrdup(const char * str) {
 	return ret;
 }
 
+EXPORT DIST_T ClampDimension(DIST_T r) {
+	DIST_T rc;
+	if (units == UNITS_ENGLISH) {
+		if (r>=0) 				//Round to eigths of an inch
+			rc = floor(r*8.0+4)/8.0;
+		else
+			rc = floor(r*8.0-4)/8.0;
+	} else {
+		rc = 25.4*r;
+		if (r>=0)				//Round to 3mm (approx eights of an inch)
+			rc = floor(rc*3.0+1.5)/3.0;
+		else
+			rc = floor(rc*3.0-1.5)/3.0;
+		rc = rc/25.4;
+	}
+	return rc;
+}
+
 /*
  * Convert Text into the equivalent form that can be written to a file or put in a text box by adding escape characters
  *
