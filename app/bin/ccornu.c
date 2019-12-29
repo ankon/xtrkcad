@@ -67,6 +67,7 @@
  */
 
 
+#include <stdint.h>
 #include "track.h"
 #include "spiro.h"
 #include "spiroentrypoints.h"
@@ -90,7 +91,6 @@
 #include "cselect.h"
 #include "fileio.h"
 
-#include <stdint.h>
 
 extern drawCmd_t tempD;
 extern drawCmd_t anchorD;
