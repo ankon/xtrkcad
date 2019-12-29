@@ -125,6 +125,8 @@ static void DDrawControl(drawCmd_p d, coOrd orig, DIST_T scaleRatio,
 static void DrawControl (track_p t, drawCmd_p d, wDrawColor color )
 {
     controlData_p xx = GetcontrolData(t);
+    if ( xx->state == NULL )
+        return; // DaveB: don't know how this happens
     if (strncmp(xx->state,"ON",2)==0)
     	DDrawControl(d,xx->orig,GetScaleRatio(GetTrkScale(t)),drawColorGreen);
     else
@@ -579,15 +581,16 @@ static STATUS_T CmdControl ( wAction_t action, coOrd pos )
     case C_DOWN:
 	case C_MOVE:
 		SnapPos(&pos);
-        DDrawControl( &tempD, pos, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+//-        DDrawControl( &tempD, pos, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
         return C_CONTINUE;
     case C_UP:
         SnapPos(&pos);
-        DDrawControl( &tempD, pos, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+//-        DDrawControl( &tempD, pos, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
         CreateNewControl(pos);
         return C_TERMINATE;
-    case C_REDRAW:
     case C_CANCEL:
+	return C_CONTINUE;
+    case C_REDRAW:
         DDrawControl( &tempD, pos, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
         return C_CONTINUE;
     default:
@@ -606,7 +609,7 @@ static void DrawControlTrackHilite( void )
 	w = (wPos_t)((ctlhiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((ctlhiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,ctlhiliteOrig,&x,&y);
-	wDrawFilledRectangle( mainD.d, x, y, w, h, ctlhiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( mainD.d, x, y, w, h, ctlhiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 static int ControlMgmProc ( int cmd, void * data )
