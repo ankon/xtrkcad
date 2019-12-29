@@ -449,12 +449,12 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			rcode = CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, &anchors_da, InfoMessage );
 			segCnt = tempSegs_da.cnt ;
 			if (!Da.down) Da.state = -1;
-			MainRedraw();
+			XMainRedraw();
 			return rcode;
 			//Da.pos0 = pos;
 		}
 		//This is where the user could adjust - if we allow that?
-		MainRedraw();
+		XMainRedraw();
 		tempSegs_da.cnt = segCnt;
 		return C_CONTINUE;
 
@@ -474,7 +474,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 				}
 			}
 		}
-		TempRedraw();
+		XTempRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -537,7 +537,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			}
 		}
 		mainD.funcs->options = 0;
-		TempRedraw();
+		XTempRedraw();
 		return rc;
 	case C_TEXT:
 		if ( Da.state == 0 )
@@ -555,7 +555,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			mainD.funcs->options = 0;
 			segCnt = tempSegs_da.cnt;
 			InfoMessage( _("Drag on Red arrows to adjust curve") );
-			TempRedraw();
+			XTempRedraw();
 			return C_CONTINUE;
 		} else if ((curveMode == crvCmdFromChord && Da.state == 0 && Da.trk)) {
 			pos = Da.middle;
@@ -594,8 +594,9 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		} else {
 			return C_ERROR;
 		}
-		MainRedraw();
-		MapRedraw();
+		DrawNewTrack( t );
+		XMainRedraw();
+		XMapRedraw();
 		return C_TERMINATE;
 
 	case C_REDRAW:
@@ -616,8 +617,8 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		DYNARR_RESET(trkSeg_t,tempSegs_da);
 		Da.state = -1;
 		segCnt = 0;
-		MainRedraw();
-		MapRedraw();
+		XMainRedraw();
+		XMapRedraw();
 		return C_CONTINUE;
 
 	}
@@ -748,9 +749,9 @@ static void ComputeHelix(
 
 
 static void HelixCancel( wWin_p win )
-{
-	wHide( helixW );
-	Reset();
+	{
+		wHide( helixW );
+//-	Reset();
 }
 
 
@@ -870,12 +871,12 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		tempSegs(0).u.c.a0 = 0.0;
 		tempSegs(0).u.c.a1 = 360.0;
 		tempSegs_da.cnt = 1;
-		MainRedraw();
+		XMainRedraw();
 		return C_CONTINUE;
 
 	case C_UP:
             
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+//-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if (helixRadius > mapD.size.x && helixRadius > mapD.size.y) {
 			ErrorMessage( MSG_RADIUS_TOO_BIG );
 			return C_ERROR;
