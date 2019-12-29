@@ -234,6 +234,7 @@ STATUS_T BlockDescriptionMove(
 	static coOrd p00, p0, p1, p2;
 	static BOOL_T editMode;
 	wDrawColor color;
+	wBool_t blockSize = FALSE; // Doesn't appear to be used
 
 	switch (action) {
 	case C_DOWN:
@@ -241,6 +242,7 @@ STATUS_T BlockDescriptionMove(
 		if (!BlockDescriptionPos(trk, &p0, &p1, &p2)) return C_CONTINUE;
 		p00.x = p2.x - b->description_offset.x;
 		p00.y = p2.y - b->description_offset.y;
+		DrawBlockDescription( trk, &mainD, wDrawColorWhite, blockSide );
 		/* no break */
 	case C_MOVE:
 	case C_UP:
@@ -252,18 +254,23 @@ STATUS_T BlockDescriptionMove(
 		if (action == C_UP) {
 			editMode = FALSE;
 		}
-		MainRedraw();
-		MapRedraw();
+		XMainRedraw();
+		XMapRedraw();
+		if ( action == C_UP ) {
+			DrawBlockDescription( trk, &mainD, color, blockSide );
+		}
 		return action==C_UP?C_TERMINATE:C_CONTINUE;
 		break;
 	case C_REDRAW:
 		if (editMode) {
-			DrawLine( &tempD, p1, p2, 0, blockColor);
-			DrawLine( &tempD, p0, p2, 0, blockColor);
-			wFont_p fp;
-			fp = wStandardFont( F_TIMES, FALSE, FALSE );
-			DrawBoxedString( BOX_BACKGROUND, &tempD, p2, b->name, fp, (wFontSize_t)descriptionFontSize, blockColor, 0.0 );
+			DrawBlockDescription( trk, &tempD, wDrawColorBlack, blockSide );
+//-			DrawLine( &tempD, p1, p2, 0, blockColor);
+//-			DrawLine( &tempD, p0, p2, 0, blockColor);
+//-			wFont_p fp;
+//-			fp = wStandardFont( F_TIMES, FALSE, FALSE );
+//-			DrawBoxedString( BOX_BACKGROUND, &tempD, p2, b->name, fp, (wFontSize_t)descriptionFontSize, blockColor, 0.0 );
 		}
+		break;
 	}
 	return C_CONTINUE;
 }
@@ -1111,7 +1118,7 @@ static void DrawBlockTrackHilite( void )
 	w = (wPos_t)((blkhiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((blkhiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,blkhiliteOrig,&x,&y);
-	wDrawFilledRectangle( mainD.d, x, y, w, h, blkhiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( mainD.d, x, y, w, h, blkhiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 
