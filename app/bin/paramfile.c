@@ -31,6 +31,7 @@
 #include "common.h"
 #include "compound.h"
 #include "ctrain.h"
+#include "csignal.h"
 #include "custom.h"
 #include "fileio.h"
 #include "i18n.h"
@@ -41,15 +42,14 @@
 #include "paramfile.h"
 #include "paramfilelist.h"
 
-static long paramCheckSum;
-
 typedef enum paramFileState(*GetCompatibilityFunction)(int index, SCALEINX_T scale);
 
 GetCompatibilityFunction GetCompatibility[] = {
 		GetTrackCompatibility,
 		GetStructureCompatibility,
 		GetCarProtoCompatibility,
-		GetCarPartCompatibility
+		GetCarPartCompatibility,
+		GetSignalPartCompatibility
 };
 
 #define COMPATIBILITYCHECKSCOUNT (sizeof(GetCompatibility)/sizeof(GetCompatibility[0]))

@@ -1,6 +1,6 @@
 CONTENTS BR	Signals 
 PARAM 2
-SIGNALSYSTEM BR  British Rail - Incorporating Color Lights, WR and MR Style
+SIGNALSYSTEM "BR  British Rail - Incorporating Color Lights, WR and MR Style"
 BASEASPECT Danger 0
 BASEASPECT Proceed 100
 BASEASPECT Caution 50
@@ -11,8 +11,8 @@ HEADTYPES BR-WR-Semaphore
 HEADTYPES BR-MR-Semaphore
 HEADTYPES BR-Ground-Signals
 HEADTYPES BR-ColourLights
-HEADTYPES BR-Postion-and-Shunt
-HEADTYPES BR-Matrix
+HEADTYPES BR-Position-and-Shunt
+HEADTYPES BR-Theatre
 HEADTYPES BR-Feathers
 #
 SIGNALPOSTS BR-Posts

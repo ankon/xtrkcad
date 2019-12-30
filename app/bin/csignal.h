@@ -80,15 +80,30 @@ typedef struct signalAspectType_t {
 
 
 /*
- * A Signal Post contains up to 3 drawings (Plan, Elevation and Drawing)  It can also contain an arbitrary number of signals.
+ * A Signal Post contains up to 3 drawings (Plan, Elevation and Drawing).  It can also contain an arbitrary number of signals.
  */
 typedef struct signalPost_t {
 	SCALEINX_T scale;
 	dynArr_t drawings[3];
+	char * postName;
+	int paramFileIndex;
+	dynArr_t feet;				//CoOrds
+	dynArr_t signals;			//Signals
+} signalPost_t, *signalPost_p;
+
+/*
+ * A Signal Post Type contains up to 3 drawings (Plan, Elevation and Drawing).
+ *
+ * It will be scaled when added to a Signal
+ *
+ */
+typedef struct signalPostType_t {
+	SCALEINX_T scale;
+	dynArr_t drawings[3];
 	char * postTypeName;
 	int paramFileIndex;
-	dynArr_t feet;
-} signalPost_t, *signalPost_p;
+	dynArr_t feet;				//CoOrds
+} signalPostType_t, *signalPostType_p;
 
 /*
  * A Map from the Aspects from this Signal to all the Heads and the Appearances that they show
@@ -222,10 +237,10 @@ typedef struct signalIndicatorType_t {
 
 void FormatSignalPartTitle(long format,char * title );
 BOOL_T ReadSignalPart ( char * line );
-BOOL_T ReadSignalPost (char * line);
-signalPost_p CreateSignalPost(SCALEINX_T scale, char * name);
+BOOL_T ReadSignalPostType (char * line);
+signalPostType_p CreateSignalPostType(SCALEINX_T scale, char * name);
 BOOL_T WriteSignalSystem(FILE * f);
-BOOL_T WriteSignalPosts(FILE * f, SCALEINX_T out_scale);
+BOOL_T WriteSignalPostTypes(FILE * f, SCALEINX_T out_scale);
 signalPart_p FindSignalDef(SCALEINX_T scale, char * name);
 BOOL_T ReadSignalProto (char* line);
 void SetSignalHead(track_p sig,int head, char* app);
@@ -236,6 +251,10 @@ void SaveSignals();
 void RestoreSignals();
 void UpdateSignals();
 BOOL_T ReadSignalSystem( char * line);
+signalAspectType_p FindBaseAspect(char * name);
+signalHeadType_p FindHeadType( char * name, SCALEINX_T scale);
+int FindHeadAppearance(signalHeadType_p ht, char * appearanceName);
+enum paramFileState GetSignalPartCompatibility(int paramFileIndex, SCALEINX_T scaleIndex);
 
 #define SIG_ITERATE(SIG)		for (SIG=sig_first; SIG!=NULL; SIG=SIG->sig_next) if (!(SIG->deleted))
 #endif /* APP_BIN_CSIGNAL_H_ */

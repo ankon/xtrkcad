@@ -30,6 +30,8 @@
 FILE * paramFile;
 extern char *paramFileName;
 wIndex_t paramLineNum;
+
+
 char paramLine[STR_LONG_SIZE];
 char * curContents;
 char * curSubContents;

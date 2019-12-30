@@ -920,7 +920,7 @@ static int FindAppearanceNum( signalHeadType_p t, char * name) {
 /*
  * Look up HeadType in Array By Name and Scale - match scale first and then match any
  */
-static signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
+EXPORT signalHeadType_p FindHeadType( char * name, SCALEINX_T scale) {
 	signalHeadType_p found = NULL;
 	for (int i=0;i<headTypes_da.cnt;i++) {
 		signalHeadType_p ht = &DYNARR_N(signalHeadType_t,headTypes_da,i);
@@ -997,7 +997,7 @@ BOOL_T ReadHeadType ( char * line) {
 				AppendSegsToArray(&a->appearanceSegs,&tempSegs_da);
 			}
 		} else {
-			ErrorMessage(MSG_SIGNAL_HEADTYPE_UNEXPECTED_DATA,ht->headTypeName);
+			InputError("Unknown SignalHead param line", TRUE);
 			return FALSE;
 		}
 		if (cp == NULL) break;
@@ -1024,7 +1024,7 @@ static int FindHeadNum( signalData_p s, char * name) {
 /*
  * Look up Base Aspect in Array By Name
  */
-static signalAspectType_p FindBaseAspect(char * name) {
+EXPORT signalAspectType_p FindBaseAspect(char * name) {
 	if (strlen(name) == 0) name = "None";
 	for (int i=0;i<sizeof(defaultAspectsMap);i++) {
 		signalAspectType_p a = &defaultAspectsMap[i];
@@ -1036,20 +1036,13 @@ static signalAspectType_p FindBaseAspect(char * name) {
 	return NULL;
 }
 
+
 static int FindSignalHeadAppearance(track_p sig, int headId, char * appearanceName) {
 	signalData_p xx = getSignalData(sig);
 	//if (headId>xx->signalHeads.cnt) return -1;
 	signalHead_p h = &DYNARR_N(signalHead_t,xx->signalHeads,headId-1);
 	signalHeadType_p ht = h->headType;
-	if (ht) {
-		for (int i=0;i<ht->headAppearances.cnt;i++) {
-			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,ht->headAppearances,i);
-			if ((strlen(a->appearanceName) == strlen(appearanceName)) && (strcmp(appearanceName,a->appearanceName)==0)) {
-				return i;
-			}
-		}
-	}
-	return -1;
+	return FindHeadAppearance(ht,appearanceName);
 }
 
 static signalAspect_p FindSignalAspect(track_p sig,char * aspect) {
@@ -2327,7 +2320,7 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
 			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,type->headAppearances,SIGNAL_DISPLAY_DIAG);
 			AppendTransformedSegs(&signal->currSegs,&a->appearanceSegs, head->headPos, zero, 0.0 );
 		}
-
+	RescaleSegs(signal->currSegs.cnt,(trkSeg_t *)signal->currSegs.ptr,scaleRatio,scaleRatio,scaleRatio);
 	/*Draw entire signal at pos and angle */
 	DrawSegsO(d,NULL,orig,angle,(trkSeg_p)signal->currSegs.ptr,signal->currSegs.cnt,trackGauge,color,0);
 
@@ -2338,6 +2331,7 @@ static void DDrawSignal(drawCmd_p d, coOrd orig, ANGLE_T angle,
 static STATUS_T CmdSignalAction ( wAction_t action, coOrd pos )
 {
     static track_p trk;
+    DIST_T ratio;
     switch (action) {
     case C_START:
         InfoMessage(_("Place base of signal on Track"));
@@ -2362,15 +2356,17 @@ static STATUS_T CmdSignalAction ( wAction_t action, coOrd pos )
     	ANGLE_T a = DifferenceBetweenAngles(Da.orient,FindAngle(Da.pos0,pos));
     	DIST_T d = FindDistance(pos,Da.pos0)*cos(R2D(a));
     	Translate(&Da.pos1,Da.pos0,d,NormalizeAngle(GetTrkEndAngle(trk,ep)+90.0));
-        DDrawSignal( &tempD, Da.pos1, Da.orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+    	ratio = curSignal->scaleInx/GetScaleRatio(GetLayoutCurScale());
+        DDrawSignal( &tempD, Da.pos1, Da.orient, curSignal, ratio, wDrawColorBlack );
         return C_CONTINUE;
     case C_UP:
     	if (!trk) return C_CONTINUE;
         CreateNewSignal(Da.pos1,Da.orient,trk,ep);
         return C_TERMINATE;
     case C_REDRAW:
-    case C_CANCEL:
-        DDrawSignal( &tempD, Da.pos1, Da.orient, curSignal, GetScaleRatio(GetLayoutCurScale()), wDrawColorBlack );
+    case C_CANCEL:;
+    	ratio = curSignal->scaleInx/GetScaleRatio(GetLayoutCurScale());
+        DDrawSignal( &tempD, Da.pos1, Da.orient, curSignal, ratio, wDrawColorBlack );
         return C_CONTINUE;
     default:
         return C_CONTINUE;
@@ -2568,15 +2564,14 @@ static char * CmdSignalHotBarProc(
 	case HB_FULLTITLE:
 		return sd->title;
 	case HB_DRAW:
-		if (sd->currSegs.cnt == 0) {
-			RebuildSignalSegs(sd, SIGNAL_DISPLAY_DIAG);
-		}
 		DrawSegs( d, *origP, 0.0, sd->currSegs.ptr, sd->currSegs.cnt, trackGauge, wDrawColorBlack );
 		return NULL;
 	}
 	return NULL;
 
 }
+
+
 
 EXPORT BOOL_T WriteSignalSystem(FILE * f) {
 	return TRUE;
@@ -2610,7 +2605,7 @@ EXPORT void InitTrkSignal ( void )
     AddParam( "SIGNALPART", ReadSignalPart);
     AddParam( "SIGNALHEAD", ReadHeadType );
     AddParam( "SIGNALSYSTEM ", ReadSignalSystem);
-    AddParam( "SIGNALPOST", ReadSignalPost );
+    AddParam( "SIGNALPOSTPROT", ReadSignalPostType );
     //AddParam( "SIGNALPROTO", ReadSignalProto);
     T_SIGNAL = InitObject(&signalCmds);
 }
