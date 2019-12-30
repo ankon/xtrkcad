@@ -7,6 +7,7 @@
 	extern DIST_T curBarScale;
 	extern dynArr_t paramProc_da;
 	extern dynArr_t paramFileInfo_da;
+	EXPORT long paramCheckSum;
 
 	void ParamCheckSumLine(char * line);
 	wBool_t IsParamValid(int fileInx);

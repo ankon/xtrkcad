@@ -1543,7 +1543,7 @@ END
 
 # csignal.c
 MESSAGE MSG_SIGNAL_MISSING_APPEARANCE
-The Signal %s has a missing Aspect %s in Head %s Aspect %s 
+The Signal %s has a missing Aspect %s in Head %d Aspect %s 
 HELP
 Fix the parm file
 END
@@ -1649,7 +1649,7 @@ END
 
 # csignalparm.c
 MESSAGE MSG_SIGNAL_SYSTEM_UNEXPECTED_DATA
-Invalid Line in SignalSystem File: %s
+Invalid Line in SignalSystem File %s
 HELP
 Fix the SignalSystem File
 END
