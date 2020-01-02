@@ -63,7 +63,7 @@ static drawCmd_t structureD = {
 		{0.0,0.0}, {0.0,0.0},
 		Pix2CoOrd, CoOrd2Pix };
 
-static wIndex_t structureHotBarCmdInx;
+EXPORT wIndex_t structureHotBarCmdInx;
 static wIndex_t structureInx;
 static long hideStructureWindow;
 static void RedrawStructure(void);

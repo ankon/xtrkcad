@@ -35,6 +35,10 @@ static struct {
 	dynArr_t signalAspectTypes;
 } Da;
 
+EXPORT signalPart_t * curSignalPart = NULL;
+
+static wIndex_t signalHotBarCmdInx;
+
 enum paramFileState
 GetSignalPartCompatibility(int paramFileIndex, SCALEINX_T scaleIndex)
 {
@@ -193,28 +197,28 @@ signalPart_p FindSignalPart(SCALEINX_T scaleInx, char * name) {
 
 signalPart_p CreateSignalPart(SCALEINX_T scale, char * name, int paramFileIndex) {
 
-	signalPart_p si = NULL;
+	signalPart_p sp = NULL;
 
-	si = FindSignalPart(scale, name);
+	sp = FindSignalPart(scale, name);
 
-	if (si && (si->scaleInx == scale)) {
+	if (sp && (sp->scaleInx == scale)) {
 		for (int i=0;i<3;i++) {
-			CleanSegs(&si->staticSegs[i]);
+			CleanSegs(&sp->staticSegs[i]);
 		}
-		CleanSegs(&si->aspects);
-		CleanSegs(&si->groups);
-		CleanSegs(&si->heads);
+		CleanSegs(&sp->aspects);
+		CleanSegs(&sp->groups);
+		CleanSegs(&sp->heads);
 		//wipe out
 	} else {
 		DYNARR_APPEND( signalPart_t, Da.signalParts, 10 );
-		si = &DYNARR_LAST(signalPart_t, Da.signalParts);
-		si->title = MyStrdup( name );
-		si->scaleInx = scale;
-		si->barScale = curBarScale>0?curBarScale:-1;
+		sp = &DYNARR_LAST(signalPart_t, Da.signalParts);
+		sp->title = MyStrdup( name );
+		sp->scaleInx = scale;
 	}
-	si->paramFileIndex = paramFileIndex;
+	sp->paramFileIndex = paramFileIndex;
+	sp->barScale = curBarScale>0?curBarScale:-1;
 
-	return si;
+	return sp;
 
 }
 
@@ -415,6 +419,68 @@ EXPORT int FindHeadAppearance(signalHeadType_p ht, char * appearanceName) {
 	return -1;
 }
 
+EXPORT BOOL_T WriteSignalSystem(FILE * f) {
+	return TRUE;
+}
+
+static wIndex_t signalPartInx;
+
+
+/**
+ * Event procedure for the hotbar.
+ *
+ * \param op   IN requested function
+ * \param data IN	pointer to info on selected element
+ * \param d    IN
+ * \param origP IN
+ * \return
+ */
+
+static char * CmdSignalHotBarProc(
+		hotBarProc_e op,
+		void * data,
+		drawCmd_p d,
+		coOrd * origP )
+{
+	signalPart_t * sp = (signalPart_t*)data;
+	switch ( op ) {
+	case HB_SELECT:		/* new element is selected */
+		CmdSignalAction( C_FINISH, zero ); 		/* finish current operation */
+		curSignalPart = sp;
+		DoCommandB( (void*)(intptr_t)signalHotBarCmdInx ); /* continue with new signal */
+		return NULL;
+	case HB_LISTTITLE:
+		FormatSignalPartTitle( listLabels, sp->title );
+		if (message[0] == '\0')
+			FormatSignalPartTitle( listLabels|LABEL_DESCR, sp->title );
+		return message;
+	case HB_BARTITLE:
+		FormatSignalPartTitle( hotBarLabels<<1, sp->title );
+		return message;
+	case HB_FULLTITLE:
+		return sp->title;
+	case HB_DRAW:
+		DrawSegs( d, *origP, 0.0, sp->currSegs.ptr, sp->currSegs.cnt, trackGauge, wDrawColorBlack );
+		return NULL;
+	}
+	return NULL;
+
+}
+
+
+EXPORT void AddHotBarSignals( void )
+{
+	wIndex_t inx;
+	signalPart_p sp;
+	for ( inx=0; inx < Da.signalParts.cnt; inx ++ ) {
+		sp = &DYNARR_N(signalPart_t,Da.signalParts,inx);
+		if (!( IsParamValid(sp->paramFileIndex)  &&
+			CompatibleScale( TRUE, sp->scaleInx, GetLayoutCurScale())))
+			continue;
+		AddHotBarElement( sp->title, sp->size, sp->orig, FALSE, FALSE, sp->barscale, sp, CmdSignalHotBarProc );
+	}
+}
+
 /*
  * SignalParm
  */
@@ -431,31 +497,32 @@ signalAspect_p SignalPartFindAspect(signalPart_p sig, char*name) {
 }
 
 /*
- * A Signal Part only shows the Diagram view and no linkage to Track
+ * A Signal Part only shows the Elev view and no linkage to Track
  */
 
 static void RebuildSignalPartSegs(signalPart_p sp) {
 	CleanSegs(&sp->currSegs);
-	AppendSegsToArray(&sp->currSegs,&sp->staticSegs[SIGNAL_DISPLAY_ELEV]);
+	AppendSegsToArray(&sp->currSegs,&sp->staticSegs[SIGNAL_DISPLAY_DIAG]);
+	RescaleSegs(sp->currSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,0),0.0,0.5,0.0);  //Make posts relatively shorter
 	signalAspect_t aspect;
 	for (int i=0;i<sp->heads.cnt;i++) {
 		/* All Heads */
 		signalHead_p head = &DYNARR_N(signalHead_t,sp->heads,i);
-		AppendTransformedSegs(&sp->currSegs,&head->headSegs[SIGNAL_DISPLAY_ELEV],head->headPos,zero,0.0);
+		AppendTransformedSegs(&sp->currSegs,&head->headSegs[SIGNAL_DISPLAY_DIAG],head->headPos,zero,0.0);
+		coOrd pos_head = head->headPos;
 		int indIndex;
 		indIndex = 0;
 		signalHeadType_p type = head->headType;
 		if (type == NULL) continue;
+		DIST_T ratio = GetScaleRatio(type->headScale)/GetScaleRatio(sp->scaleInx);
 		if ((indIndex >=0) && (indIndex <= type->headAppearances.cnt)) {
 			/* Now need to be be placed relative to the rest, rotated and scaled*/
 			HeadAppearance_p a = &DYNARR_N(HeadAppearance_t,type->headAppearances,indIndex);
 			int start_inx = sp->currSegs.cnt;
-			AppendTransformedSegs(&sp->currSegs,&a->appearanceSegs, a->orig, a->orig, a->angle);
-			if (type->headScale != sp->scaleInx) {
-				DIST_T ratioh = GetScaleRatio(type->headScale)/GetScaleRatio(sp->scaleInx);
-				RescaleSegs(a->appearanceSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),ratioh,ratioh,ratioh);
-			}
-			MoveSegs(a->appearanceSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
+			AppendTransformedSegs(&sp->currSegs,&a->appearanceSegs, zero, a->orig, a->angle);
+			RescaleSegs(sp->currSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),ratio,ratio,ratio);
+			MoveSegs(sp->currSegs.cnt,&DYNARR_N(trkSeg_t,sp->currSegs,start_inx),head->headPos);
+
 		}
 	}
 }
@@ -468,9 +535,12 @@ static void ComputeSignalPartBoundingBox (signalPart_p sp )
     if (sp->currSegs.cnt == 0) {
        	RebuildSignalPartSegs(sp);
     }
-    coOrd offset = zero;
-    ANGLE_T a = 0.0;
-	GetSegBounds(offset,a,sp->currSegs.cnt,(trkSeg_p)sp->currSegs.ptr,&sp->orig,&sp->size);
+	GetSegBounds(zero,0.0,sp->currSegs.cnt,(trkSeg_p)sp->currSegs.ptr,&sp->orig,&sp->size);
+	coOrd offset;
+	offset.y = -sp->orig.y;
+	offset.x = -sp->orig.x;
+	MoveSegs(sp->currSegs.cnt,(trkSeg_p)sp->currSegs.ptr,offset);
+	sp->orig = zero;
 }
 
 
@@ -483,13 +553,11 @@ BOOL_T ReadSignalPart( char * line ) {
 	char * name;
 	if (!GetArgs(line+10,"sq",scale,&name)) return FALSE;    //SIGNALPART
 	SCALEINX_T input_scale = LookupScale(scale);
-	SCALEINX_T curr_scale = GetLayoutCurScale();
-	DIST_T ratio = GetScaleRatio(curr_scale)/GetScaleRatio(input_scale);
 
 	signalPart_t * sig;
 	char *cp;
 
-	sig = CreateSignalPart(curr_scale,name,curParamFileIndex);
+	sig = CreateSignalPart(input_scale,name,curParamFileIndex);
 
 	while ( (cp = GetNextLine()) != NULL ) {
 		while (isspace((unsigned char)*cp) || *cp == '\t') cp++;
@@ -511,7 +579,6 @@ BOOL_T ReadSignalPart( char * line ) {
 			if (strncmp(viewname,"PLAN", 4) ==0 ) type = SIGNAL_DISPLAY_PLAN;
 			else if (strncmp(viewname,"ELEV", 4) ==0 ) type = SIGNAL_DISPLAY_ELEV;
 			else type = SIGNAL_DISPLAY_DIAG;
-			RescaleSegs(tempSegs_da.cnt,tempSegs_da.ptr,ratio,ratio,ratio);
 			AppendSegsToArray(&sig->staticSegs[type],&tempSegs_da);
 		} else if ( strncmp (cp, "HEAD", 4) == 0) {
 			char * headname;
@@ -528,11 +595,11 @@ BOOL_T ReadSignalPart( char * line ) {
 			sh->headName = headname;
 			sh->headPos = headPos;
 			sh->headTypeName = headType;
-			if ((sh->headType = FindHeadType(headType,curr_scale)) == NULL) {
+			if ((sh->headType = FindHeadType(headType,input_scale)) == NULL) {
 				NoticeMessage(MSG_SIGNAL_MISSING_HEADTYPE,_("Yes"), NULL,name,headname,headType);
 				--sig->heads.cnt;
 			} else {
-				DIST_T ratioh = GetScaleRatio(sh->headType->headScale)/GetScaleRatio(curr_scale);
+				DIST_T ratioh = GetScaleRatio(sh->headType->headScale)/GetScaleRatio(input_scale);
 				AppendSegsToArray(&sh->headSegs[SIGNAL_DISPLAY_ELEV],&sh->headType->headSegs);
 				RescaleSegs(sh->headSegs[SIGNAL_DISPLAY_ELEV].cnt,sh->headSegs[SIGNAL_DISPLAY_ELEV].ptr,ratioh,ratioh,ratioh);
 			}
@@ -711,10 +778,11 @@ BOOL_T ReadSignalSystem( char * line) {
 	return TRUE;
 }
 
+EXPORT void InitCmdSignalHotBar ( wMenu_p menu ) {
 
+	 signalHotBarCmdInx = AddMenuButton( menu, CmdSignalHotBar, "cmdSignalHotBar", "", NULL, LEVEL0_50, IC_WANT_MOVE|IC_STICKY|IC_CMDMENU|IC_POPUP2, 0, NULL );
 
-
-
+}
 
 
 
