@@ -1543,7 +1543,7 @@ END
 
 # csignal.c
 MESSAGE MSG_SIGNAL_MISSING_APPEARANCE
-The Signal %s has a missing Aspect %s in Head %d Aspect %s 
+The Signal %s has a missing Aspect %s in Head %s Aspect %s 
 HELP
 Fix the parm file
 END
@@ -1596,7 +1596,11 @@ HELP
 Correct the signal defintion
 END
 
-
+MESSAGE MSG_SIGNAL_NO_SIGNALPARTS
+No SignalPart has been selected
+HELP
+Select a Signal Part
+END
 
 # csignalparm.c
 MESSAGE MSG_SIGNAL_DUPLICATE_ASPECT

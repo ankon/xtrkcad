@@ -280,8 +280,13 @@ EXPORT void * memdup(void * src, size_t size) {
 
 EXPORT char * MyStrdup(const char * str) {
 	char * ret;
-	ret = (char*) MyMalloc(strlen(str) + 1);
-	strcpy(ret, str);
+	if (str) {
+		ret = (char*) MyMalloc(strlen(str) + 1);
+		strcpy(ret, str);
+	} else {
+		ret = (char*) MyMalloc(1);
+	}
+
 	return ret;
 }
 

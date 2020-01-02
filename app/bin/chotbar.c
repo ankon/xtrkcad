@@ -29,6 +29,7 @@
 #include "messages.h"
 #include "ccornu.h"
 #include "track.h"
+#include "csignal.h"
 
 EXPORT DIST_T curBarScale = -1;
 EXPORT long hotBarLabels = 0;
@@ -470,6 +471,7 @@ static void ChangeHotBar( long changes )
 		AddHotBarCornu();
 		AddHotBarTurnouts();
 		AddHotBarStructures();
+		AddHotBarSignals();
 	} else {
 		AddHotBarCarDesc();
 	}

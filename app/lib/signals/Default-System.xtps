@@ -1,0 +1,15 @@
+CONTENTS Default	Signals 
+PARAM 2
+SIGNALSYSTEM "Default  Signals"
+BASEASPECT Danger 0
+BASEASPECT Proceed 100
+BASEASPECT Caution 50
+BASEASPECT PreliminaryCaution 75
+BASEASPECT Shunt 15
+#
+HEADTYPES Default-Heads
+#
+SIGNALPOSTS Default-Posts
+#
+SIGNALPARTS Default-Signals
+ENDSIGNALSYSTEM

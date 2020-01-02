@@ -146,7 +146,7 @@ typedef struct signalHead_t {
 	char * headName;					//Often includes Lever #
 	coOrd headPos;						//Relative to Post
 	char * headTypeName;				//Type Name
-	signalHeadType_p headType;				//Pointer to common HeadType definition
+	signalHeadType_p headType;		    //Pointer to common HeadType definition
 	dynArr_t headSegs[3];				//Static segs
 	int currentHeadAppearance;			//Index of appearance within HeadType.Appearances
 	char * diagramText;					//Internal Label for Matrix/Stencil
@@ -172,6 +172,7 @@ typedef struct signalPart_t {
 		DIST_T barScale;
 		char * contentsLabel;
 		dynArr_t currSegs;
+		SCALEINX_T barscale;
 		} signalPart_t, * signalPart_p;
 
 /*
@@ -255,6 +256,12 @@ signalAspectType_p FindBaseAspect(char * name);
 signalHeadType_p FindHeadType( char * name, SCALEINX_T scale);
 int FindHeadAppearance(signalHeadType_p ht, char * appearanceName);
 enum paramFileState GetSignalPartCompatibility(int paramFileIndex, SCALEINX_T scaleIndex);
+void AddHotBarSignals( void );
+STATUS_T CmdSignalAction ( wAction_t action, coOrd pos );
+STATUS_T CmdSignalHotBar(wAction_t action,coOrd pos );
+
+extern signalPart_p curSignalPart;
+void InitCmdSignalHotBar ( wMenu_p menu );
 
 #define SIG_ITERATE(SIG)		for (SIG=sig_first; SIG!=NULL; SIG=SIG->sig_next) if (!(SIG->deleted))
 #endif /* APP_BIN_CSIGNAL_H_ */
