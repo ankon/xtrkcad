@@ -33,6 +33,10 @@
 
 #ifdef WINDOWS
     #include "include/dirent.h"
+#else
+// Use the POSIX standard case insensitive compare
+#define stricmp strcasecmp
+#include <dirent.h>
 #endif
 
 #include "misc.h"
@@ -302,9 +306,9 @@ ScanDirectory(CatalogEntry *insertAfter, const char *dirName)
  */
 
 static int
-CompareIndex(const IndexEntry *entry1, const IndexEntry *entry2)
+CompareIndex(const void *entry1, const void *entry2)
 {
-    return (strcmp(entry1->keyWord, entry2->keyWord));
+    return (strcmp(((IndexEntry*)entry1)->keyWord, ((IndexEntry*)entry2)->keyWord));
 }
 
 /*!

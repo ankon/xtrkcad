@@ -187,30 +187,34 @@ STATUS_T BezierDescriptionMove(
 {
 	struct extraData *xx = GetTrkExtraData(trk);
 	static coOrd p0,p1;
-	static BOOL_T editState;
-	wDrawColor color;
+	static BOOL_T editState = FALSE;
+
 	if (GetTrkType(trk) != T_BEZIER) return C_TERMINATE;
 	p0.x = xx->bezierData.pos[0].x + ((xx->bezierData.pos[3].x - xx->bezierData.pos[0].x)/2);
     p0.y = xx->bezierData.pos[0].y + ((xx->bezierData.pos[3].y - xx->bezierData.pos[0].y)/2);
 	switch (action) {
 	case C_DOWN:
+		DrawBezierDescription( trk, &mainD, wDrawColorWhite );
 	case C_MOVE:
 	case C_UP:
 		editState = TRUE;
 		p1 = pos;
-		color = GetTrkColor( trk, &mainD );
-        DrawLine( &mainD, p0, pos, 0, wDrawColorBlack );
+//-        DrawLine( &mainD, p0, pos, 0, wDrawColorBlack );
         xx->bezierData.descriptionOff.x = pos.x - p0.x;
         xx->bezierData.descriptionOff.y = pos.y - p0.y;
         if (action == C_UP) {
         	editState = FALSE;
+		wDrawColor color = GetTrkColor( trk, &mainD );
+		DrawBezierDescription( trk, &mainD, color );
         }
-		MainRedraw();
-		MapRedraw();
+		XMainRedraw();
+		XMapRedraw();
 		return action==C_UP?C_TERMINATE:C_CONTINUE;
 	case C_REDRAW:
-		if (editState)
-			DrawLine( &mainD, p1, p0, 0, wDrawColorBlack );
+		if (editState) {
+			DrawBezierDescription( trk, &tempD, wDrawColorBlue );
+			DrawLine( &tempD, p1, p0, 0, wDrawColorBlue );
+		}
 		break;
 
 		
@@ -902,8 +906,8 @@ static BOOL_T MergeBezier(
 	}
 	DrawNewTrack( trk0 );
 
-	MainRedraw();
-	MapRedraw();
+	XMainRedraw();
+	XMapRedraw();
 
 
 	return TRUE;
@@ -974,9 +978,10 @@ static BOOL_T GetParamsBezier( int inx, track_p trk, coOrd pos, trackParams_t * 
 }
 
 static BOOL_T TrimBezier( track_p trk, EPINX_T ep, DIST_T dist, coOrd endpos, ANGLE_T angle, DIST_T radius, coOrd center ) {
+	UndrawNewTrack( trk );
 	DeleteTrack(trk, TRUE);
-	MainRedraw();
-	MapRedraw();
+	XMainRedraw();
+	XMapRedraw();
 	return TRUE;
 }
 
@@ -1201,11 +1206,16 @@ BOOL_T MoveBezierEndPt ( track_p *trk, EPINX_T *ep, coOrd pos, DIST_T d0 ) {
 	track_p trk2;
 	struct extraData *xx;
 	if (SplitTrack(*trk,pos,*ep,&trk2,TRUE)) {
-		if (trk2) DeleteTrack(trk2,TRUE);
+		if (trk2) {
+			UndrawNewTrack( trk2 );
+			DeleteTrack(trk2,TRUE);
+		}
+		UndrawNewTrack( *trk );
 		xx = GetTrkExtraData(*trk);
 		SetTrkEndPoint( *trk, *ep, *ep?xx->bezierData.pos[3]:xx->bezierData.pos[0], *ep?xx->bezierData.a1:xx->bezierData.a0 );
-		MainRedraw();
-		MapRedraw();
+		XMainRedraw();
+		DrawNewTrack( *trk );
+		XMapRedraw();
 		return TRUE;
 	}
 	return FALSE;
