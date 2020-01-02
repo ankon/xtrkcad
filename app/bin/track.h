@@ -425,6 +425,7 @@ void SetDebug( char * );
 #define TB_CARATTACHED	(1<<7)
 #define TB_NOTIES       (1<<8)
 #define TB_BRIDGE       (1<<9)
+#define TB_SELREDRAW	(1<<10)
 #define TB_TEMPBITS		(TB_PROFILEPATH|TB_PROCESSED)
 
 /* track.c */
@@ -496,6 +497,7 @@ BOOL_T IsTrackDeleted( track_p );
 #define SetTrkNoTies(T,V)		((V)?SetTrkBits(T,TB_NOTIES):ClrTrkBits(T,TB_NOTIES))
 #define SetTrkBridge(T,V)		((V)?SetTrkBits(T,TB_BRIDGE):ClrTrkBits(T,TB_BRIDGE))
 int ClrAllTrkBits( int );
+int ClrAllTrkBitsRedraw( int, wBool_t );
 
 void GetTrkEndElev( track_p trk, EPINX_T e, int *option, DIST_T *height );
 void SetTrkEndElev( track_p, EPINX_T, int, DIST_T, char * );

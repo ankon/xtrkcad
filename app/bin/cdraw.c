@@ -444,7 +444,7 @@ EXPORT void DrawOriginAnchor(track_p trk) {
 	if ((xx->orig.x != 0.0) || (xx->orig.y !=0.0) ) {
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		CreateOriginAnchor(xx->orig,FALSE);
-		DrawSegs(&mainD, zero, 0.0, anchors_da.ptr, anchors_da.cnt, trackGauge, wDrawColorBlue);
+		DrawSegs(&tempD, zero, 0.0, anchors_da.ptr, anchors_da.cnt, trackGauge, wDrawColorBlue);
 	}
 }
 
@@ -567,8 +567,8 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		if (segPtr->type != SEG_TEXT) return;
 		else inx = TX;  //Always look at TextField for SEG_TEXT on "Done"
 	}
-    MainRedraw();
-    MapRedraw();
+    XMainRedraw();
+    XMapRedraw();
 	UndrawNewTrack( trk );
 	coOrd pt;
 	coOrd off;
@@ -997,8 +997,8 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 	drawData.oldOrigin = drawData.origin;
 	ComputeDrawBoundingBox( trk );
 	DrawNewTrack( trk );
-	MainRedraw();
-	DoCurCommand( C_REDRAW, zero );
+	XMainRedraw();
+	TempRedraw(); // UpdateDraw
 }
 
 extern BOOL_T inDescribeCmd;
@@ -1369,7 +1369,7 @@ static void DoConvertFill(void) {
 
 static void DrawModRedraw( void )
 {
-	MainRedraw();
+	MainRedraw(); // DrawModifyDraw
 	MapRedraw();
 }
 
@@ -1605,7 +1605,7 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 					InfoSubstituteControls( NULL, NULL );
 					infoSubst = FALSE;
 		}
-		MainRedraw();
+		XMainRedraw();
 		if (rc == C_CONTINUE) break;
 		/* no break*/
 	case C_FINISH:
@@ -1619,7 +1619,7 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 			InfoSubstituteControls( NULL, NULL );
 			infoSubst = FALSE;
 		}
-		MainRedraw();
+		XMainRedraw();
 		break;
 	case C_CANCEL:
 	case C_CONFIRM:
@@ -1631,7 +1631,7 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 			InfoSubstituteControls( NULL, NULL );
 			infoSubst = FALSE;
 		}
-		MainRedraw();
+		XMainRedraw();
 		break;
 
 	default:
@@ -1656,8 +1656,8 @@ static void UngroupDraw( track_p trk )
 			DrawNewTrack( trk );
 		}
 	}
-	MapRedraw();
-	MainRedraw();
+	XMapRedraw();
+	XMainRedraw();
 }
 
 
@@ -1905,7 +1905,7 @@ static drawContext_t drawCmdContext = {
 
 static void DrawRedraw( void )
 {
-	MainRedraw();
+	MainRedraw(); // DrawRedraw
 	MapRedraw();
 }
 
@@ -2530,7 +2530,7 @@ void MenuMode(int mode) {
 		DrawGeomModify(C_START,zero,&drawModCmdContext);
 		InfoMessage("Points Mode");
 	}
-	MainRedraw();
+	XMainRedraw();
 }
 
 void MenuEnter(int key) {
@@ -2563,7 +2563,7 @@ void MenuLine(int key) {
 			xx->lineType = DRAWLINEDASHDOTDOT;
 			break;
 		}
-		MainRedraw();
+		MainRedraw(); // MenuLine
 	}
 }
 

@@ -1503,7 +1503,7 @@ static BOOL_T GetParamsTurnout( int inx, track_p trk, coOrd pos, trackParams_t *
         } else {
             double x, y;
             x = 0; y = 0;
-            for (int i=0;i<=epCnt; i++) {
+            for (int i=0;i<epCnt; i++) {
                 coOrd cpos = GetTrkEndPos(trk,i);
                 x += cpos.x;
                 y += cpos.y;
@@ -1689,7 +1689,7 @@ static void DrawTurnoutPositionIndicator(
 			pos0 = MapPathPos( xx, path[1], 0 );
 		} else if ( path[1] == 0 ) {
 			pos1 = MapPathPos( xx, path[0], 1 );
-			DrawLine( &mainD, pos0, pos1, drawTurnoutPositionWidth, color );
+			DrawLine( &tempD, pos0, pos1, drawTurnoutPositionWidth, color );
 		}
 	}
 }
@@ -1709,7 +1709,7 @@ EXPORT void AdvanceTurnoutPositionIndicator(
 	if ( GetTrkType(trk) != T_TURNOUT )
 		AbortProg( "nextTurnoutPosition" );
 
-	DrawTurnoutPositionIndicator( trk, wDrawColorWhite );
+//-	DrawTurnoutPositionIndicator( trk, wDrawColorWhite );
 	path = xx->pathCurr;
 	path += strlen((char *)path)+1;
 	while ( path[0] || path[1] )
@@ -1718,7 +1718,7 @@ EXPORT void AdvanceTurnoutPositionIndicator(
 	if ( *path == 0 )
 		path = xx->paths;
 	xx->pathCurr = path;
-	DrawTurnoutPositionIndicator( trk, selectedColor );
+//-	DrawTurnoutPositionIndicator( trk, selectedColor );
 	if ( angleR == NULL || posR == NULL )
 		return;
 	trvtrk.trk = trk;
@@ -2287,8 +2287,8 @@ static void AddTurnout( void )
 		AbortProg( "addTurnout: bad cnt" );
 	}
 
-	DrawSegs( &tempD, Dto.pos, Dto.angle,
-		curTurnout->segs, curTurnout->segCnt, trackGauge, wDrawColorBlack );
+//-	DrawSegs( &tempD, Dto.pos, Dto.angle,
+//-		curTurnout->segs, curTurnout->segCnt, trackGauge, wDrawColorBlack );
 	UndoStart( _("Place New Turnout"), "addTurnout" );
 	titleLen = strlen( curTurnout->title );
 
@@ -2376,8 +2376,8 @@ LOG( log_turnout, 1, ( "   deleting leftover T%d\n",
 			}
 		}
 	}
-	MapRedraw();
-	MainRedraw();
+	XMapRedraw();
+	XMainRedraw();
 
 	AuditTracks( "addTurnout after loop" );
 
@@ -2598,9 +2598,9 @@ EXPORT STATUS_T CmdTurnoutAction(
 		} else {
 			CreateMoveAnchor(pos);
 		}
-		if (anchors_da.cnt>0)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
-		MainRedraw();
+//-		if (anchors_da.cnt>0)
+//-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		XMainRedraw();
 		return C_CONTINUE;
 		break;
 	case C_DOWN:
@@ -2609,7 +2609,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		PlaceTurnout( pos );
 		Dto.state = 1;
 		CreateMoveAnchor(pos);
-		MainRedraw();
+		XMainRedraw();
 		return C_CONTINUE;
 
 	case C_MOVE:
@@ -2620,7 +2620,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		Dto.state = 1;
 		PlaceTurnout( pos );
 		CreateMoveAnchor(pos);
-		MainRedraw();
+		XMainRedraw();
 		return C_CONTINUE;
 
 	case C_UP:
@@ -2644,7 +2644,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 #else
 		Rotate( &origPos, Dto.rot0, -(Dto.angle + curTurnout->endPt[(int)curTurnoutEp].angle) );
 #endif
-		MainRedraw();
+		XMainRedraw();
 		validAngle = FALSE;
 		return C_CONTINUE;
 
@@ -2672,7 +2672,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		InfoMessage( _("Angle = %0.3f (%s)"), PutAngle( NormalizeAngle(Dto.angle + 90.0) ), message );
 		Dto.state = 2;
 		CreateRotateAnchor(Dto.rot0);
-		MainRedraw();
+		XMainRedraw();
 		return C_CONTINUE;
 
 	case C_RUP:
@@ -2680,7 +2680,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 		if ( curTurnout == NULL ) return C_CONTINUE;
 		Dto.state = 1;
 		CreateMoveAnchor(pos);
-		MainRedraw();
+		XMainRedraw();
 		InfoMessage( _("Left-drag to move, ctl+left-drag or right-drag to rotate, press Space or Return to accept or Esc to cancel") );
 		return C_CONTINUE;
 
@@ -2695,7 +2695,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 			if (Dto.trk == NULL)
 				Dto.angle = NormalizeAngle( Dto.angle + (angle - curTurnout->endPt[(int)curTurnoutEp].angle ) );
 			PlaceTurnout( Dto.place );
-			MainRedraw();
+			XMainRedraw();
 		} else {
 			CmdTurnoutAction( C_DOWN, pos );
 			CmdTurnoutAction( C_UP, pos );
@@ -2708,7 +2708,7 @@ EXPORT STATUS_T CmdTurnoutAction(
 				curTurnout->segs, curTurnout->segCnt, trackGauge, wDrawColorBlue );
 		}
 		if (anchors_da.cnt>0) {
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			DrawSegs( &tempD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		}
 		if (Dto.state == 2)
 			DrawLine( &tempD, Dto.rot0, Dto.rot1, 0, wDrawColorBlack );
