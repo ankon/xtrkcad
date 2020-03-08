@@ -369,7 +369,7 @@ static void switchmotorDebug (track_p trk)
 static void DeleteSwitchMotor ( track_p trk )
 {
 
-	track_p trk1,trk2;
+	track_p trk1; 
 	switchmotorData_p xx1;
 
 	LOG( log_switchmotor, 1,("*** DeleteSwitchMotor(%p)\n",trk))
@@ -749,7 +749,7 @@ static void DrawSWMotorTrackHilite( void )
 	w = (wPos_t)((swmhiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((swmhiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,swmhiliteOrig,&x,&y);
-	wDrawFilledRectangle( mainD.d, x, y, w, h, swmhiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( mainD.d, x, y, w, h, swmhiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 static int SwitchmotorMgmProc ( int cmd, void * data )
@@ -848,8 +848,8 @@ EXPORT void InitCmdSwitchMotor( wMenu_p menu )
 }
 EXPORT void CheckDeleteSwitchmotor(track_p t)
 {
-    track_p sm,trk1;
-    switchmotorData_p xx,xx1;
+    track_p sm;
+    switchmotorData_p xx;
     if (GetTrkType( t ) != T_TURNOUT) return;   // SMs only on turnouts
     
     while ((sm = FindSwitchMotor( t ))) {	                 //Cope with multiple motors for one Turnout!

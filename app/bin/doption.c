@@ -73,15 +73,9 @@ static void OptionDlgUpdate(
 		int inx,
 		void * valueP )
 {
-	int quickMoveOld;
 	if ( inx < 0 ) return;
 	if ( pg->paramPtr[inx].valueP == &enableBalloonHelp ) {
 		wEnableBalloonHelp((wBool_t)*(long*)valueP);
-	} else if ( pg->paramPtr[inx].valueP == &quickMove ) {
-		quickMoveOld = (int)quickMove;
-		quickMove = *(long*)valueP;
-		UpdateQuickMove(NULL);
-		quickMove = quickMoveOld;
 	} else {
 		if (pg->paramPtr[inx].valueP == &units) {
 			UpdatePrefD();
@@ -104,7 +98,6 @@ static void OptionDlgCancel(
 		wWin_p win )
 {
 	wEnableBalloonHelp( (int)enableBalloonHelp );
-	UpdateQuickMove(NULL);
 	wHide( win );
 }
 
@@ -190,7 +183,7 @@ static void DoDisplay( void * junk )
 	if (colorLayers&1) colorTrack = 1;
 	else colorTrack = 0;
 	if (colorLayers&2) colorDraw = 1;
-	else colorTrack = 0;
+	else colorDraw = 0;
 
 	ParamLoadControls( &displayPG );
 	wShow( displayW );
@@ -282,12 +275,6 @@ EXPORT addButtonCallBack_t SignalInit( void )
 
 static wWin_p cmdoptW;
 
-static char * moveQlabels[] = {
-		N_("Normal"),
-		N_("Simple"),
-		N_("End-Points"),
-		NULL };
-		
 static char * preSelectLabels[] = { N_("Properties"), N_("Select"), NULL };
 
 #ifdef HIDESELECTIONWINDOW
@@ -296,7 +283,6 @@ static char * hideSelectionWindowLabels[] = { N_("Hide"), NULL };
 static char * rightClickLabels[] = {N_("Normal: Command List, Shift: Command Options"), N_("Normal: Command Options, Shift: Command List"), NULL };
 
 EXPORT paramData_t cmdoptPLs[] = {
-	{ PD_RADIO, &quickMove, "move-quick", PDO_NOPSHUPD, moveQlabels, N_("Draw Moving Tracks"), BC_HORZ },
 	{ PD_RADIO, &preSelect, "preselect", PDO_NOPSHUPD, preSelectLabels, N_("Default Command"), BC_HORZ },
 #ifdef HIDESELECTIONWINDOW
 	{ PD_TOGGLE, &hideSelectionWindow, PDO_NOPSHUPD, hideSelectionWindowLabels, N_("Hide Selection Window"), BC_HORZ },
@@ -304,8 +290,6 @@ EXPORT paramData_t cmdoptPLs[] = {
 	{ PD_RADIO, &rightClickMode, "rightclickmode", PDO_NOPSHUPD, rightClickLabels, N_("Right Click"), 0 }
 	};
 static paramGroup_t cmdoptPG = { "cmdopt", PGO_RECORD|PGO_PREFMISC, cmdoptPLs, sizeof cmdoptPLs/sizeof cmdoptPLs[0] };
-
-EXPORT paramData_p moveQuickPD = &cmdoptPLs[0];
 
 static void CmdoptOk( void * junk )
 {

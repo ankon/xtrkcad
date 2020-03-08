@@ -37,9 +37,6 @@
 	#define W_OK (2)
 	#define access	_access
 	#include <windows.h>
-	//#if _MSC_VER >=1400
-	//	#define strdup _strdup
-	//#endif
 #endif
 #include <sys/stat.h>
 #include <stdarg.h>
@@ -67,7 +64,7 @@
 #include "messages.h"
 #include "misc.h"
 #include "param.h"
-#include "paramfile.h"
+#include "include/paramfile.h"
 #include "paths.h"
 #include "track.h"
 #include "utility.h"
@@ -265,6 +262,23 @@ EXPORT void SyntaxError(
  * \param format IN ???
  *
  * \return FALSE in case of parsing error, TRUE on success
+ *
+ * format chars are:
+ * 0 - read a number and discard
+ * X - no read, *pi = 0
+ * Y - no read, *pf = 0L
+ * Z - no read, *pl = 0.0
+ * L - *pi = number
+ * d - *pi = number
+ * w - *pf = read a width
+ * u - *pul = number
+ * l - *pl = number
+ * f - *pf = number
+ * z - *pf = 0.0
+ * p - *pp = ( number, number ) a coOrd
+ * s - *ps = string
+ * q - *ps = quoted string
+ * c - *qp = position of next non-space char or NULL
  */
 
 EXPORT BOOL_T GetArgs(
@@ -702,14 +716,6 @@ static BOOL_T ReadTrackFile(
 	if( ret ) {
 		if (!noSetCurDir)
 			SetCurrentPath( LAYOUTPATHKEY, fileName );
-
-		if (full) {
-//			SetCurrentPath(LAYOUTPATHKEY, pathName);
-			SetLayoutFullPath(pathName);
-			//strcpy(curPathName, pathName);
-			//curFileName = &curPathName[fileName-pathName];
-			SetWindowTitle();
-		}
 	}
 
 	RestoreLocale( oldLocale );
@@ -717,7 +723,7 @@ static BOOL_T ReadTrackFile(
 	paramFile = NULL;
 
 	free(paramFileName);
-	paramFileName = NULL;
+    paramFileName = NULL;
 	InfoMessage( "%d", count );
 	return ret;
 }
@@ -762,7 +768,7 @@ int LoadTracks(
 
 	BOOL_T zipped = FALSE;
 	BOOL_T loadXTC = TRUE;
-	char * full_path = fileName[0];
+	char * full_path = strdup(fileName[0]);
 
 	if (extOfFile && (strcmp(extOfFile, ZIPFILETYPEEXTENSION )==0)) {
 
@@ -811,6 +817,8 @@ int LoadTracks(
 				free(manifest);
 			}
 
+			free(full_path);
+			full_path = NULL;
 			// If no manifest value use same name as the archive
 			if (arch_file && arch_file[0])
 			{
@@ -839,7 +847,9 @@ int LoadTracks(
 
 		free(zip_input);
 
+
 	}
+
 	if ( bExample )
 		bReadOnly = TRUE;
 	else if ( access( fileName[0], W_OK ) == -1 )
@@ -847,20 +857,22 @@ int LoadTracks(
 	else
 		bReadOnly = FALSE;
 
-	if (loadXTC && ReadTrackFile( full_path, FindFilename( fileName[0]), TRUE, FALSE, TRUE )) {
+	char *copyOfFileName = MyStrdup(fileName[0]);
 
-		if (zipped) {  //Put back to zipped extension - change back title and path
-			nameOfFile = FindFilename( fileName[0]);
-			extOfFile = FindFileExtension( fileName[0]);
-			SetCurrentPath( LAYOUTPATHKEY, fileName[0] );
-			SetLayoutFullPath(fileName[0]);
-			SetWindowTitle();
-			free(full_path);
-			full_path = fileName[0];
+	if (loadXTC && ReadTrackFile( full_path, FindFilename( fileName[0]), TRUE, TRUE, TRUE )) {
+
+		nameOfFile = NULL;
+		extOfFile = NULL;
+		SetCurrentPath( LAYOUTPATHKEY, copyOfFileName );
+		SetLayoutFullPath(copyOfFileName);
+		SetWindowTitle();
+
+		if ( ! bExample && (nameOfFile != NULL) ) {
+			char * copyFile = strdup(fileName[0]);
+			char * listName = FindFilename(strdup(fileName[0]));  //Make sure the list name is new
+			wMenuListAdd( fileList_ml, 0, listName, copyFile );
 		}
 
-		if ( ! bExample )
-			wMenuListAdd( fileList_ml, 0, nameOfFile, MyStrdup(fileName[0]) );
 
 		ResolveIndex();
 #ifdef TIME_READTRACKFILE
@@ -874,6 +886,11 @@ int LoadTracks(
 		LoadLayerLists();
 		LayerSetCounts();
 	}
+
+	MyFree(copyOfFileName);
+	free(full_path);
+	full_path = NULL;
+
 	UndoResume();
 	Reset();
 	wSetCursor( mainD.d, defaultCursor );
@@ -930,7 +947,7 @@ static BOOL_T DoSaveTracks(
 	rc &= fprintf(f, "SCALE %s\n", curScaleName )>0;
 	rc &= WriteLayers( f );
 	rc &= WriteMainNote( f );
-	rc &= WriteTracks( f );
+	rc &= WriteTracks( f, TRUE );
 	rc &= fprintf(f, "END\n")>0;
 	if ( rc == 0 )
 		NoticeMessage( MSG_WRITE_FAILURE, _("Ok"), NULL, strerror(errno), fileName );
@@ -1325,7 +1342,7 @@ static int ImportTracks(
 
 EXPORT void DoImport( void * type )
 {
-	importAsModule = (int)type;
+	importAsModule = (int)(long)type;
 	if (importFile_fs == NULL)
 		importFile_fs = wFilSelCreate( mainW, FS_LOAD, 0, _("Import Tracks"),
 			sImportFilePattern, ImportTracks, NULL );

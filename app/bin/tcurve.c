@@ -22,6 +22,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 
 #include "ccurve.h"
 #include "cjoin.h"
@@ -285,6 +286,7 @@ STATUS_T CurveDescriptionMove(
 
 	switch (action) {
 	case C_DOWN:
+		DrawCurveDescription( trk, &mainD, wDrawColorWhite );
 	case C_MOVE:
 	case C_UP:
 		editMode = TRUE;
@@ -293,8 +295,6 @@ STATUS_T CurveDescriptionMove(
 			xx->descriptionOff.x = (pos.x-xx->pos.x);
 			xx->descriptionOff.y = (pos.y-xx->pos.y);
 			p1 = pos;
-			if (action != C_UP)
-				DrawLine( &tempD, p0, p1, 0, wDrawColorBlack );
 		} else {
 			p1 = pos;
 			GetCurveAngles( &a0, &a1, trk );
@@ -321,14 +321,16 @@ STATUS_T CurveDescriptionMove(
 			a = a0 + (0.5 * a1);
 			PointOnCircle( &p0, xx->pos, xx->radius/2, a );
 		}
-		if (action == C_UP) editMode = FALSE;
-		MainRedraw();
-		MapRedraw();
+		if (action == C_UP) {
+			editMode = FALSE;
+			DrawCurveDescription( trk, &mainD, wDrawColorBlack );
+		}
 		return action==C_UP?C_TERMINATE:C_CONTINUE;
 
 	case C_REDRAW:
 		if (editMode) {
-			DrawLine( &tempD, p1, p0, 0, wDrawColorBlack );
+			DrawLine( &tempD, p0, p1, 0, wDrawColorBlue );
+			DrawCurveDescription( trk, &tempD, wDrawColorBlue );
 		}
 		break;
 		
@@ -664,8 +666,7 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 	struct extraData *xx = GetTrkExtraData(t);
 	ANGLE_T a0, a1;
 	track_p tt = t;
-	long widthOptions = DTS_LEFT|DTS_RIGHT|DTS_TIES;
-
+	long widthOptions = DTS_LEFT|DTS_RIGHT;
 
 	if (d->options&DC_BLOCK_LEFT)
 		widthOptions |= DTS_BLOCK_LEFT;
@@ -673,10 +674,6 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 		widthOptions |= DTS_BLOCK_RIGHT;
 
 
-	if (GetTrkWidth(t) == 2)
-		widthOptions |= DTS_THICK2;
-	if ((GetTrkWidth(t) == 3) || (d->options & DC_THICK))
-		widthOptions |= DTS_THICK3;
 	GetCurveAngles( &a0, &a1, t );
 	if (xx->circle) {
 		tt = NULL;
@@ -685,22 +682,17 @@ static void DrawCurve( track_p t, drawCmd_p d, wDrawColor color )
 		a0 = 0.0;
 		a1 = 360.0;
 	}
-	if ( ((d->funcs->options&wDrawOptTemp)==0) &&
+	if (     ((d->options&(DC_SIMPLE|DC_SEGTRACK))==0) &&
 		 (labelWhen == 2 || (labelWhen == 1 && (d->options&DC_PRINT))) &&
 		 labelScale >= d->scale &&
 		 ( GetTrkBits( t ) & TB_HIDEDESC ) == 0 ) {
 		DrawCurveDescription( t, d, color );
 	}
-	if (GetTrkBridge(t)) widthOptions |= DTS_BRIDGE;
-	else widthOptions &=~DTS_BRIDGE;
 
 	DrawCurvedTrack( d, xx->pos, xx->radius, a0, a1,
 				GetTrkEndPos(t,0), GetTrkEndPos(t,1),
-				t, GetTrkGauge(t), color, widthOptions );
-	if ( (d->funcs->options & wDrawOptTemp) == 0 &&
-		 (d->options&DC_QUICK) == 0 &&
-		 (d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) ==0 &&
-		 (!IsCurveCircle(t)) ) {
+				t, color, widthOptions );
+	if ((d->options&(DC_BLOCK_LEFT|DC_BLOCK_RIGHT)) ==0) {
 		DrawEndPt( d, t, 0, color );
 		DrawEndPt( d, t, 1, color );
 	}
@@ -748,9 +740,15 @@ static void ReadCurve( char * line )
 	}
 	t = NewTrack( index, T_CURVE, 0, sizeof *xx );
 	xx = GetTrkExtraData(t);
-	SetTrkVisible(t, visible&2);
-	SetTrkNoTies(t, visible&4);
-	SetTrkBridge(t, visible&8);
+	if ( paramVersion < 3 ) {
+		SetTrkVisible(t, visible!=0);
+		SetTrkNoTies(t, FALSE);
+		SetTrkBridge(t, FALSE);
+	} else {
+		SetTrkVisible(t, visible&2);
+		SetTrkNoTies(t, visible&4);
+		SetTrkBridge(t, visible&8);
+	}
 	SetTrkScale(t, LookupScale(scale));
 	SetTrkLayer(t, layer );
 	SetTrkWidth(t, (int)(options&3));
@@ -1301,6 +1299,8 @@ static BOOL_T QueryCurve( track_p trk, int query )
 		if ((xx->helixTurns >0) || xx->circle) return TRUE;
 		return FALSE;
 		break;
+	case Q_NODRAWENDPT:
+		return xx->circle;
 	default:
 		return FALSE;
 	}
@@ -1381,6 +1381,19 @@ static BOOL_T MakeParallelCurve(
 }
 
 
+static wBool_t CompareCurve( track_cp trk1, track_cp trk2 )
+{
+	struct extraData * ed1 = GetTrkExtraData( trk1 );
+	struct extraData * ed2 = GetTrkExtraData( trk2 );
+	char * cp = message+strlen(message);
+	REGRESS_CHECK_POS( "POS", ed1, ed2, pos )
+	REGRESS_CHECK_DIST( "RADIUS", ed1, ed2, radius )
+	REGRESS_CHECK_INT( "CIRCLE", ed1, ed2, circle )
+	REGRESS_CHECK_INT( "TURNS", ed1, ed2, helixTurns )
+	REGRESS_CHECK_POS( "DESCOFF", ed1, ed2, descriptionOff );
+	return TRUE;
+}
+
 static trackCmd_t curveCmds = {
 		"CURVE",
 		DrawCurve,
@@ -1410,7 +1423,13 @@ static trackCmd_t curveCmds = {
 		NULL,
 		NULL,
 		NULL,
-		MakeParallelCurve };
+		MakeParallelCurve,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		CompareCurve };
 
 
 EXPORT void CurveSegProc(

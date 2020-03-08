@@ -20,12 +20,12 @@
 #include "misc2.h"
 #include "csignal.h"
 #include "compound.h"
-#include "paramfile.h"
+#include "include/paramfile.h"
 #include "messages.h"
 #include "layout.h"
 #include "fileio.h"
 #include "i18n.h"
-#include "paramfilelist.h"
+#include "include/paramfilelist.h"
 
 /* Global Anchors for Definitional Objects*/
 static struct {
@@ -724,12 +724,12 @@ BOOL_T LoadSubParamFile(char * dirName, char * fileName) {
 
 	oldFile = paramFile;
 	oldLineNum = paramLineNum;
-	oldCheckSum = paramCheckSum;
+	//oldCheckSum = ParamCheckSumLine;
 	oldFileName = paramFileName;
 	rc = ReadParams(0, dirName, fileName);
 	paramFile = oldFile;
 	paramLineNum = oldLineNum;
-	paramCheckSum = oldCheckSum;
+	//ParamCheckSumLine = oldCheckSum;
 	paramFileName = oldFileName;
 	return rc;
 }

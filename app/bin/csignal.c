@@ -64,7 +64,7 @@ static const char rcsid[] = "@(#) : $Id$";
 #include "messages.h"
 #include "common.h"
 #include "condition.h"
-#include "paramfile.h"
+#include "include/paramfile.h"
 #include "csignal.h"
 
 
@@ -1512,6 +1512,7 @@ static trackCmd_t signalCmds = {
 	NULL, /* replay   */
 	NULL, /* store    */
 	ActivateSignal, /* activate */
+	NULL, /* compare */
 	pubSubSignal /* Publish/Subscribe  */
 };
 
@@ -2776,7 +2777,7 @@ static void DrawSignalTrackHilite( void )
 	w = (wPos_t)((sighiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((sighiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,sighiliteOrig,&x,&y);
-	wDrawFilledRectangle( tempD.d, x, y, w, h, sighiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( tempD.d, x, y, w, h, sighiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 static int SignalMgmProc ( int cmd, void * data )

@@ -12,19 +12,19 @@
 
 \H{addM}\i{Add Menu}
 
-\G{png.d/madd.png} 
+\G{png.d/madd.png}
 
-The \f{Add Menu} has all the actions related to adding track pieces to the layout. 
+The \f{Add Menu} has all the actions related to adding track pieces to the layout.
 
 \dd \f{Circle Track} - place a circle of track by selecting radius, tangent and or center (\K{cmdCircle}).
 
 \u000
 
-\dd \f{Curved Track} - lay curved track pieces using different modes for selecting start and endpoints and radius (\K{cmdCurve}). 
+\dd \f{Curved Track} - lay curved track pieces using different modes for selecting start and endpoints and radius (\K{cmdCurve}).
 
 \u000
 
-\dd \f{Hand-laid Turnout} - lay a turnout in place on the layout. 
+\dd \f{Hand-laid Turnout} - lay a turnout in place on the layout.
 
 \u000
 
@@ -36,19 +36,19 @@ The \f{Add Menu} has all the actions related to adding track pieces to the layou
 
 \u000
 
-\dd \f{Straight Track} - lay straight track pieces of arbitrary lengths 
+\dd \f{Straight Track} - lay straight track pieces of arbitrary lengths
 
 \u000
 
-\dd \f{Structure} - Add a predefined structure to the layout. 
+\dd \f{Structure} - Add a predefined structure to the layout.
 
 \u000
 
-\dd \f{Turnout} - select a turnout or a piece of fixed track and place on layout.
+\dd \f{Predefined Track} - select a turnout or a piece of fixed track and place on layout.
 
 \u000
 
-\dd \f{Turntable} - Place a turntable.
+\dd \f{Custom Turntable} - Place a turntable.
 
 \u000
 
@@ -104,11 +104,11 @@ You can join to and from circles, after which they become curved tracks.
 
 \G{png.d/bcurve.png}
 
-Creating a curve is a two step operation.  
+Creating a curve is a two step operation.
 
 The five methods (with their Shortcut keys) used to create a Curved Track are:
 
-\dd \G{png.d/bcurve1.png} (\c{Control-4}) Drag from one endpoint in the direction of the Curve at that point and release. \c{Left-Drag} the red arrows to position the second endpoint. 
+\dd \G{png.d/bcurve1.png} (\c{Control-4}) Drag from one endpoint in the direction of the Curve at that point and release. \c{Left-Drag} the red arrows to position the second endpoint.
 While the first endpoint is being placed, unless \e{Shift} is held, if the cursor is on a track, the new curve end will "Snap" to the nearest open track endpoint and you will drag out the second end in aligned to that track, once you are dragging the second end it will be restricted to an arc that has the same end angle as the first endpoint. After a track is competed, the new track will be connected to this first track.
 
 \u000
@@ -132,13 +132,6 @@ While the endpoints are being placed, unless \c{Shift} is held down, they will "
 
 \u000
 
-\dd \G{png.d/bcornu.png} \c{Left-Click} to place each endpoint, \c{Left-Click} to place the second Endpoint. Add Pins with \c{Left-Click} on the Cornu and \c{Left-Drag} them to constrain the curve to smoothly pass through points between them. Complete the Curve by pressing \c{Enter}, or Reject it with \c{Esc}.
-When either endpoint is being placed it will "Snap" to an open track endpoint of the tracks underneath the cursor unless \c{Shift} is held. You can only move the point along that track, or in an extension of it once it is snapped. After the new track is completed, it will be connected to these existing tracks.
-Cornu Track Pins are explained in \K{joinCornu} to alter its shape. You can place them by clicking on the Cornu and move them around or delete them.
-If the end is not connected, an anchor will enable the end-angle and radius to be set by dragging. Initially the end radius is set to be zero and the angle will be picked to minimize overall curvature. If track pins may be added, two such end points with zero end radius defines a straight track, and such a track with one added track pin will create a smooth arc through the three points.
-
-\u000
-
 A drop down menu, which allows selection of the Curved Track creation method, is invoked from the down arrow button (\G{png.d/bmenu.png}) located on the right side the Curved track button. Dependent upon previous selection, the Curved Track button will look like \G{png.d/bcurve1.png}, \G{png.d/bcurve2.png}, \G{png.d/bcurve3.png}, \G{png.d/bcurve4.png}, \G{png.d/bezier.png} or \G{png.d/bcornu.png}.
 
 \dd \G{png.d/bmcurved.png}
@@ -147,17 +140,45 @@ A drop down menu, which allows selection of the Curved Track creation method, is
 
 In all but the Bezier case, two Red arrow heads will be drawn after the first step to indicate where you can Drag to complete the second step.
 
-A straight track will be created if the second endpoint is lined up with the first endpoint.
+A straight track will be created if the second endpoint is lined up with the first endpoint except for Bezier and Cornu tracks.
 
 If the Snap Grid (\K{cmdGrid}) is enabled then the endpoints will be constrained to the grid if they are not snapped to another object. \c{Shift} ensures that other objects will be ignored.
 
-Optionally, the curve center point and radius can be displayed for the Curve.  This is enabled by the Move Label (\K{cmdMoveLabel}) command.
+Optionally, the curve center point and radius can be displayed for the Curve. This is enabled by the Move Label (\K{cmdMoveLabel}) command.
+ 
+For Beziers, the active control point will be drawn in red and the available endpoints are shown with circles. 
 
-For Beziers, the active control point will be drawn in red and the available endpoints are shown with circles.  
+For Cornus, the active control point is drawn in blue and dynamic blue anchor points illuminate when the cursor is near to an anchor.
 
 \f{Note:} You can also create Straight and Curved tracks using \k{cmdModify} by \c{Left-Drag}ing out extra track from an open end-point.
 
 \rule
+
+\S{cmdCornu} Create Cornu Track
+
+\dd \G{png.d/bcornu.png} \c{Left-Click} to place each endpoint on an open track end or just on the layout
+
+\c{Left-Drag} with the endpoint not on an existing track drags out the end angle of the new track. This is shown by the Cornu endanchor 
+
+\G{png.d/cornuendanchor.png}
+
+The anchor is only drawn for Cornu ends that are not joined to existing tracks and it shows the position, direction and radius of the track, and has anchors for altering these properties. 
+When the Cornu is joined to a track, it uses the properties of the end of that track instead. 
+Anchor point handles are drawn outside the end of the Cornu track to allow track-pins to be edited on the track itself.
+\c{Left-Click} to place the second Endpoint either on a track endpoint or not. \c{Left-Drag} sets the second end angle like the first for unconnected end-points. 
+
+Complete the Curve by pressing \c{Enter}, or Reject it with \c{Esc}.
+
+The radius and angle of the selected open Cornu end can also be set with text entry boxes in the Status Bar.
+
+When either endpoint is being moved it will "Snap" to an open track endpoint of the tracks underneath the cursor unless \c{Shift} is held. 
+You can then only move the endpoint along that track if it is splitable, or in an extension of it. After the new track is completed, it will be connected to these existing tracks.
+
+Cornu Track Pins are further explained in \K{joinCornu} - they constrain the Cornu curve to smoothly pass through thier position as well as satisfying the end conditions. You can place them by clicking on the Cornu and select, \e{Drag} to move them around or hit \e{Delete} to remove them.
+
+If the end is not connected, an anchor will enable the end-angle and radius to be set by dragging. Initially the end radius is set to be zero and the angle will be picked to create a smooth curve given the end angle.  Altering the end angle with the anchor resets the radius to zero.
+
+\u000
 
 
 \S{cmdHandLaidTurnout} Hand-laid Turnouts
@@ -223,17 +244,17 @@ If the gauges are equal, a value of 0 means that the rail of the second track is
 
 The type of the output can be changed using the \f{Type} radio button to be a Track or a Line.
 
-The seperation can be automatically increased using the \f{Radius Factor} value. If this is set to 0.0 (default) the seperation value will be used regardless of radius. 
-If the value is set to 1.0, the seperation will be increased by a scaled 2864 inches per inch of curvature of the paralled track - this is in accordance with North American prototype practice. 
-Other values of Radius Factor will alter by an equivalent percentage. For example, 0.5 would use 50% of this increase. 
+The seperation can be automatically increased using the \f{Radius Factor} value. If this is set to 0.0 (default) the seperation value will be used regardless of radius.
+If the value is set to 1.0, the seperation will be increased by a scaled 2864 inches per inch of curvature of the paralled track - this is in accordance with North American prototype practice.
+Other values of Radius Factor will alter by an equivalent percentage. For example, 0.5 would use 50% of this increase.
 
 Select the track you want to parallel with \c{Left-Click}, and the new parallel track/line will appear beside it.  You control which side the new track will be on by dragging the cursor from one side to the other of the selected track before releasing it.
 
 This is very useful for creating sidings and yards.
 
-No parallel to a turnouts or a non-straight piece of sectional track is created. 
+No parallel to a turnouts or a non-straight piece of sectional track is created.
 
-It is possible to create tracks that abut (the endpoints are very close and aligned). These endpoints will be automatically connected. 
+It is possible to create tracks that abut (the endpoints are very close and aligned). These endpoints will be automatically connected.
 
 \rule
 
@@ -325,15 +346,16 @@ software to determine block occupancy. This could be a code snippet to
 retrieve the state of the block occupancy or it could be the address of the 
 sensor, etc. 
 
+
 \G{png.d/block.png}
 
 The create block dialog has spaces for two text strings. One is the name and
 the other is a block occupancy script. The name uniquely identifies the block and the
 script is information used by the layout control software to detect block
 occupancy. The script could be a code snippet or I/O device address
-information, etc. 
+information, etc.
 
-\rule 
+\rule
 
 \S{cmdSwitchmotor} Switchmotor
 
@@ -346,7 +368,7 @@ identification and must be unique in the layout and the three scripts are used b
 The three scripts are for throwing the turnout to its "normal" position,
 throwing the turnout to its "reverse" position, and a script to read a point
 position sensor. These scripts could be code snippets or they could be
-addresses of I/O devices, etc. 
+addresses of I/O devices, etc.
 
 \G{png.d/switchmotor.png}
 
@@ -370,9 +392,9 @@ A signal is created by selecting \f{Create Signal} from either the Add menu \K{c
 from the hotbar. The position of the Signal will be at a track end and its orientation will be locked to be the same as the track at that end. 
 This is the track the Signal will "protect". The position of the Signal can be offset.
 Use the mouse to select a track end location (left button) and then
-draging (left button down) the signal will create an offset from that position. Once the left 
+draging (left button down) the signal will create an offset from that position. Once the left
 button is released, a Create/Edit Signal dialog box is displayed, and you can
-select the SignalPart you need from the list of those included from the parameter files and custom elements.  
+select the SignalPart you need from the list of those included from the parameter files and custom elements.
 You then fill in the signal's properties: name, fine tune the offset, name the heads and the aspects.
 
 \G{png.d/signal.png}
@@ -385,7 +407,7 @@ yellow, red, etc.).  These names can be used in Condition definitions to define 
 
 The script is just some information for the layout 
 control software, like JMRI, to effect the display of the aspect -- this might be 
-the LCC event id to trigger the aspect or it could be a code snippet that 
+the LCC event id to trigger the aspect or it could be a code snippet that
 causes the aspect to be displayed.
 
 \rule
@@ -394,7 +416,7 @@ causes the aspect to be displayed.
 
 \G{png.d/bControl.png}
 
-A Control is something that can be controlled by Train Control software like a control panel light, 
+A Control is something that can be controlled by Train Control software like a control panel light,
 or a physical element like a level crossing gate, or a virtual element like a "flag" that can be set and tested by a Condition.
 
 A control is created by selecting \f{Create Control} from either the Add menu \K{cmdAdd} or 
@@ -428,8 +450,8 @@ fill in the sensor's properties: name, fine tune the location, and the script.
 
 \G{png.d/sensor.png}
 
-The create/edit sensor dialog has spaces for the name of the sensor, its 
-location, and a script. The script is just some information for the layout 
+The create/edit sensor dialog has spaces for the name of the sensor, its
+location, and a script. The script is just some information for the layout
 control software to actually return the state of the sensor (on or off).
 
 \S{cmdCondition} Condition

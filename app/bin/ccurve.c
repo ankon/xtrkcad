@@ -297,10 +297,7 @@ EXPORT STATUS_T CreateCurve(
 					Translate( &pos, Da.pos0, angle1-90.0, dp );
 			} else if (mode == crvCmdFromTangent) {
 				DIST_T dp = FindDistance(Da.pos0, pos)*sin(D2R(angle2));
-				if (angle2 > 90 && angle2 < 270.0)
-					Translate( &pos, Da.pos0, angle1+90.0, dp );
-				else
-					Translate( &pos, Da.pos0, angle1-90.0, dp );
+				Translate( &pos, Da.pos0, angle1-90.0, dp );
 			}
 		} else SnapPos(&pos);
 		tempSegs_da.cnt =1;
@@ -373,6 +370,10 @@ EXPORT STATUS_T CreateCurve(
 					ErrorMessage( MSG_TRK_TOO_SHORT, "Curved ", PutDim(0.0) );
 					return C_TERMINATE;
 				}
+			} else  if (mode == crvCmdFromTangent) {
+				DIST_T dp = FindDistance(Da.pos0, pos)*sin(D2R(angle2));
+				Translate( &pos, Da.pos0, angle1-90.0, dp );
+				Da.pos1 = pos;
 			} else {
 				DIST_T dp = -FindDistance(Da.pos0, pos)*sin(D2R(angle2));
 				if (angle2 > 180.0)
@@ -422,6 +423,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		tempSegs_da.cnt = 0;
 		segCnt = 0;
 		STATUS_T rcode;
+		DYNARR_RESET(trkSeg_t,anchors_da);
 		return CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, &anchors_da, InfoMessage );
 
 	case C_DOWN:
@@ -449,12 +451,10 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			rcode = CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, &anchors_da, InfoMessage );
 			segCnt = tempSegs_da.cnt ;
 			if (!Da.down) Da.state = -1;
-			MainRedraw();
 			return rcode;
 			//Da.pos0 = pos;
 		}
 		//This is where the user could adjust - if we allow that?
-		MainRedraw();
 		tempSegs_da.cnt = segCnt;
 		return C_CONTINUE;
 
@@ -474,13 +474,10 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 				}
 			}
 		}
-		if (anchors_da.cnt)
-				DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 
 	case C_MOVE:
 		if (Da.state<0) return C_CONTINUE;
-		//mainD.funcs->options = wDrawOptTemp;
 		if ( Da.state == 0 ) {
 		    Da.pos1 = pos;
 			rc = CreateCurve( action, pos, TRUE, wDrawColorBlack, 0, curveMode, &anchors_da, InfoMessage );
@@ -538,7 +535,6 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			}
 		}
 		mainD.funcs->options = 0;
-		MainRedraw();
 		return rc;
 	case C_TEXT:
 		if ( Da.state == 0 )
@@ -546,7 +542,6 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		/*no break*/
 	case C_UP:
 		if (Da.state<0) return C_CONTINUE;
-		//mainD.funcs->options = wDrawOptTemp;
 		if (Da.state == 0 && ((curveMode != crvCmdFromChord) || (curveMode == crvCmdFromChord && !Da.trk))) {
 			SnapPos( &pos );
 			Da.pos1 = pos;
@@ -556,7 +551,6 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 			mainD.funcs->options = 0;
 			segCnt = tempSegs_da.cnt;
 			InfoMessage( _("Drag on Red arrows to adjust curve") );
-			MainRedraw();
 			return C_CONTINUE;
 		} else if ((curveMode == crvCmdFromChord && Da.state == 0 && Da.trk)) {
 			pos = Da.middle;
@@ -566,7 +560,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		tempSegs_da.cnt = 0;
 		segCnt = 0;
 		Da.state = -1;
-		DYNARR_RESET(trkSeg_t,anchors_da);          // No More anchors for this one??
+		DYNARR_RESET(trkSeg_t,anchors_da);          // No More anchors for this one
 		if (Da.curveData.type == curveTypeStraight) {
 			if ((d=FindDistance( Da.pos0, Da.curveData.pos1 )) <= minLength) {
 				ErrorMessage( MSG_TRK_TOO_SHORT, "Curved ", PutDim(fabs(minLength-d)) );
@@ -595,17 +589,16 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		} else {
 			return C_ERROR;
 		}
-		MainRedraw();
-		MapRedraw();
+		DrawNewTrack( t );
 		return C_TERMINATE;
 
 	case C_REDRAW:
 		if ( Da.state >= 0 ) {
-			DrawSegs( &mainD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
+			DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 			mainD.funcs->options = 0;
 		}
-		if (anchors_da.cnt && Da.state >=0)
-			DrawSegs( &mainD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+		if (anchors_da.cnt)
+			DrawSegs( &tempD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
 		return C_CONTINUE;
 
 	case C_CANCEL:
@@ -617,8 +610,6 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		DYNARR_RESET(trkSeg_t,tempSegs_da);
 		Da.state = -1;
 		segCnt = 0;
-		MainRedraw();
-		MapRedraw();
 		return C_CONTINUE;
 
 	}
@@ -751,7 +742,6 @@ static void ComputeHelix(
 static void HelixCancel( wWin_p win )
 {
 	wHide( helixW );
-	Reset();
 }
 
 
@@ -871,12 +861,10 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		tempSegs(0).u.c.a0 = 0.0;
 		tempSegs(0).u.c.a1 = 360.0;
 		tempSegs_da.cnt = 1;
-		MainRedraw();
 		return C_CONTINUE;
 
 	case C_UP:
             
-		DrawSegs( &tempD, zero, 0.0, &tempSegs(0), tempSegs_da.cnt, trackGauge, wDrawColorBlack );
 		if (helixRadius > mapD.size.x && helixRadius > mapD.size.y) {
 			ErrorMessage( MSG_RADIUS_TOO_BIG );
 			return C_ERROR;
@@ -957,6 +945,7 @@ static STATUS_T CmdHelix( wAction_t action, coOrd pos )
 
 EXPORT void InitCmdCurve( wMenu_p menu )
 {
+	AddMenuButton( menu, CmdCornu, "cmdCornu", _("Cornu Curve"), wIconCreatePixMap(cornu_xpm), LEVEL0_50, IC_STICKY|IC_POPUP2|IC_WANT_MOVE, ACCL_CORNU, (void*)cornuCmdCreateTrack);
 
 	ButtonGroupBegin( _("Curve Track"), "cmdCircleSetCmd", _("Curve Tracks") );
 	AddMenuButton( menu, CmdCurve, "cmdCurveEndPt", _("Curve from End-Pt"), wIconCreatePixMap( curve1_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2|IC_WANT_MOVE, ACCL_CURVE1, (void*)0 );
@@ -964,7 +953,6 @@ EXPORT void InitCmdCurve( wMenu_p menu )
 	AddMenuButton( menu, CmdCurve, "cmdCurveCenter", _("Curve from Center"), wIconCreatePixMap( curve3_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2|IC_WANT_MOVE, ACCL_CURVE3, (void*)2 );
 	AddMenuButton( menu, CmdCurve, "cmdCurveChord", _("Curve from Chord"), wIconCreatePixMap( curve4_xpm ), LEVEL0_50, IC_STICKY|IC_POPUP2|IC_WANT_MOVE, ACCL_CURVE4, (void*)3 );
 	AddMenuButton( menu, CmdBezCurve, "cmdBezier", _("Bezier Curve"), wIconCreatePixMap(bezier_xpm), LEVEL0_50, IC_STICKY|IC_POPUP2|IC_WANT_MOVE, ACCL_BEZIER, (void*)bezCmdCreateTrack );
-	AddMenuButton( menu, CmdCornu, "cmdCornu", _("Cornu Curve"), wIconCreatePixMap(cornu_xpm), LEVEL0_50, IC_STICKY|IC_POPUP2|IC_WANT_MOVE, ACCL_CORNU, (void*)cornuCmdCreateTrack);
 	ButtonGroupEnd();
 
 	ButtonGroupBegin( _("Circle Track"), "cmdCurveSetCmd", _("Circle Tracks") );
