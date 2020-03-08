@@ -2582,10 +2582,12 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) R%0.3f A%0.3f..%0.3f)\n",
 			d->options = options;
 		}
 		if (options&(DTS_BLOCK_LEFT|DTS_BLOCK_RIGHT)) {
+			d->options |= DC_DASH;
 			if (options&DTS_BLOCK_LEFT)
 				DrawArc( d, p, r+1.5*trackGauge/2.0, a0, a1, 0, 3, blockColor );
 			else
 				DrawArc( d, p, r-1.5*trackGauge/2.0, a0, a1, 0, 3, blockColor );
+			d->options &= ~DC_DASH;
 		} else {
 			DrawArc( d, p, r+trackGauge/2.0, a0, a1, 0, width, color );
 			DrawArc( d, p, r-trackGauge/2.0, a0, a1, (centerDrawMode && !(options&DTS_NOCENTER) ? 1: 0), width, color );
@@ -2742,6 +2744,7 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 			d->options = options;
 		}
 		if ( options&(DTS_BLOCK_RIGHT|DTS_BLOCK_LEFT)) {
+			d->options |= DC_DASH;
 			if (options&(DTS_BLOCK_RIGHT)) {
 				Translate( &pp0, p0, angle+90, 1.5*trackGauge/2.0 );
 				Translate( &pp1, p1, angle+90, 1.5*trackGauge/2.0 );
@@ -2751,6 +2754,7 @@ LOG( log_track, 4, ( "DST( (%0.3f %0.3f) .. (%0.3f..%0.3f)\n",
 				Translate( &pp1, p1, angle-90, 1.5*trackGauge/2.0 );
 				DrawLine( d, pp0, pp1, 3, blockColor );
 			}
+			d->options &= ~DC_DASH;
 		} else {
 			if ( options&(DTS_RIGHT)) {
 				Translate( &pp0, p0, angle+90, trackGauge/2.0 );
