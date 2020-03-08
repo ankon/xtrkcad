@@ -65,7 +65,7 @@ SET(SOURCES
 	ccurve.c
 	ccontrol.c
 	condition.c
-	cdraw.c
+    cdraw.c
 	celev.c
 	cgroup.c
 	chndldto.c
@@ -86,7 +86,7 @@ SET(SOURCES
 	csplit.c
 	csignal.c
 	csignalparm.c
-	cstraigh.c
+    cstraigh.c
 	cstruct.c
 	cswitchmotor.c
 	ctext.c
@@ -127,9 +127,9 @@ SET(SOURCES
 	misc2.c
 	param.c
 	paramfile.c
-	paramfile.h
 	paramfilelist.c
-	paramfilelist.h
+	paramfilesearch_ui.c
+	partcatalog.c
 	paths.c
 	shortentext.c
 	shrtpath.c
@@ -152,6 +152,13 @@ SET(SOURCES
 	manifest.h
 	validator.h
 	)
+
+set (SOURCES
+	${SOURCES}
+	include/dirent.h
+	include/paramfile.h
+	include/paramfilelist.h
+)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${XTrkCAD_BINARY_DIR})

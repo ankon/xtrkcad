@@ -437,6 +437,7 @@ static trackCmd_t sensorCmds = {
 	NULL, /*store*/
 	NULL, /*replay*/
 	NULL, /*activate*/
+	NULL, /*compare*/
 	pubSubSensor  /* pubSub */
 
 };
@@ -571,7 +572,7 @@ static void DrawSensorTrackHilite( void )
 	w = (wPos_t)((ctlhiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((ctlhiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,ctlhiliteOrig,&x,&y);
-	wDrawFilledRectangle( tempD.d, x, y, w, h, ctlhiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( tempD.d, x, y, w, h, ctlhiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 static int SensorMgmProc ( int cmd, void * data )

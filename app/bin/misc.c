@@ -62,7 +62,7 @@
 #include "messages.h"
 #include "misc.h"
 #include "param.h"
-#include "paramfilelist.h"
+#include "include/paramfilelist.h"
 #include "paths.h"
 #include "smalldlg.h"
 #include "track.h"
@@ -173,6 +173,8 @@ static wIndex_t gridCmdInx;
 static paramData_t menuPLs[101] = { { PD_LONG, &toolbarSet, "toolbarset" }, {
 		PD_LONG, &curTurnoutEp, "cur-turnout-ep" } };
 static paramGroup_t menuPG = { "misc", PGO_RECORD, menuPLs, 2 };
+
+extern wBool_t wDrawDoTempDraw;
 
 /****************************************************************************
  *
@@ -595,28 +597,39 @@ FileIsChanged(void)
  * MAIN BUTTON HANDLERS
  *
  */
+ /**
+  * Confirm a requested operation in case of possible loss of changes.
+  *
+  * \param label2 IN operation to be cancelled, unused at the moment
+  * \param after IN function to be executed on positive confirmation
+  * \return true if proceed, false if cancel operation
+  */
+  
+/** TODO: make sensible messages when requesting confirmation */
 
-EXPORT void Confirm(char * label2, doSaveCallBack_p after) {
-	int rc;
+bool
+Confirm(char * label2, doSaveCallBack_p after)
+{
+	int rc = -1;
 	if (changed) {
-		rc =
-				wNotice3(
-						_(
-								"Save changes to the layout design before closing?\n\n"
-										"If you don't save now, your unsaved changes will be discarded."),
-						_("&Save"), _("&Cancel"), _("&Don't Save"));
-		if (rc == 1) {
-			LayoutBackGroundInit(FALSE);
-			LayoutBackGroundSave();
-			DoSave(after);
-			return;
-		} else if (rc == 0) {
-			return;
-		}
+		rc = wNotice3(_("Save changes to the layout design before closing?\n\n"
+			"If you don't save now, your unsaved changes will be discarded."),
+			_("&Save"), _("&Cancel"), _("&Don't Save"));
 	}
 
-	after();
-	return;
+	switch (rc) {
+	case -1:	/* do not save */
+		after();
+		break;
+	case 0:		/* cancel operation */
+		break;
+	case 1:		/* save */
+		LayoutBackGroundInit(FALSE);
+		LayoutBackGroundSave();
+		DoSave(after);
+		break;
+	}
+	return(rc != 0);
 }
 
 static void ChkLoad(void) {
@@ -628,23 +641,21 @@ static void ChkExamples( void )
 	Confirm(_("examples"), DoExamples);
 }
 
-static void ChkRevert( void )
+static void ChkRevert(void)
 {
-	int rc;
+    int rc;
 
-	if (changed) {
-		rc =
-				wNoticeEx( NT_WARNING,
-						_(
-								"Do you want to return to the last saved state?\n\n"
-										"Revert will cause all changes done since last save to be lost."),
-						_("&Revert"), _("&Cancel"));
-		if (rc) {
-			/* load the file */
-			char *filename = GetLayoutFullPath();
-			LoadTracks(1, &filename, NULL);
-		}
-	}
+    if (changed) {
+        rc = wNoticeEx(NT_WARNING,
+                       _("Do you want to return to the last saved state?\n\n"
+                         "Revert will cause all changes done since last save to be lost."),
+                       _("&Revert"), _("&Cancel"));
+        if (rc) {
+            /* load the file */
+            char *filename = GetLayoutFullPath();
+            LoadTracks(1, &filename, NULL);
+        }
+    }
 }
 
 static char * fileListPathName;
@@ -709,24 +720,24 @@ static void DoQuitAfter(void) {
  * prevent data loss.
  */
 void DoQuit(void) {
-	Confirm(_("Quit"), DoQuitAfter);
+	if (Confirm(_("Quit"), DoQuitAfter)) {
+
 #ifdef CHECK_UNUSED_BALLOONHELP
-	ShowUnusedBalloonHelp();
+		ShowUnusedBalloonHelp();
 #endif
-	LogClose();
-	wExit(0);
+		LogClose();
+		wExit(0);
+	}
 }
 
 static void DoClearAfter(void) {
 
+	Reset();
 	ClearTracks();
 
 	/* set all layers to their default properties and set current layer to 0 */
-	DefaultLayerProperties();
 	DoLayout(NULL);
 	checkPtMark = 0;
-	Reset();
-
 	DoChangeNotification( CHANGE_MAIN|CHANGE_MAP );
 	bReadOnly = TRUE;
 	EnableCommands();
@@ -1001,8 +1012,8 @@ EXPORT void Reset(void) {
 		DoCheckPoint();
 		checkPtMark = changed;
 	}
-	MainRedraw();
-	MapRedraw();
+	ClrAllTrkBits( TB_UNDRAWN );
+	DoRedraw(); // Reset
 	EnableCommands();
 	ResetMouseState();
 	LOG(log_command, 1,
@@ -1094,31 +1105,27 @@ static BOOL_T CheckClick(wAction_t *action, coOrd *pos, BOOL_T checkLeft,
 EXPORT wBool_t DoCurCommand(wAction_t action, coOrd pos) {
 	wAction_t rc;
 	int mode;
+	wBool_t bExit = FALSE;
 
 	if (action == wActionMove) {
-		if ((commandList[curCommand].options & IC_WANT_MOVE) == 0)
-			return C_CONTINUE;
-	}
-
-	if ((action&0xFF) == wActionModKey) {
-		if ((commandList[curCommand].options & IC_WANT_MODKEYS) == 0)
-			return C_CONTINUE;
-	}
-
-
-	if (!CheckClick(&action, &pos,
-			(int) (commandList[curCommand].options & IC_LCLICK), TRUE))
-		return C_CONTINUE;
-
-	if (action == C_RCLICK
+		if ((commandList[curCommand].options & IC_WANT_MOVE) == 0) {
+			bExit = TRUE;
+		}
+	} else if ((action&0xFF) == wActionModKey) {
+		if ((commandList[curCommand].options & IC_WANT_MODKEYS) == 0) {
+			bExit = TRUE;
+		}
+	} else if (!CheckClick(&action, &pos,
+			(int) (commandList[curCommand].options & IC_LCLICK), TRUE)) {
+		bExit = TRUE;
+	} else if (action == C_RCLICK
 			&& (commandList[curCommand].options & IC_RCLICK) == 0) {
 		if (!inPlayback) {
 			mode = MyGetKeyState();
 			if ((mode & (~WKEY_SHIFT)) != 0) {
 				wBeep();
-				return C_CONTINUE;
-			}
-			if (((mode & WKEY_SHIFT) == 0) == (rightClickMode == 0)) {
+				bExit = TRUE;
+			} else if (((mode & WKEY_SHIFT) == 0) == (rightClickMode == 0)) {
 				if (selectedTrackCount > 0) {
 					if (commandList[curCommand].options & IC_CMDMENU) {
 					}
@@ -1126,30 +1133,51 @@ EXPORT wBool_t DoCurCommand(wAction_t action, coOrd pos) {
 				} else {
 					wMenuPopupShow(popup1M);
 				}
-				return C_CONTINUE;
+				bExit = TRUE;
 			} else if ((commandList[curCommand].options & IC_CMDMENU)) {
 				cmdMenuPos = pos;
 				action = C_CMDMENU;
 			} else {
 				wBeep();
-				return C_CONTINUE;
+				bExit = TRUE;
 			}
 		} else {
-			return C_CONTINUE;
+			bExit = TRUE;
 		}
+	}
+	if ( bExit ) {
+		TempRedraw(); // DoCurCommand: precommand
+		return C_CONTINUE;
 	}
 
 	LOG(log_command, 2,
 			( "COMMAND MOUSE %s %d @ %0.3f %0.3f\n", commandList[curCommand].helpKey, (int)action, pos.x, pos.y ))
 	rc = commandList[curCommand].cmdProc(action, pos);
 	LOG(log_command, 4, ( "    COMMAND returns %d\n", rc ))
+	switch ( action & 0xFF ) {
+	case wActionMove:
+	case wActionModKey:
+	case C_DOWN:
+	case C_MOVE:
+	case C_UP:
+	case C_RDOWN:
+	case C_RMOVE:
+	case C_RUP:
+	case C_LCLICK:
+	case C_RCLICK:
+	case C_TEXT:
+	case C_OK:
+		if (rc== C_TERMINATE) MainRedraw();
+		else TempRedraw(); // DoCurCommand: postcommand
+		break;
+	default:
+		break;
+	}
 	if ((rc == C_TERMINATE || rc == C_INFO)
 			&& (commandList[curCommand].options & IC_STICKY)
 			&& (commandList[curCommand].stickyMask & stickySet)) {
 		tempSegs_da.cnt = 0;
 		UpdateAllElevations();
-        MainRedraw();
-        MapRedraw();
 		if (commandList[curCommand].options & IC_NORESTART) {
 			return C_CONTINUE;
 		}
@@ -1210,11 +1238,11 @@ EXPORT void ConfirmReset(BOOL_T retry) {
 			return;
 		}
 	}
-	Reset();
 	if (retry) {
 		/* because user pressed esc */
 		SetAllTrackSelect( FALSE);
 	}
+	Reset();
 	LOG(log_command, 1,
 			( "COMMAND RESET %s\n", commandList[curCommand].helpKey ))
 	commandList[curCommand].cmdProc( C_START, zero);
@@ -1311,6 +1339,7 @@ EXPORT void DoCommandB(void * data) {
 			( "COMMAND START %s\n", commandList[curCommand].helpKey ))
 	rc = commandList[curCommand].cmdProc( C_START, pos);
 	LOG(log_command, 4, ( "    COMMAND returns %d\n", rc ))
+	TempRedraw(); // DoCommandB
 	switch (rc) {
 	case C_CONTINUE:
 		break;
@@ -2720,7 +2749,7 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 
 	opterr = 0;
 
-	while ((c = getopt(argc, argv, "vl:d:c:")) != -1)
+	while ((c = getopt(argc, argv, "vl:d:c:m")) != -1)
 		switch (c) {
 		case 'c': /* configuration name */
 			/* test for valid filename */
@@ -2757,6 +2786,9 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 		case '?':
 			NoticeMessage(MSG_BAD_OPTION, _("Ok"), NULL, argv[optind - 1]);
 			exit(1);
+		case 'm': // temporary: use MainRedraw instead of TempRedraw
+			wDrawDoTempDraw = FALSE;
+			break;
 		case ':':
 			NoticeMessage("Missing parameter for %s", _("Ok"), NULL,
 					argv[optind - 1]);
@@ -2789,7 +2821,7 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	wGetDisplaySize(&displayWidth, &displayHeight);
 	mainW = wWinMainCreate(buffer, (displayWidth * 2) / 3,
 			(displayHeight * 2) / 3, "xtrkcadW", message, "main",
-			F_RESIZE | F_MENUBAR | F_NOTAB | F_RECALLPOS | F_HIDE, MainProc,
+			F_RESIZE | F_MENUBAR | F_NOTAB | F_RECALLPOS | F_RECALLSIZE | F_HIDE, MainProc,
 			NULL);
 	if (mainW == NULL)
 		return NULL;

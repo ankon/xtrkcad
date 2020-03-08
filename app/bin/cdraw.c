@@ -256,7 +256,7 @@ EXPORT track_p MakePolyLineFromSegs(
 					if (first || !IsClose(FindDistance(this, last))) {
 						cnt++;									//Add first point
 					}
-					cnt += floor(spb->u.c.a1/22.5)+1 ;				//Add a point for each 1/8 of a circle
+					cnt += (int)floor(spb->u.c.a1/22.5)+1 ;				//Add a point for each 1/8 of a circle
 					if (spb->u.c.radius > 0)
 						Translate(&last, spb->u.c.center, spb->u.c.a0+spb->u.c.a1, fabs(spb->u.c.radius));
 					else
@@ -282,7 +282,7 @@ EXPORT track_p MakePolyLineFromSegs(
 			if (first || !IsClose(FindDistance(this, last))) {
 				cnt++;									//Add first point
 			}
-			cnt += floor(sp->u.c.a1/22.5)+1 ;				//Add a point for each 1/8 of a circle
+			cnt += (int)floor(sp->u.c.a1/22.5)+1 ;				//Add a point for each 1/8 of a circle
 			if (sp->u.c.radius > 0)
 				Translate(&last, sp->u.c.center, sp->u.c.a0+sp->u.c.a1, fabs(sp->u.c.radius));
 			else
@@ -330,7 +330,7 @@ EXPORT track_p MakePolyLineFromSegs(
 						xx->segs[0].u.p.pts[j].pt_type = wPolyLineStraight;
 						j++;
 					}
-					int slices = floor(spb->u.c.a1/22.5);
+					int slices = (int)floor(spb->u.c.a1/22.5);
 					for (int k=1; k<=slices;k++) {
 						if (spb->u.c.radius>0)
 							Translate(&xx->segs[0].u.p.pts[j].pt, spb->u.c.center, spb->u.c.a0+(k*(spb->u.c.a1/(slices+1))), fabs(spb->u.c.radius));
@@ -374,7 +374,7 @@ EXPORT track_p MakePolyLineFromSegs(
 				xx->segs[0].u.p.pts[j].pt_type = wPolyLineStraight;
 				j++;
 			}
-			int slices = floor(sp->u.c.a1/22.5);
+			int slices = (int)floor(sp->u.c.a1/22.5);
 			for (int k=1; k<=slices;k++) {
 				if (sp->u.c.radius>0)
 					Translate(&xx->segs[0].u.p.pts[j].pt, sp->u.c.center, sp->u.c.a0+(k*(sp->u.c.a1/(slices+1))), fabs(sp->u.c.radius));
@@ -444,7 +444,7 @@ EXPORT void DrawOriginAnchor(track_p trk) {
 	if ((xx->orig.x != 0.0) || (xx->orig.y !=0.0) ) {
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		CreateOriginAnchor(xx->orig,FALSE);
-		DrawSegs(&mainD, zero, 0.0, anchors_da.ptr, anchors_da.cnt, trackGauge, wDrawColorBlue);
+		DrawSegs(&tempD, zero, 0.0, anchors_da.ptr, anchors_da.cnt, trackGauge, wDrawColorBlue);
 	}
 }
 
@@ -567,8 +567,6 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 		if (segPtr->type != SEG_TEXT) return;
 		else inx = TX;  //Always look at TextField for SEG_TEXT on "Done"
 	}
-    MainRedraw();
-    MapRedraw();
 	UndrawNewTrack( trk );
 	coOrd pt;
 	coOrd off;
@@ -997,8 +995,7 @@ static void UpdateDraw( track_p trk, int inx, descData_p descUpd, BOOL_T final )
 	drawData.oldOrigin = drawData.origin;
 	ComputeDrawBoundingBox( trk );
 	DrawNewTrack( trk );
-	MainRedraw();
-	DoCurCommand( C_REDRAW, zero );
+	TempRedraw(); // UpdateDraw
 }
 
 extern BOOL_T inDescribeCmd;
@@ -1276,8 +1273,7 @@ static void DrawDraw( track_p t, drawCmd_p d, wDrawColor color )
 	else if (xx->lineType == DRAWLINEDOT) d->options |= DC_DOT;
 	else if (xx->lineType == DRAWLINEDASHDOT) d->options |= DC_DASHDOT;
 	else if (xx->lineType == DRAWLINEDASHDOTDOT) d->options |= DC_DASHDOTDOT;
-	if ( (d->funcs->options&DC_QUICK) == 0 )
-		DrawSegs( d, xx->orig, xx->angle, xx->segs, xx->segCnt, 0.0, color );
+	DrawSegs( d, xx->orig, xx->angle, xx->segs, xx->segCnt, 0.0, color );
 	d->options = d->options&~(DC_NOTSOLIDLINE);
 }
 
@@ -1316,7 +1312,7 @@ static void ReadDraw( char * header )
 	int lineType;
 	struct extraData * xx;
 
-	if ( !GetArgs( header+5, paramVersion<3?"dXpYf":paramVersion<9?"dL000pYf":"dLd00pff",
+	if ( !GetArgs( header+5, paramVersion<3?"dXXpYf":paramVersion<9?"dLX00pYf":"dLd00pff",
 				&index, &layer, &lineType, &orig, &elev, &angle ) )
 		return;
 	ReadSegs();
@@ -1368,15 +1364,9 @@ static void DoConvertFill(void) {
 
 }
 
-static void DrawModRedraw( void )
-{
-	MainRedraw();
-	MapRedraw();
-}
-
 static drawModContext_t drawModCmdContext = {
 		InfoMessage,
-		DrawModRedraw,
+		DoRedraw,
 		&mainD};
 
 
@@ -1424,6 +1414,8 @@ static void DrawModDlgUpdate(
 	 ParamLoadControl(&drawModPG,drawModRotCenterInx-1);	  	//Make sure the angle is updated in case center moved
 	 ParamLoadControl(&drawModPG,drawModRadius);			 	// Make sure Radius updated
 	 ParamLoadControl(&drawModPG,drawModRelAngle);				//Relative Angle as well
+	 MainRedraw();
+
 }
 
 static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
@@ -1491,7 +1483,6 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 		rc = DrawGeomModify( action, pos, &drawModCmdContext );
 		ignoredDraw = NULL;
 		ComputeDrawBoundingBox( trk );
-		//DrawNewTrack( trk );
 		if (drawModCmdContext.state == MOD_AFTER_PT) {
 			switch(drawModCmdContext.type) {
 			case SEG_POLY:
@@ -1605,10 +1596,11 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 					InfoSubstituteControls( NULL, NULL );
 					infoSubst = FALSE;
 		}
-		MainRedraw();
+		ignoredDraw = NULL;
 		if (rc == C_CONTINUE) break;
 		/* no break*/
 	case C_FINISH:
+		ignoredDraw = trk;
 		rc = DrawGeomModify( C_FINISH, pos, &drawModCmdContext  );
 		xx->angle = drawModCmdContext.angle;
 		xx->orig = drawModCmdContext.orig;
@@ -1619,7 +1611,6 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 			InfoSubstituteControls( NULL, NULL );
 			infoSubst = FALSE;
 		}
-		MainRedraw();
 		break;
 	case C_CANCEL:
 	case C_CONFIRM:
@@ -1631,7 +1622,6 @@ static STATUS_T ModifyDraw( track_p trk, wAction_t action, coOrd pos )
 			InfoSubstituteControls( NULL, NULL );
 			infoSubst = FALSE;
 		}
-		MainRedraw();
 		break;
 
 	default:
@@ -1656,8 +1646,6 @@ static void UngroupDraw( track_p trk )
 			DrawNewTrack( trk );
 		}
 	}
-	MapRedraw();
-	MainRedraw();
 }
 
 
@@ -1767,6 +1755,16 @@ static BOOL_T QueryDraw( track_p trk, int query )
 	}
 }
 
+static wBool_t CompareDraw( track_cp trk1, track_cp trk2 )
+{
+	struct extraData *xx1 = GetTrkExtraData( trk1 );
+	struct extraData *xx2 = GetTrkExtraData( trk2 );
+	char * cp = message + strlen(message);
+	REGRESS_CHECK_POS( "Orig", xx1, xx2, orig )
+	REGRESS_CHECK_ANGLE( "Angle", xx1, xx2, angle )
+	REGRESS_CHECK_INT( "LineType", xx1, xx2, lineType )
+	return CompareSegs( xx1->segs, xx1->segCnt, xx2->segs, xx2->segCnt );
+}
 
 static trackCmd_t drawCmds = {
 		"DRAW",
@@ -1801,7 +1799,9 @@ static trackCmd_t drawCmds = {
 		NULL,
 		NULL, /*MakeSegs*/
 		ReplayDraw,
-		StoreDraw
+		StoreDraw,
+		NULL,
+		CompareDraw
 		};
 
 EXPORT BOOL_T OnTableEdgeEndPt( track_p trk, coOrd * pos )
@@ -1896,18 +1896,11 @@ EXPORT BOOL_T GetClosestEndPt( track_p trk, coOrd * pos)
 }
 
 
-static void DrawRedraw(void);
 static drawContext_t drawCmdContext = {
 		InfoMessage,
-		DrawRedraw,
+		DoRedraw,
 		&mainD,
 		OP_LINE };
-
-static void DrawRedraw( void )
-{
-	MainRedraw();
-	MapRedraw();
-}
 
 static wIndex_t benchChoice;
 static wIndex_t benchOrient;
@@ -2496,7 +2489,6 @@ EXPORT BOOL_T ReadText( char * line )
 	wIndex_t layer;
 	track_p trk;
 	ANGLE_T angle;
-	BOOL_T boxed;
     wDrawColor color = wDrawColorBlack;
     if ( paramVersion<3 ) {
         if (!GetArgs( line, "XXpYql", &index, &layer, &pos, &angle, &text, &textSize ))
@@ -2531,7 +2523,6 @@ void MenuMode(int mode) {
 		DrawGeomModify(C_START,zero,&drawModCmdContext);
 		InfoMessage("Points Mode");
 	}
-	MainRedraw();
 }
 
 void MenuEnter(int key) {
@@ -2564,7 +2555,7 @@ void MenuLine(int key) {
 			xx->lineType = DRAWLINEDASHDOTDOT;
 			break;
 		}
-		MainRedraw();
+		MainRedraw(); // MenuLine
 	}
 }
 

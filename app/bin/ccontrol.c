@@ -461,6 +461,7 @@ static trackCmd_t controlCmds = {
 	NULL, /*store*/
 	NULL, /*replay*/
 	NULL, /*activate*/
+	NULL, /*compare*/
 	pubSubControl  /* pubSub */
 
 };
@@ -606,7 +607,7 @@ static void DrawControlTrackHilite( void )
 	w = (wPos_t)((ctlhiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((ctlhiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,ctlhiliteOrig,&x,&y);
-	wDrawFilledRectangle( mainD.d, x, y, w, h, ctlhiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( mainD.d, x, y, w, h, ctlhiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 static int ControlMgmProc ( int cmd, void * data )

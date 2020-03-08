@@ -253,7 +253,6 @@ STATUS_T BlockDescriptionMove(
 			editMode = FALSE;
 		}
 		MainRedraw();
-		MapRedraw();
 		return action==C_UP?C_TERMINATE:C_CONTINUE;
 		break;
 	case C_REDRAW:
@@ -668,9 +667,8 @@ static void ReadBlock ( char * line )
 			blockTrk(blockTrk_da.cnt-1).i = trkindex;
 		}
 	}
-
-	trk = NewTrack(index, T_BLOCK, 0, sizeof(blockData_t)+(sizeof(btrackinfo_t)*(blockTrk_da.cnt-1))+1);
-
+	/*blockCheckContigiousPath(); save for ResolveBlockTracks */
+	trk = NewTrack(index, T_BLOCK, tempEndPts_da.cnt, sizeof(blockData_t)+(sizeof(btrackinfo_t)*(blockTrk_da.cnt-1))+1);
 	for ( ep=0; ep<tempEndPts_da.cnt; ep++) {
 		endPtP = &tempEndPts(ep);
 		SetTrkEndPoint( trk, ep, endPtP->pos, endPtP->angle );
@@ -781,6 +779,7 @@ static trackCmd_t blockCmds = {
 	NULL, /*store*/
 	NULL, /*replay*/
 	NULL, /*activate*/
+	NULL, /*compare*/
 	pubSubBlock  /* pubSub */
 };
 
@@ -835,10 +834,11 @@ static void BlockOk ( void * junk )
 	while ( TrackIterate( &trk ) ) {
 		if ( GetTrkSelected( trk ) ) {
 			if ( IsTrack(trk) ) {
-				DYNARR_APPEND( btrackinfo_p *, blockTrk_da, 10 );
+				DYNARR_APPEND( btrackinfo_t, blockTrk_da, 10 );
+				blockTrk(blockTrk_da.cnt - 1).t = trk;
+				blockTrk(blockTrk_da.cnt - 1).i = GetTrkIndex(trk);
 				LOG( log_block, 1, ("*** BlockOk(): adding track T%d\n",GetTrkIndex(trk)))
-                                blockTrk(blockTrk_da.cnt-1).t = trk;
-                                blockTrk(blockTrk_da.cnt-1).i = GetTrkIndex(trk);
+
 			}
 		}
 	}
@@ -1032,13 +1032,18 @@ static STATUS_T CmdBlock (wAction_t action, coOrd pos )
 }
 #endif
 
-EXPORT void CheckDeleteBlock (track_p t) 
+void CheckDeleteBlock(track_p t)
 {
-    track_p blk,trk1;
-    blockData_p xx,xx1;
-    if (!IsTrack(t)) return;
+    track_p blk;
+    blockData_p xx;
+    if (!IsTrack(t)) {
+        return;
+    }
     blk = FindBlock(t);
-    if (blk == NULL) return;
+    if (blk == NULL) {
+        return;
+    }
+    xx = GetblockData(blk);
     NoticeMessage(_("Deleting block %s"),_("Ok"),NULL,xx->name);
     DeleteTrack(blk,FALSE);
 }
@@ -1111,7 +1116,7 @@ static void DrawBlockTrackHilite( void )
 	w = (wPos_t)((blkhiliteSize.x/mainD.scale)*mainD.dpi+0.5);
 	h = (wPos_t)((blkhiliteSize.y/mainD.scale)*mainD.dpi+0.5);
 	mainD.CoOrd2Pix(&mainD,blkhiliteOrig,&x,&y);
-	wDrawFilledRectangle( mainD.d, x, y, w, h, blkhiliteColor, wDrawOptTemp );
+	wDrawFilledRectangle( mainD.d, x, y, w, h, blkhiliteColor, wDrawOptTemp|wDrawOptTransparent );
 }
 
 
