@@ -83,6 +83,8 @@ EXPORT long drawUnconnectedEndPt = 0;		/**< How do we draw Unconnected EndPts */
 
 EXPORT long drawBlocksMode = FALSE;			/**< How do we draw Blocks */
 
+EXPORT long drawOccupiedMode = TRUE;		/**< How do we draw Occupied Blocks */
+
 EXPORT long centerDrawMode = FALSE;			/**< flag to control drawing of circle centers */
 EXPORT long printCenterLines = FALSE; 		/**< flag to control drawing of centerline in Print */
 
@@ -398,6 +400,8 @@ EXPORT void GetBoundingBox( track_p trk, coOrd *hi, coOrd *lo )
 
 EXPORT EPINX_T GetTrkEndPtCnt( track_cp trk )
 {
+	if (trk == NULL)
+		return (EPINX_T)0;
 	return trk->endCnt;
 }
 
@@ -408,6 +412,9 @@ EXPORT struct extraData * GetTrkExtraData( track_cp trk )
 
 EXPORT void SetTrkEndPoint( track_p trk, EPINX_T ep, coOrd pos, ANGLE_T angle )
 {
+	if ( trk == NULL || trk->endPt == NULL ) {
+		return;
+	}
 	ASSERT( ep < trk->endCnt );
 	if (trk->endPt[ep].track != NULL) {
 		AbortProg( "setTrkEndPoint: endPt is connected" );
@@ -2989,6 +2996,8 @@ EXPORT void DrawTrack( track_cp trk, drawCmd_p d, wDrawColor color )
 		d != &mapD && color == wDrawColorBlack )
 		if (GetLayerUseColor((unsigned int)curTrackLayer))
 			color = GetLayerColor((unsigned int)curTrackLayer);
+	if ( programMode==MODE_TRAIN && drawOccupiedMode && trk->occupied )
+		color = occupiedColor;
 	trackCmds(trkTyp)->draw( trk, d, color );
 	d->options &= ~DC_DASH;
 
