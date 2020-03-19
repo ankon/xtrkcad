@@ -403,7 +403,7 @@ EXPORT EPINX_T GetTrkEndPtCnt( track_cp trk )
 
 EXPORT struct extraData * GetTrkExtraData( track_cp trk )
 {
-	return trk->extraData;
+	return (trk?trk->extraData:NULL);
 }
 
 EXPORT void SetTrkEndPoint( track_p trk, EPINX_T ep, coOrd pos, ANGLE_T angle )
