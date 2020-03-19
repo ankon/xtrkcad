@@ -52,10 +52,12 @@ extern long drawElevations;
 extern wDrawColor elevColorIgnore;
 extern wDrawColor elevColorDefined;
 extern wDrawColor exceptionColor;
+extern wDrawColor occupiedColor;
 #define TIEDRAWMODE_NONE		(0)
 #define TIEDRAWMODE_OUTLINE		(1)
 #define TIEDRAWMODE_SOLID		(2)
 extern long tieDrawMode;
+extern long drawOccupiedMode;
 extern long drawBlocksMode;
 extern wDrawColor tieColor;
 extern wDrawColor blockColor;
@@ -226,6 +228,7 @@ typedef struct {
 		ANGLE_T angle;
 		TRKINX_T index;
 		track_p track;
+		track_p prevTrack;
 		elev_t elev;
 		long option;
 		} trkEndPt_t, * trkEndPt_p;

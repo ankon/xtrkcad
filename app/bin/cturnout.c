@@ -1222,6 +1222,9 @@ static BOOL_T CheckTraverseTurnout(
 	EPINX_T segEP;
 
 LOG( log_traverseTurnout, 1, ( "CheckTraverseTurnout( T%d, [%0.3f %0.3f])\n", GetTrkIndex(trk), pos.x, pos.y ) )
+	if ( trk && trk->occupied > 0 ) {
+LOG( log_traverseTurnout, 1, ( " turnout is occupied\n" ) )
+	}
 	Rotate( &pos, xx->orig, -xx->angle );
 	pos.x -= xx->orig.x;
 	pos.y -= xx->orig.y;
@@ -1272,7 +1275,7 @@ static BOOL_T TraverseTurnout(
 	pos0.x -= xx->orig.x;
 	pos0.y -= xx->orig.y;
 	dist = *distR;
-LOG( log_traverseTurnout, 1, ( "TraverseTurnout( T%d, [%0.3f %0.3f] [%0.3f %0.3f], A%0.3f, D%0.3f\n", GetTrkIndex(trk), trvTrk->pos.x, trvTrk->pos.y, pos0.x, pos0.y, trvTrk->angle, *distR ) )
+LOG( log_traverseTurnout, 1, ( "TraverseTurnout( T%d, occ %d [%0.3f %0.3f] [%0.3f %0.3f], A%0.3f, D%0.3f\n", GetTrkIndex(trk), trk->occupied, trvTrk->pos.x, trvTrk->pos.y, pos0.x, pos0.y, trvTrk->angle, *distR ) )
 	pathCurr = 0;
 	for ( path = xx->pathCurr+strlen((char*)xx->pathCurr)+1; path[0] || path[1]; path++ ) {
 		if ( path[0] == 0 )
