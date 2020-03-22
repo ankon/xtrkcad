@@ -195,13 +195,17 @@ static void setOccupied(void)
         xx = GetTrkExtraData(car);
         if (xx->trvTrk.trk) {
             ep0 = GetTrkEndPos( car, 0);
-            temp0 = OnTrack( &ep0, FALSE ,TRUE);
-            temp0->occupied ++;
-            car->endPt[0].prevTrack = temp0;
-            ep1 = GetTrkEndPos( car, 1);
-            temp1 = OnTrack( &ep1, FALSE ,TRUE);
-            temp1->occupied ++;
-            car->endPt[1].prevTrack = temp1;
+            if ((temp0 = OnTrack( &ep0, FALSE ,TRUE)) != NULL) {
+				temp0->occupied++;
+				car->endPt[0].prevTrack = temp0;
+            } else
+            	car->endPt[0].prevTrack = NULL;
+			ep1 = GetTrkEndPos( car, 1);
+			if ((temp1 = OnTrack( &ep1, FALSE ,TRUE)) != NULL) {
+				temp1->occupied++;
+				car->endPt[1].prevTrack = temp1;
+			} else
+				car->endPt[1].prevTrack = NULL;
 #if 0
             LOG(log_trainMove, 1, ("setOccupied: end0 T%d (%d) end1 T%d (%d)\n",
                 (temp0)?temp0->index:-5, (temp0)?temp0->occupied:-999,
@@ -238,14 +242,18 @@ static void updateOccupied(void)
         ep1 = GetTrkEndPos( car, 1);
         temp1 = OnTrack( &ep1, FALSE ,TRUE);
         if ( car->endPt[0].prevTrack != temp0) {
-            car->endPt[0].prevTrack->occupied--;
-            temp0->occupied++;
+        	if (car->endPt[0].prevTrack)
+        		car->endPt[0].prevTrack->occupied--;
+            if (temp0)
+            	temp0->occupied++;
             car->endPt[0].prevTrack = temp0;
             changed = TRUE;
         }
         if ( car->endPt[1].prevTrack != temp1) {
-            car->endPt[1].prevTrack->occupied--;
-            temp1->occupied++;
+        	if (car->endPt[1].prevTrack)
+        		car->endPt[1].prevTrack->occupied--;
+            if (temp1)
+            	temp1->occupied++;
             car->endPt[1].prevTrack = temp1;
             changed = TRUE;
         }
