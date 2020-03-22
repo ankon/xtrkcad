@@ -2734,6 +2734,8 @@ static STATUS_T CmdTrain(wAction_t action, coOrd pos)
         PlaceTrainInit(currCar, trk0, pos0, xx->trvTrk.angle,
                        (MyGetKeyState()&WKEY_SHIFT) == 0);
         ControllerDialogSync(curTrainDlg);
+        clearOccupied();
+        setOccupied();
         return C_CONTINUE;
 
     case C_UP:
