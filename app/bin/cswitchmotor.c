@@ -805,9 +805,9 @@ static int SwitchmotorMgmProc ( int cmd, void * data )
         break;
     case CONTMGM_GET_TITLE:
         if (xx->turnout == NULL) {
-            sprintf( message, "\t%s\t%d", xx->name, 0);
+            sprintf( message, "\t%s\t\t%d", xx->name, 0);
         } else {
-            sprintf( message, "\t%s\t%d", xx->name, GetTrkIndex(xx->turnout));
+            sprintf( message, "\t%s\t\t%d", xx->name, GetTrkIndex(xx->turnout));
         }
         break;
     }
