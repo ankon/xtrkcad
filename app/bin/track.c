@@ -1085,6 +1085,7 @@ LOG( log_track, 1, ( "NewTrack( T%d, t%d, E%d, X%ld)\n", index, type, endCnt, ex
 
 EXPORT void FreeTrack( track_p trk )
 {
+	LOG (log_track, 1, ( "FreeTrack( T%d, t%d)\n", trk->index, trk->type ))
 	trackCmds(trk->type)->delete( trk );
 	if (trk->endPt)
 		MyFree(trk->endPt);
@@ -1137,7 +1138,9 @@ EXPORT void ResolveIndex( void )
 					NoticeMessage( MSG_RESOLV_INDEX_BAD_TRK, _("Continue"), NULL, trk->index, ep, trk->endPt[ep].index );
 				}
 			}
+			UndoStart( _("Change block"), "Resolve block" );
 			ResolveBlockTrack (trk);
+			UndoEnd();
 			ResolveSwitchmotorTurnout (trk);
 			ResolveSignalTrack(trk);
         }
@@ -1169,12 +1172,12 @@ LOG( log_track, 4, ( "DeleteTrack(T%d)\n", GetTrkIndex(trk) ) )
 				UndoJoint( trk2, ep2, trk, i );
 		}
 	}
-    CheckDeleteSwitchmotor( trk );
-    CheckDeleteBlock( trk );
+	CheckDeleteSwitchmotor( trk );
+	CheckDeleteBlock( trk );
 	DecrementLayerObjects(trk->layer);
 	trackCount--;
 	AuditTracks( "deleteTrack T%d", trk->index);
-	UndoDelete(trk);					/**< Attention: trk is invalidated during that call */
+	UndoDelete(trk);		/**< Attention: trk is invalidated during that call */
 	InfoCount( trackCount );
 	return TRUE;
 }

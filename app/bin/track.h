@@ -39,7 +39,6 @@ extern long drawTunnel;
 extern long drawEndPtV;
 extern long drawUnconnectedEndPt;
 extern long centerDrawMode;
-extern long drawBlocksMode;
 extern wDrawColor selectedColor;
 extern wDrawColor normalColor;
 extern BOOL_T useCurrentLayer;
@@ -816,6 +815,8 @@ void CheckDeleteBlock( track_p t );
 BOOL_T ResolveBlockTrack ( track_p trk );
 DIST_T BlockDescriptionDistance( coOrd, track_p);
 STATUS_T BlockDescriptionMove( track_p, wAction_t, coOrd);
+void AddMissingBlockTrack( void );
+void UpdateBlockTrack( void );
 
 /* cswitchmotor.c */
 void CheckDeleteSwitchmotor( track_p t );

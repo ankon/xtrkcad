@@ -65,6 +65,7 @@ EXPORT long zoomCorner = 0;
 EXPORT long hideSelectionWindow = 0;
 EXPORT long angleSystem = 0;
 EXPORT DIST_T minLength = 0.1;
+EXPORT DIST_T minBlockLength = 0.0;
 EXPORT DIST_T connectDistance = 0.1;
 EXPORT ANGLE_T connectAngle = 1.0;
 EXPORT long twoRailScale = 16;
@@ -504,6 +505,7 @@ EXPORT BOOL_T DoSetScale(
 
 	return found;
 }
+
 
 /**
  * Setup the data structures for scale and gauge. XTC reads 'scales' into an dynamic array,
