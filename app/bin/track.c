@@ -83,7 +83,9 @@ EXPORT long drawUnconnectedEndPt = 0;		/**< How do we draw Unconnected EndPts */
 
 EXPORT long drawBlocksMode = FALSE;			/**< How do we draw Blocks */
 
-EXPORT long drawOccupiedMode = TRUE;		/**< How do we draw Occupied Blocks */
+EXPORT long drawOccupiedMode = 0;		/**< How do we draw Occupied Blocks and Segments */
+#define DRAW_OCCUPIED_BLOCK 1
+#define DRAW_OCCUPIED_SEGMENT 2
 
 EXPORT long centerDrawMode = FALSE;			/**< flag to control drawing of circle centers */
 EXPORT long printCenterLines = FALSE; 		/**< flag to control drawing of centerline in Print */
@@ -2999,8 +3001,13 @@ EXPORT void DrawTrack( track_cp trk, drawCmd_p d, wDrawColor color )
 		d != &mapD && color == wDrawColorBlack )
 		if (GetLayerUseColor((unsigned int)curTrackLayer))
 			color = GetLayerColor((unsigned int)curTrackLayer);
-	if ( programMode==MODE_TRAIN && drawOccupiedMode && trk->occupied )
+	if ( programMode==MODE_TRAIN) {
+	       if ( drawOccupiedMode == DRAW_OCCUPIED_SEGMENT && trk->occupied )
 		color = occupiedColor;
+	       if ( drawOccupiedMode == DRAW_OCCUPIED_BLOCK && trk->conBlock &&
+			       trk->conBlock->occupied )
+		color = occupiedColor;
+	}
 	trackCmds(trkTyp)->draw( trk, d, color );
 	d->options &= ~DC_DASH;
 
