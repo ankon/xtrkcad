@@ -166,7 +166,7 @@ void CarSetVisible(
     WALK_CARS_END(car, xx, dir)
 }
 
-// Clear all segment occupied indicators
+// Clear all segment and block occupied indicators
 // When the indicator is not zero the segment is occupied.
 static void clearOccupied(void)
 {
@@ -176,8 +176,20 @@ static void clearOccupied(void)
     }
 }
 
+// Add or subtract from the occupied counter and when a
+// block is present adjust there as well.
+static void adjustOccupied ( track_p trk, int adj )
+{
+	trk->occupied += adj;
+	if (trk->conBlock)
+		trk->conBlock->occupied += adj;
+}
+
 // The segment occupied indicator maintains a count of the number
-// of car ends (trucks) on the segment.
+// of car ends (trucks) on the segment. The block, when present,
+// maintains a count for all segments in the block.
+
+// When entering train mode set up the counters for all present cars.
 // Go through the cars, find the segment under each end and increment
 // its counter.
 static void setOccupied(void)
@@ -196,13 +208,13 @@ static void setOccupied(void)
         if (xx->trvTrk.trk) {
             ep0 = GetTrkEndPos( car, 0);
             if ((temp0 = OnTrack( &ep0, FALSE ,TRUE)) != NULL) {
-				temp0->occupied++;
+				adjustOccupied( temp0, 1);
 				car->endPt[0].prevTrack = temp0;
             } else
             	car->endPt[0].prevTrack = NULL;
 			ep1 = GetTrkEndPos( car, 1);
 			if ((temp1 = OnTrack( &ep1, FALSE ,TRUE)) != NULL) {
-				temp1->occupied++;
+				adjustOccupied( temp1, 1);
 				car->endPt[1].prevTrack = temp1;
 			} else
 				car->endPt[1].prevTrack = NULL;
@@ -243,17 +255,17 @@ static void updateOccupied(void)
         temp1 = OnTrack( &ep1, FALSE ,TRUE);
         if ( car->endPt[0].prevTrack != temp0) {
         	if (car->endPt[0].prevTrack)
-        		car->endPt[0].prevTrack->occupied--;
+			adjustOccupied( car->endPt[0].prevTrack, -1 );
             if (temp0)
-            	temp0->occupied++;
+		adjustOccupied( temp0, 1 );
             car->endPt[0].prevTrack = temp0;
             changed = TRUE;
         }
         if ( car->endPt[1].prevTrack != temp1) {
         	if (car->endPt[1].prevTrack)
-        		car->endPt[1].prevTrack->occupied--;
+			adjustOccupied( car->endPt[1].prevTrack, -1 );
             if (temp1)
-            	temp1->occupied++;
+		adjustOccupied( temp1, 1 );
             car->endPt[1].prevTrack = temp1;
             changed = TRUE;
         }
