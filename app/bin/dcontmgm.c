@@ -198,6 +198,7 @@ static void ControlDelete( void * action )
 static void ControlAddMissing( void * action )
 {
 	AddMissingBlockTrack();
+	AddMissingSwitchMotor();
 
 	wHide( controlPG.win );
 }
