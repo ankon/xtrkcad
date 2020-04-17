@@ -1119,6 +1119,20 @@ static track_p FindBlock (track_p trk) {
 	return NULL;
 }
 
+static track_p FindBlockByName (char *name) {
+	track_p a_trk;
+	blockData_p xx;
+	a_trk = first_block;
+	while (a_trk) {
+		xx = GetblockData(a_trk);
+		if (strcmp(xx->name, name) == 0) {
+			return a_trk;
+		}
+		a_trk = xx->next_block;
+	}
+	return NULL;
+}
+
 DIST_T getBlockLen( void)
 {
 	DIST_T totLen =0.0, len;
@@ -1150,6 +1164,10 @@ static void BlockOk ( void * junk )
 	ParamUpdate( &blockPG );
 	if ( blockName[0] == 0 ) {
 		NoticeMessage( _("Block must have a name!"), _("Ok"), NULL);
+		return;
+	}
+	if ( FindBlockByName (blockName) ) {
+		NoticeMessage( _("Block must have a unique name!"), _("Ok"), NULL);
 		return;
 	}
 	//wDrawDelayUpdate( mainD.d, TRUE );
@@ -1247,6 +1265,7 @@ static void NewBlockDialog(track_p sel_trk)
 	while ( TrackIterate( &trk ) ) {
 		if (GetTrkType(trk) == T_BLOCK && TrackInBlock(sel_trk,trk)) {
 			EditBlock (trk);
+			wShow( blockW );
 			return;
 		}
 	}
