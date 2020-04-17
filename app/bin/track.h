@@ -821,6 +821,7 @@ void UpdateBlockTrack( void );
 /* cswitchmotor.c */
 void CheckDeleteSwitchmotor( track_p t );
 BOOL_T ResolveSwitchmotorTurnout ( track_p trk );
+void AddMissingSwitchMotor( void );
 
 #endif
 
