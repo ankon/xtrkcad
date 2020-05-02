@@ -49,7 +49,6 @@ static void EndPoly( drawContext_t * context, int cnt, wBool_t open)
 {
 	trkSeg_p segPtr;
 	track_p trk;
-	long oldOptions;
 	pts_t * pts;
 	int inx;
 
@@ -108,6 +107,20 @@ static void CreateEndAnchor(coOrd p, wBool_t lock) {
 	anchors(i).u.c.radius = d/2;
 	anchors(i).u.c.a0 = 0.0;
 	anchors(i).u.c.a1 = 360.0;
+	anchors(i).width = 0;
+}
+
+static void CreateLineAnchor(coOrd p, coOrd p0) {
+	DIST_T d = tempD.scale*0.15;
+	coOrd p1;
+	ANGLE_T a = FindAngle(p0,p);
+	Translate(&p1,p,a,d*5);
+	DYNARR_APPEND(trkSeg_t,anchors_da,1);
+	int i = anchors_da.cnt-1;
+	anchors(i).type = SEG_STRLIN;
+	anchors(i).color = wDrawColorBlue;
+	anchors(i).u.l.pos[0] = p;
+	anchors(i).u.l.pos[1] = p0;
 	anchors(i).width = 0;
 }
 
@@ -188,7 +201,6 @@ STATUS_T DrawGeomMouse(
 	ANGLE_T a1,a2;
 	static ANGLE_T line_angle;
 	BOOL_T createTrack;
-	long oldOptions;
 
 	width = context->line_Width/context->D->dpi;
 
@@ -275,7 +287,10 @@ STATUS_T DrawGeomMouse(
 		DYNARR_RESET( trkSeg_t, tempSegs_da );
 		DYNARR_RESET( trkSeg_t, anchors_da );
 		lock = FALSE;
-		InfoMessage(_("+Shift to lock to nearby objects"));
+		if (!magneticSnap)
+			InfoMessage(_("+Shift to lock to nearby objects"));
+		else
+			InfoMessage(_("+Shift to not lock to nearby objects"));
 		return C_CONTINUE;
 
 	case wActionMove:
@@ -292,7 +307,7 @@ STATUS_T DrawGeomMouse(
 				case OP_POLY:
 				case OP_FILLPOLY:
 				case OP_POLYLINE:
-					if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0 ) {
+					if (((MyGetKeyState() & WKEY_ALT) == 0) == magneticSnap ) {
 						coOrd p = pos;
 						track_p t;
 						if ((t=OnTrack(&p,FALSE,FALSE))!=NULL) {
@@ -328,13 +343,14 @@ STATUS_T DrawGeomMouse(
 		}
 		context->Started = TRUE;
 		line_angle = 90.0;
-		if ((context->Op == OP_CURVE1 && context->State == 1) ||
+		if ((context->Op == OP_CURVE1 && context->State != 2) ||
 			(context->Op == OP_CURVE2 && context->State == 0) ||
+			(context->Op == OP_CURVE3 && context->State != 0) ||
 			(context->Op == OP_CURVE4 && context->State != 2) ||
 			(context->Op == OP_LINE) || (context->Op == OP_DIMLINE) ||
 			(context->Op == OP_BENCH) ) {
 			BOOL_T found = FALSE;
-			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0 ) {
+			if (((MyGetKeyState() & WKEY_ALT) ==0) == magneticSnap ) {
 				coOrd p = pos;
 				track_p t;
 				if ((t=OnTrack(&p,FALSE,FALSE))!=NULL) {
@@ -481,7 +497,7 @@ STATUS_T DrawGeomMouse(
 			(context->Op == OP_CURVE4 && context->State != 2) ||
 			(context->Op == OP_LINE) ||
 			(context->Op == OP_BENCH) ) {
-			if ( (MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) != WKEY_SHIFT ) {
+			if (( (MyGetKeyState() & WKEY_ALT)==0) == magneticSnap) {
 				if (OnTrack( &pos, FALSE, FALSE )!=NULL)
 					CreateEndAnchor(pos,TRUE);
 			}
@@ -514,7 +530,7 @@ STATUS_T DrawGeomMouse(
 						l = fabs(l*cos(D2R(((quad==0||quad==4)?line_angle:line_angle+180.0)-FindAngle(pos,pos0))));
 					Translate( &pos1, pos0, NormalizeAngle((quad==0||quad==4)?line_angle:line_angle+180.0), l );
 				}
-				CreateEndAnchor(pos1,TRUE);
+				CreateLineAnchor(pos1,pos0);
 			}
 			tempSegs(0).u.l.pos[1] = pos1;
 			context->message( _("Length = %s, Angle = %0.2f"),
@@ -527,11 +543,11 @@ STATUS_T DrawGeomMouse(
 		case OP_FILLPOLY:
 		case OP_POLYLINE:
 			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == WKEY_CTRL ) {
-				coOrd last_point;
+				coOrd last_point = zero;
 				ANGLE_T last_angle, initial_angle;
 				if (tempSegs_da.cnt == 1) {
 					last_angle = 90.0;
-					last_point = pos;
+					last_point = tempSegs(0).u.l.pos[0];
 					initial_angle = 90.0;
 				} else {
 					last_point = tempSegs(tempSegs_da.cnt-2).u.l.pos[1];
@@ -554,7 +570,7 @@ STATUS_T DrawGeomMouse(
 					Translate( &pos, tempSegs(tempSegs_da.cnt-1).u.l.pos[0], NormalizeAngle((quad==0||quad==4)?last_angle:last_angle+180.0), l );
 				}
 				CreateEndAnchor(pos,TRUE);
-
+				if (FindDistance(pos,last_point)>0.0) CreateLineAnchor(pos,last_point);
 			}
 			//If there is any point on this line that will give a 90 degree return to the first point, show it
 			if (tempSegs_da.cnt > 1) {
@@ -661,10 +677,11 @@ STATUS_T DrawGeomMouse(
 		createTrack = FALSE;
 		if ((context->Op == OP_CURVE1 && context->State == 1) ||
 			(context->Op == OP_CURVE2 && context->State == 0) ||
+			(context->Op == OP_CURVE3 && context->State != 0) ||
 			(context->Op == OP_CURVE4 && context->State != 2) ||
 			(context->Op == OP_LINE) || (context->Op == OP_DIMLINE) ||
 			(context->Op == OP_BENCH) ) {
-			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) != WKEY_SHIFT ) {
+			if (((MyGetKeyState() & WKEY_ALT)==0) == magneticSnap ) {
 				coOrd p = pos1;
 				track_p t;
 				if ((t=OnTrack(&p,FALSE,FALSE))) {
@@ -1112,7 +1129,7 @@ STATUS_T DrawGeomPolyModify(
 			tempSegs(0).u.p.polyType = context->segPtr[segInx].u.p.polyType;
 			tempSegs(0).u.p.pts = &points(0);
 			CreatePolyAnchors( -1);
-			InfoMessage(_("Select Points, or use Context Menu"));
+			InfoMessage(_("Select points or use context menu"));
 			ClrAllTrkBitsRedraw( TB_UNDRAWN, TRUE );
 			UndrawNewTrack( context->trk );
 			return C_CONTINUE;
@@ -1367,7 +1384,7 @@ STATUS_T DrawGeomPolyModify(
 					if (IsClose(d)) {
 						pos = intersect;
 					}
-					InfoMessage( _("Length = %s, Last_Angle = %0.2f"),
+					InfoMessage( _("Length = %s, Last angle = %0.2f"),
 							FormatDistance(FindDistance(pos_lock,last_point)),
 							PutAngle(FindAngle(pos_lock,last_point)));
 
@@ -1902,9 +1919,9 @@ STATUS_T DrawGeomModify(
 				}
 			}
 			if (lineInx < 0 ) {
-				InfoMessage( _("Not Close to End of Line"));
+				InfoMessage( _("Not close to end of line"));
 			} else {
-				InfoMessage("End Selected Drag to Reposition");
+				InfoMessage("End selected, drag to reposition");
 				context->state = MOD_SELECTED_PT;
 			}
 			tempSegs(0).color = wDrawColorBlack;
@@ -1955,13 +1972,13 @@ STATUS_T DrawGeomModify(
 					}
 				}
 				if (curveInx < 0) {
-					InfoMessage( _("Not Close to Ends or Middle of Line, Reselect"));
+					InfoMessage( _("Not close to ends or middle of mine, reselect"));
 					return C_CONTINUE;
 				} else {
 					if (curveInx <2 )
-						InfoMessage("Drag to Move End, +CTL to lock to other objects");
+						InfoMessage("Drag to move end, +Ctrl to lock to other objects");
 					else
-						InfoMessage("Drag to Change Radius");
+						InfoMessage("Drag to change radius");
 				}
 				tempSegs_da.cnt = 1;
 				if (tempSegs(0).u.c.a1 < 360.0)
@@ -2066,6 +2083,7 @@ STATUS_T DrawGeomModify(
 		case SEG_TBLEDGE:
 			if ( MyGetKeyState() & WKEY_CTRL )
 				OnTableEdgeEndPt( NULL, &pos );
+			/* no break */
 		case SEG_STRLIN:
 		case SEG_DIMLIN:
 		case SEG_BENCH:

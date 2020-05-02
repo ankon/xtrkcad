@@ -116,6 +116,7 @@ EXPORT wButton_p redoB;
 EXPORT wButton_p zoomUpB;
 EXPORT wButton_p zoomDownB;
 wButton_p mapShowB;
+wButton_p magnetsB;
 wButton_p backgroundB;
 
 EXPORT wIndex_t checkPtMark = 0;
@@ -365,12 +366,11 @@ EXPORT char * ConvertToEscapedText(const char * text) {
  *  \n = LineFeed 	0x0A
  *  \t = Tab 		0x09
  *  \\ = \ 			The way to still produce backslash
- *  "" = "			Take out quotes included so that other (CSV-like) programs could read the files
  *
  */
 EXPORT char * ConvertFromEscapedText(const char * text) {
 	enum {
-		CHARACTER, ESCAPE, QUOTE
+		CHARACTER, ESCAPE
 	} state = CHARACTER;
 	char * cout = MyMalloc(strlen(text) + 1);  //always equal to or shorter than
 	int text_i = 0;
@@ -382,8 +382,6 @@ EXPORT char * ConvertFromEscapedText(const char * text) {
 		case CHARACTER:
 			if (c == '\\') {
 				state = ESCAPE;
-			} else if (c == '\"') {
-				state = QUOTE;
 			} else {
 				cout[cout_i] = c;
 				cout_i++;
@@ -407,14 +405,6 @@ EXPORT char * ConvertFromEscapedText(const char * text) {
 			}
 			state = CHARACTER;
 			break;
-		case QUOTE:
-			switch (c) {
-			case '\"':
-				cout[cout_i] = c;
-				cout_i++;
-				break;   //One quote = NULL, Two quotes = 1 quote
-			}
-			state = CHARACTER;
 		}
 		text_i++;
 	}
@@ -754,6 +744,27 @@ void MapWindowShow(int state) {
 	wWinShow(mapW, mapVisible);
 	wButtonSetBusy(mapShowB, (wBool_t) mapVisible);
 }
+
+/**
+ * Set magnets state
+ */
+int MagneticSnap(int state)
+{
+	int oldState = magneticSnap;
+	magneticSnap = state;
+	wPrefSetInteger("misc", "magnets", magneticSnap);
+	wMenuToggleSet(magnetsMI, magneticSnap);
+	wButtonSetBusy(magnetsB, (wBool_t) magneticSnap);
+	return oldState;
+}
+
+/**
+ * Toggle magnets on/off
+ */
+void MagneticSnapToggle(void) {
+	MagneticSnap(!magneticSnap);
+}
+
 
 static void DoShowWindow(int index, const char * name, void * data) {
 	if (data == mapW) {
@@ -1763,7 +1774,7 @@ static void StickyOk(void * junk) {
 static void DoSticky(void) {
 	if (!stickyW)
 		stickyW = ParamCreateDialog(&stickyPG,
-				MakeWindowTitle(_("Sticky Commands")), _("Ok"), StickyOk, NULL,
+				MakeWindowTitle(_("Sticky Commands")), _("Ok"), StickyOk, wHide,
 				TRUE, NULL, 0, NULL);
 	ParamLoadControls(&stickyPG);
 	wShow(stickyW);
@@ -1970,7 +1981,7 @@ static void CreateDebugW(void) {
 	debugPG.paramCnt = debugCnt;
 	ParamRegister(&debugPG);
 	debugW = ParamCreateDialog(&debugPG, MakeWindowTitle(_("Debug")), _("Ok"),
-			DebugOk, NULL, FALSE, NULL, 0, NULL);
+			DebugOk, wHide, FALSE, NULL, 0, NULL);
 	wHide(debugW);
 }
 
@@ -2091,6 +2102,7 @@ static void SetAccelKey(char * prefName, wAccelKey_e key, int mode,
 #include "bitmaps/document-open.xpm"
 #include "bitmaps/document-print.xpm"
 #include "bitmaps/map.xpm"
+#include "bitmaps/magnet.xpm"
 
 static void CreateMenus(void) {
 	wMenu_p fileM, editM, viewM, optionM, windowM, macroM, helpM, toolbarM,
@@ -2161,12 +2173,14 @@ static void CreateMenus(void) {
 	wMenuPushCreate(popup2M, "cmdZoomOut", _("Zoom Out"), 0,
 			(wMenuCallBack_p) DoZoomDown, (void*) 1);
 	/* Display */
-	MiscMenuItemCreate(popup1M, popup2M, "cmdGridEnable", _("SnapGrid Enable"),
+	MiscMenuItemCreate(popup1M, popup2M, "cmdGridEnable", _("Enable SnapGrid"),
 			0, (void*) (wMenuCallBack_p) SnapGridEnable, 0, (void *) 0);
 	MiscMenuItemCreate(popup1M, popup2M, "cmdGridShow", _("SnapGrid Show"), 0,
 			(void*) (wMenuCallBack_p) SnapGridShow, 0, (void *) 0);
+	MiscMenuItemCreate(popup1M, popup2M, "cmdMagneticSnap", _(" Enable Magnetic Snap"), 0,
+			(void*) (wMenuCallBack_p) MagneticSnapToggle, 0, (void *) 0);
 	MiscMenuItemCreate(popup1M, popup2M, "cmdMapShow", _("Show/Hide Map"), 0,
-			(void*) (wMenuCallBack_p) MapWindowToggleShow, 0, (void *) 0);
+				(void*) (wMenuCallBack_p) MapWindowToggleShow, 0, (void *) 0);
 	MiscMenuItemCreate(popup1M, popup2M, "cmdBackgroundShow", _("Show/Hide Background"), 0,
 			(void*) (wMenuCallBack_p) BackgroundToggleShow, 0, (void *) 0);
 	wMenuSeparatorCreate(popup1M);
@@ -2349,6 +2363,15 @@ static void CreateMenus(void) {
 			FALSE, (wMenuToggleCallBack_p) SnapGridShow, NULL);
 	gridCmdInx = InitGrid(viewM);
 
+	// visibility toggle for anchors
+	// get the start value
+	long anchors_long;
+	wPrefGetInteger("misc", "anchors", (long *)&anchors_long, 1);
+	magneticSnap = anchors_long ? TRUE : FALSE;
+	magnetsMI = wMenuToggleCreate(viewM, "cmdMagneticSnap", _("Enable Magnetic Snap"),
+		0, magneticSnap,
+		(wMenuToggleCallBack_p)MagneticSnapToggle, NULL);
+
 	// visibility toggle for map window
 	// get the start value
 	long mapVisible_long;
@@ -2368,6 +2391,11 @@ static void CreateMenus(void) {
 
 	cmdGroup = BG_SNAP;
 	InitSnapGridButtons();
+	magnetsB = AddToolbarButton("cmdMagneticSnap", wIconCreatePixMap(magnet_xpm),
+				IC_MODETRAIN_TOO, (addButtonCallBack_t) MagneticSnapToggle, NULL);
+		wControlLinkedSet((wControl_p) magnetsMI, (wControl_p) magnetsB);
+		wButtonSetBusy(magnetsB, (wBool_t) magneticSnap);
+
 	mapShowB = AddToolbarButton("cmdMapShow", wIconCreatePixMap(map_xpm),
 			IC_MODETRAIN_TOO, (addButtonCallBack_t) MapWindowToggleShow, NULL);
 	wControlLinkedSet((wControl_p) mapShowMI, (wControl_p) mapShowB);
@@ -2828,8 +2856,8 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	elevColorIgnore = drawColorBlue;
 	elevColorDefined = drawColorGold;
 	profilePathColor = drawColorPurple;
-	exceptionColor = wDrawFindColor(wRGB(255, 0, 128));
-	tieColor = wDrawFindColor(wRGB(255, 128, 0));
+	exceptionColor = wDrawFindColor(wRGB(255, 89, 0 ));
+	tieColor = wDrawFindColor(wRGB(153, 89, 68));
 
 	newToolbarMax = (1 << BG_COUNT) - 1;
 	wPrefGetInteger("misc", "toolbarset", &toolbarSet, newToolbarMax);

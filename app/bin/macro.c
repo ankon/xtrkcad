@@ -664,6 +664,7 @@ static coOrd oldMainOrig;
 static coOrd oldMainSize;
 static DIST_T oldMainScale;
 static char * oldScaleName;
+static int oldMagneticSnap;
 
 static wBool_t pauseDemo = FALSE;
 static long bigPause = 2000;
@@ -729,6 +730,7 @@ static void PlaybackQuit( void )
 	wWinSetBusy( mainW, FALSE );
 	wWinSetBusy( mapW, FALSE );
 	ParamRestoreAll();
+	magneticSnap = oldMagneticSnap;
 	RestoreLayers();
 	wEnableBalloonHelp( (int)enableBalloonHelp );
 	mainD.scale = oldMainScale;
@@ -1491,6 +1493,8 @@ static char * demoInitParams[] = {
 		"GROUP sticky",
 		"turnout hide 0",
 		"layer button-count 10",
+		"cmdopt selectmode 0",
+		"cmdopt selectzero 1",
 		NULL };
 
 static void DemoInitValues( void )
@@ -1517,6 +1521,8 @@ static void DemoInitValues( void )
 	}
 	for ( cpp = demoInitParams; *cpp; cpp++ )
 		paramPlaybackProc( *cpp );
+	// Have to do this manually
+	oldMagneticSnap = MagneticSnap( TRUE );
 }
 
 
