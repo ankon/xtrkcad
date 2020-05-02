@@ -166,18 +166,18 @@ EXPORT STATUS_T CreateCurve(
 		switch ( curveMode ) {
 		case crvCmdFromEP1:
 			if (track) 
-				message(_("Drag from End-Point in direction of curve - lock to track open end-point") );
+				message(_("Drag from endpoint in direction of curve - lock to track open endpoint") );
 			else 	
-				message (_("Drag from End-Point in direction of curve") );
+				message (_("Drag from endpoint in direction of curve") );
 			break;
 		case crvCmdFromTangent:
 			if (track)
-				message(_("Drag from End-Point to Center - lock to track open end-point") );
+				message(_("Drag from endpoint to center - lock to track open endpoint") );
 			else
-				message(_("Drag from End-Point to Center") );
+				message(_("Drag from endpoint to center") );
 			break;
 		case crvCmdFromCenter:
-			message(_("Drag from Center to End-Point") );
+			message(_("Drag from center to endpoint") );
 			break;
 		case crvCmdFromChord:
 			message(_("Drag from one to other end of chord") );
@@ -196,7 +196,7 @@ EXPORT STATUS_T CreateCurve(
 		    Da.trk = NULL;
 		    if (track) {
 				if ((mode == crvCmdFromEP1 || mode == crvCmdFromTangent || (mode == crvCmdFromChord))  &&
-						(MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0) {
+						((MyGetKeyState() & WKEY_ALT) == 0 ) == magneticSnap) {
 					if ((t = OnTrack(&p, FALSE, TRUE)) != NULL) {
 						EPINX_T ep = PickUnconnectedEndPointSilent(p, t);
 						if (ep != -1) {
@@ -238,7 +238,7 @@ EXPORT STATUS_T CreateCurve(
 				Da.create_state = FIRSTEND_DEF;
 				Da.end0 = pos;
 				CreateEndAnchor(pos,anchor_array,found);
-				if (Da.trk) message(_("End Locked: Drag out curve start"));
+				if (Da.trk) message(_("End locked: Drag out curve start"));
 				else message(_("Drag along curve start") );
 				break;
 			case crvCmdFromTangent:
@@ -247,15 +247,15 @@ EXPORT STATUS_T CreateCurve(
 				tempSegs(0).color = color;
 				Da.create_state = CENTER_DEF;
 				CreateEndAnchor(pos,anchor_array,found);
-				if (Da.trk) message(_("End Locked: Drag out curve center"));
-				else message(_("Drag along curve center") );
+				if (Da.trk) message(_("End locked: Drag out curve center"));
+				else message(_("Drag out curve center") );
 				break;
 			case crvCmdFromCenter:
 				tempSegs(0).type = SEG_STRLIN;
 				tempSegs(0).color = color;
 				Da.create_state = CENTER_DEF;
 				CreateEndAnchor(pos,anchor_array,FALSE);
-				message(_("Drag out from Center to End-Point"));
+				message(_("Drag out from center to endpoint"));
 				break;
 			case crvCmdFromChord:
 				tempSegs(0).type = (track?SEG_STRTRK:SEG_STRLIN);
@@ -264,7 +264,7 @@ EXPORT STATUS_T CreateCurve(
 				CreateEndAnchor(pos,anchor_array,FALSE);
 				Da.create_state = FIRSTEND_DEF;
 				if (Da.trk)
-					message( _("End-locked: Drag to other end of chord") );
+					message( _("End locked: Drag to other end of chord") );
 				else
 					message( _("Drag to other end of chord") );
 				break;
@@ -328,7 +328,7 @@ EXPORT STATUS_T CreateCurve(
 			tempSegs_da.cnt = 1;
 			break;
 		case crvCmdFromTangent:
-			if (Da.trk) message( _("Tangent Locked: Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
+			if (Da.trk) message( _("Tangent locked: Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			else message( _("Drag out center - Radius=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			CreateEndAnchor(Da.pos1,anchor_array,TRUE);
 			DrawArrowHeadsArray( anchor_array, Da.pos0, FindAngle(Da.pos0,Da.pos1)+90, TRUE, wDrawColorBlue );
@@ -341,8 +341,8 @@ EXPORT STATUS_T CreateCurve(
 			tempSegs_da.cnt = 1;
 			break;
 		case crvCmdFromChord:
-			if (Da.trk) message( _("Start Locked: Drag out chord Length=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
-			else message( _("Drag out chord Length=%s Angle=%0.3f"), FormatDistance(d), PutAngle(a) );
+			if (Da.trk) message( _("Start locked: Drag out chord length=%s angle=%0.3f"), FormatDistance(d), PutAngle(a) );
+			else message( _("Drag out chord length=%s angle=%0.3f"), FormatDistance(d), PutAngle(a) );
 			Da.middle.x = (Da.pos1.x+Da.pos0.x)/2.0;
 			Da.middle.y = (Da.pos1.y+Da.pos0.y)/2.0;
 			if (track && Da.trk) {
@@ -430,7 +430,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 		if (Da.state == -1) {
 			BOOL_T found = FALSE;
 			if (curveMode != crvCmdFromCenter ) {
-				if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0) {
+				if (((MyGetKeyState() & WKEY_ALT)==0) == magneticSnap) {
 					if ((t = OnTrack(&pos,FALSE,TRUE))!=NULL) {
 					   EPINX_T ep = PickUnconnectedEndPointSilent(pos, t);
 					   if (ep != -1) {
@@ -462,7 +462,7 @@ static STATUS_T CmdCurve( wAction_t action, coOrd pos )
 	case wActionMove:
 		if ((Da.state<0) && (curveMode != crvCmdFromCenter)) {
 			DYNARR_RESET(trkSeg_t,anchors_da);
-			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0) {
+			if (((MyGetKeyState() & WKEY_ALT)==0) == magneticSnap) {
 				if ((t=OnTrack(&pos,FALSE,TRUE))!= NULL) {
 					if (GetTrkGauge(t) == GetScaleTrackGauge(GetLayoutCurScale())) {
 						EPINX_T ep = PickUnconnectedEndPointSilent(pos, t);
@@ -770,30 +770,30 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 	case C_START:
 		if (helix) {
 			if (helixW == NULL)
-				helixW = ParamCreateDialog( &helixPG, MakeWindowTitle(_("Helix")), NULL, NULL, HelixCancel, TRUE, NULL, 0, ComputeHelix );
-			ParamLoadControls( &helixPG );
-			ParamGroupRecord( &helixPG );
-			ComputeHelix( NULL, 6, NULL );
-			wShow( helixW );
-			memset( h_orders, 0, sizeof h_orders );
+				helixW = ParamCreateDialog(&helixPG, MakeWindowTitle(_("Helix")), NULL, NULL, HelixCancel, TRUE, NULL, 0, ComputeHelix);
+			ParamLoadControls(&helixPG);
+			ParamGroupRecord(&helixPG);
+			ComputeHelix(NULL, 6, NULL);
+			wShow(helixW);
+			memset(h_orders, 0, sizeof h_orders);
 			h_clock = 0;
 		} else {
-			ParamLoadControls( &circleRadiusPG );
-			ParamGroupRecord( &circleRadiusPG );
-			switch ( circleMode ) {
+			ParamLoadControls(&circleRadiusPG);
+			ParamGroupRecord(&circleRadiusPG);
+			switch (circleMode) {
 			case circleCmdFixedRadius:
 				controls[0] = circleRadiusPLs[0].control;
 				controls[1] = NULL;
 				labels[0] = N_("Circle Radius");
-				InfoSubstituteControls( controls, labels );
+				InfoSubstituteControls(controls, labels);
 				break;
 			case circleCmdFromTangent:
-				InfoSubstituteControls( NULL, NULL );
-				InfoMessage( _("Click on Circle Edge") );
+				InfoSubstituteControls(NULL, NULL);
+				InfoMessage(_("Click on Circle Edge"));
 				break;
 			case circleCmdFromCenter:
-				InfoSubstituteControls( NULL, NULL );
-				InfoMessage( _("Click on Circle Center") );
+				InfoSubstituteControls(NULL, NULL);
+				InfoMessage(_("Click on Circle Center"));
 				break;
 			}
 		}
@@ -801,97 +801,95 @@ static STATUS_T CmdCircleCommon( wAction_t action, coOrd pos, BOOL_T helix )
 		return C_CONTINUE;
 
 	case C_DOWN:
-		DYNARR_SET( trkSeg_t, tempSegs_da, 1 );
+		DYNARR_SET(trkSeg_t, tempSegs_da, 1);
 		tempSegs_da.cnt = 0;
 		if (helix) {
 			if (helixRadius <= 0.0) {
-				ErrorMessage( MSG_RADIUS_GTR_0 );
+				ErrorMessage(MSG_RADIUS_GTR_0);
 				return C_ERROR;
 			}
 			if (helixTurns <= 0) {
-				ErrorMessage( MSG_HELIX_TURNS_GTR_0 );
+				ErrorMessage(MSG_HELIX_TURNS_GTR_0);
 				return C_ERROR;
 			}
-			ParamLoadData( &helixPG );
+			ParamLoadData(&helixPG);
 		} else {
-			ParamLoadData( &circleRadiusPG );
-			switch( circleMode ) {
+			ParamLoadData(&circleRadiusPG);
+			switch (circleMode) {
 			case circleCmdFixedRadius:
 				if (circleRadius <= 0.0) {
-					ErrorMessage( MSG_RADIUS_GTR_0 );
+					ErrorMessage(MSG_RADIUS_GTR_0);
 					return C_ERROR;
 				}
 				break;
 			case circleCmdFromTangent:
-				InfoSubstituteControls( NULL, NULL );
-				InfoMessage( _("Drag to Center") );
+				InfoSubstituteControls(NULL, NULL);
+				InfoMessage(_("Drag to Center"));
 				break;
 			case circleCmdFromCenter:
-				InfoSubstituteControls( NULL, NULL );
-				InfoMessage( _("Drag to Edge") );
+				InfoSubstituteControls(NULL, NULL);
+				InfoMessage(_("Drag to Edge"));
 				break;
 			}
 		}
-		SnapPos( &pos );
+		SnapPos(&pos);
 		tempSegs(0).u.c.center = pos0 = pos;
 		tempSegs(0).color = wDrawColorBlack;
 		tempSegs(0).width = 0;
 		return C_CONTINUE;
 
 	case C_MOVE:
-		SnapPos( &pos );
+		SnapPos(&pos);
 		tempSegs(0).u.c.center = pos;
-		if ( !helix ) {
-			switch ( circleMode ) {
+		if (!helix) {
+			switch (circleMode) {
 			case circleCmdFixedRadius:
 				break;
 			case circleCmdFromCenter:
 				tempSegs(0).u.c.center = pos0;
-				circleRadius = FindDistance( tempSegs(0).u.c.center, pos );
-				InfoMessage( _("Radius=%s"), FormatDistance(circleRadius) );
+				circleRadius = FindDistance(tempSegs(0).u.c.center, pos);
+				InfoMessage(_("Radius=%s"), FormatDistance(circleRadius));
 				break;
 			case circleCmdFromTangent:
-				circleRadius = FindDistance( tempSegs(0).u.c.center, pos0 );
-				InfoMessage( _("Radius=%s"), FormatDistance(circleRadius) );
+				circleRadius = FindDistance(tempSegs(0).u.c.center, pos0);
+				InfoMessage(_("Radius=%s"), FormatDistance(circleRadius));
 				break;
 			}
 		}
 		tempSegs(0).type = SEG_CRVTRK;
-		tempSegs(0).u.c.radius = helix?helixRadius:circleRadius;
+		tempSegs(0).u.c.radius = helix ? helixRadius : circleRadius;
 		tempSegs(0).u.c.a0 = 0.0;
 		tempSegs(0).u.c.a1 = 360.0;
 		tempSegs_da.cnt = 1;
 		return C_CONTINUE;
 
 	case C_UP:
-            
-		if (helixRadius > mapD.size.x && helixRadius > mapD.size.y) {
-			ErrorMessage( MSG_RADIUS_TOO_BIG );
-			return C_ERROR;
-		}
-		if (circleRadius > mapD.size.x && circleRadius > mapD.size.y) {
-			ErrorMessage( MSG_RADIUS_TOO_BIG );
-			return C_ERROR;
-		}
-
-		if ( helix ) {
-			if (helixRadius > 10000) {
-				ErrorMessage( MSG_RADIUS_GTR_10000 );
+		if (helix) {
+			if (helixRadius > mapD.size.x || helixRadius > mapD.size.y) {
+				ErrorMessage(MSG_RADIUS_TOO_BIG);
 				return C_ERROR;
 			}
-			UndoStart( _("Create Helix Track"), "newHelix" );
-			t = NewCurvedTrack( tempSegs(0).u.c.center, helixRadius, 0.0, 0.0, helixTurns );
+			if (helixRadius > 10000) {
+				ErrorMessage(MSG_RADIUS_GTR_10000);
+				return C_ERROR;
+			}
+			UndoStart(_("Create Helix Track"), "newHelix");
+			t = NewCurvedTrack(tempSegs(0).u.c.center, helixRadius, 0.0, 0.0, helixTurns);
 		} else {
-			if ( circleRadius <= 0 ) {
-				ErrorMessage( MSG_RADIUS_GTR_0 );
+			if (circleRadius > mapD.size.x || circleRadius > mapD.size.y) {
+				ErrorMessage(MSG_RADIUS_TOO_BIG);
+				return C_ERROR;
+			}
+			if (circleRadius <= 0) {
+				ErrorMessage(MSG_RADIUS_GTR_0);
 				return C_ERROR;
 			}
 			if ((circleRadius > 100000) || (helixRadius > 10000)) {
-				ErrorMessage( MSG_RADIUS_GTR_10000 );
+				ErrorMessage(MSG_RADIUS_GTR_10000);
 				return C_ERROR;
 			}
-			UndoStart( _("Create Circle Track"), "newCircle" );
-			t = NewCurvedTrack( tempSegs(0).u.c.center, circleRadius, 0.0, 0.0, 0 );
+			UndoStart(_("Create Circle Track"), "newCircle");
+			t = NewCurvedTrack(tempSegs(0).u.c.center, circleRadius, 0.0, 0.0, 0);
 		}
 		UndoEnd();
 		DrawNewTrack(t);

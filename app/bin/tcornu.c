@@ -854,8 +854,8 @@ static BOOL_T SplitCornu( track_p trk, coOrd pos, EPINX_T ep, track_p *leftover,
     UpdateTrkEndElev( trk, ep, ELEV_NONE, 0, NULL);
 
 	*leftover = trk1;
-	*ep0 = ep;    		//Which end is for new on pos?
-	*ep1 = 1-ep;		//Which end is for old trk?
+	*ep0 = 1-ep;    		//Which end is for new on pos?
+	*ep1 = ep;		//Which end is for old trk?
 
 	return TRUE;
 }
@@ -1182,8 +1182,8 @@ static BOOL_T GetParamsCornu( int inx, track_p trk, coOrd pos, trackParams_t * p
 		params->cornuCenter[i] = xx->cornuData.c[i];
 	}
 	params->len = xx->cornuData.length;
-	if ( inx == PARAMS_PARALLEL ) {
-			params->ep = 0;
+	if ( inx == PARAMS_NODES ) {
+		return FALSE;
 	} else if (inx == PARAMS_CORNU) {
 		params->ep = PickEndPoint( pos, trk);
 	} else {

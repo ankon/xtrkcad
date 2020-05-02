@@ -1471,26 +1471,56 @@ EXPORT void ImportEnd( void )
 	coOrd pos;
 	wPos_t x, y;
 	wPos_t ww, hh;
+	double xmin = 0.0;
+	double xmax = 0.0;
+	double ymin = 0.0;
 	double ymax = 0.0;
+
 
 	// get the current mouse position
 	GetMousePosition( &x, &y );
 	mainD.Pix2CoOrd( &mainD, x, y, &pos );
 	
+
+
 	// get the size of the drawing area
 	wDrawGetSize( mainD.d, &ww, &hh );
 
-	// in case the pointer is close to the edge or above the drawing area
-	// recalculate the destination position so the pasted part remains visible
-	if( abs( y - hh ) < CLOSETOTHEEDGE  ) {
-		for ( trk=*importTrack; trk; trk=trk->next ) {
-			if (!IsTrackDeleted(trk) && trk->hi.y > ymax ) {
-				ymax = trk->hi.y;
-			}
+	for ( trk=*importTrack; trk; trk=trk->next ) {
+		if (!IsTrackDeleted(trk)) {
+			if (trk->hi.y > ymax ) ymax = trk->hi.y;
+			if (trk->lo.y < ymin ) ymin = trk->lo.y;
+			if (trk->hi.x > xmax ) xmax = trk->hi.x;
+			if (trk->lo.x < xmin ) xmin = trk->lo.x;
 		}
-		pos.y -= ymax;
 	}
-	
+
+	coOrd old_pos;
+	wPos_t ox,oy;
+	old_pos.x = xmin;
+	old_pos.y = ymin;
+	mainD.CoOrd2Pix( &mainD, old_pos, &ox, &oy);
+
+	//If the pointer is off the drawing area put with paste origin in middle of display
+	if (abs(y-hh) < TBORDER ) {
+		mainD.Pix2CoOrd( &mainD, ww/2, hh/2, &pos );
+	} else {
+		// in case the pointer is close to the edge
+		// recalculate the destination position so the pasted part remains visible
+		if( abs( y - hh ) < (TBORDER+CLOSETOTHEEDGE)  ) {
+			pos.y -= ymax-ymin;
+		}
+		if( abs( x - ww ) < (RBORDER+CLOSETOTHEEDGE) ) {
+			pos.x -= xmax-xmin;
+		}
+		if ( abs(y) < LBORDER) {
+			pos.y += ymax-ymin;
+		}
+		if ( abs(x) < BBORDER) {
+			pos.x += xmax-xmin;
+		}
+	}
+
 	to_firstOld = to_first;
 	to_first = *importTrack;
 	trackCountOld = trackCount;
@@ -1500,6 +1530,9 @@ EXPORT void ImportEnd( void )
 
 	// move the imported track into place
 	for ( trk=*importTrack; trk; trk=trk->next ) if (!IsTrackDeleted(trk)) {
+		coOrd move;
+		move.x = pos.x-xmin;
+		move.y = pos.y-ymin;
 		MoveTrack( trk, pos );// mainD.orig );
 		trk->bits |= TB_SELECTED;
 		DrawTrack( trk, &mainD, wDrawColorBlack );
@@ -2213,7 +2246,7 @@ EXPORT STATUS_T ExtendTrackFromOrig( track_p trk, wAction_t action, coOrd pos )
 				valid = FALSE;
 				tempSegs(0).u.c.a1 = 0;
 				tempSegs(0).u.c.a0 = end_angle;
-				InfoMessage( _("Inside Turnout Track"));
+				InfoMessage( _("Inside turnout track"));
 				return C_CONTINUE;
 			}
 			end_angle = GetTrkEndAngle( trk, ep );
@@ -2231,7 +2264,7 @@ EXPORT STATUS_T ExtendTrackFromOrig( track_p trk, wAction_t action, coOrd pos )
 			tempSegs_da.cnt = 1;
 			valid = TRUE;
 			if (action == C_MOVE)
-				InfoMessage( _("Curve: Length=%s, Radius=%0.3f Arc=%0.3f"),
+				InfoMessage( _("Curve: Length=%s Radius=%0.3f Arc=%0.3f"),
 						FormatDistance( d ), FormatDistance(tempSegs(0).u.c.radius), PutAngle( fabs(a) ) );
 			return C_CONTINUE;
 		} else {
@@ -2248,7 +2281,7 @@ EXPORT STATUS_T ExtendTrackFromOrig( track_p trk, wAction_t action, coOrd pos )
 				valid = FALSE;
 				tempSegs(0).u.c.a1 = 0;
 				tempSegs(0).u.c.a0 = end_angle;
-				InfoMessage( _("Inside Turnout Track"));
+				InfoMessage( _("Inside turnout track"));
 				return C_CONTINUE;
 			}
 			Translate( &tempSegs(0).u.l.pos[1], tempSegs(0).u.l.pos[0], GetTrkEndAngle( trk, ep ), d );

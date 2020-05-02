@@ -1246,9 +1246,9 @@ EXPORT STATUS_T AdjustCornuCurve(
 			if (Da.selectEndPoint >=0 ) {
 				pos = Da.pos[Da.selectEndPoint];
 				if (Da.extend[Da.selectEndPoint])
-					InfoMessage( _("Drag out End of Cornu"));
+					InfoMessage( _("Drag out end of Cornu"));
 				else if (Da.trk[Da.selectEndPoint]) {
-					InfoMessage( _("Drag along end track"));
+					InfoMessage( _("Drag along end of track"));
 				} else
 					InfoMessage( _("Drag to move"));
 			} else if (Da.selectMidPoint >=0 ) {
@@ -1275,7 +1275,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 	case C_MOVE:
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		if (Da.state != POINT_PICKED) {
-			InfoMessage(_("Pick any circle to adjust, or Add - Enter to accept, Esc to cancel"));
+			InfoMessage(_("Pick any circle to adjust or add - Enter to accept, Esc to cancel"));
 			return C_CONTINUE;
 		}
 		if (Da.selectEndPoint >= 0) {
@@ -1357,7 +1357,7 @@ EXPORT STATUS_T AdjustCornuCurve(
 						}
 					}
 				} else if (Da.ep[sel]>=0 && inside) {                     //Has a point and inside track
-					InfoMessage(_("Can't move end inside a Turnout"));	  //Turnouts are stuck to end-point
+					InfoMessage(_("Can't move end inside a turnout"));	  //Turnouts are stuck to end-point
 					Da.pos[sel] = pos = GetTrkEndPos(Da.trk[sel],Da.ep[sel]);
 					CreateBothEnds(Da.selectEndPoint,Da.selectMidPoint,Da.selectEndHandle,Da.prevSelected);
 					return C_CONTINUE;
@@ -2252,7 +2252,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 			int end = 0;
 			if (Da.state != NONE) end=1;
 			EPINX_T ep = -1;
-			if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0) {
+			if (((MyGetKeyState()&WKEY_ALT) == 0) == magneticSnap) {
 				//Lock to endpoint if one is available and under pointer
 				if ((t = OnTrack(&p, FALSE, TRUE)) != NULL && t != Da.selectTrack) {
 					if (QueryTrack(t,Q_HAS_VARIABLE_ENDPOINTS)) {    //Circle/Helix find if there is an open slot and where
@@ -2272,7 +2272,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 					} else ep = PickUnconnectedEndPointSilent(p, t);		//EP
 					if ( t && ep==-1 && (!QueryTrack(t,Q_CAN_ADD_ENDPOINTS) && !QueryTrack(t,Q_HAS_VARIABLE_ENDPOINTS))) {  //No endpoints and not Turntable or Helix/Circle
 						wBeep();
-						InfoMessage(_("No Valid open end point on that track"));
+						InfoMessage(_("No valid open endpoint on that track"));
 						t = NULL;
 					}
 					if (t && GetTrkGauge(t) != GetScaleTrackGauge(GetLayoutCurScale())) {
@@ -2301,7 +2301,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 						Da.radius[0] = 0.0;
 						Da.ep1Segs_da_cnt = createEndPoint(Da.ep1Segs, Da.pos[0], FALSE,TRUE,TRUE,FALSE,Da.angle[0],Da.radius[0],zero,&Da.endHandle[0]);
 						Da.ep2Segs_da_cnt = 0;
-						InfoMessage( _("Drag arm in direction of track") );
+						InfoMessage( _("Drag arm in the direction of track") );
 						return C_CONTINUE;
 					}
 					Da.state = POS_2;    //Now this is second end and it is open
@@ -2381,7 +2381,8 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 		if (Da.state != NONE && Da.state != LOC_2) return C_CONTINUE;
 		if (Da.trk[0] && Da.trk[1]) return C_CONTINUE;
 		EPINX_T ep = -1;
-		if ((MyGetKeyState() & (WKEY_SHIFT|WKEY_CTRL|WKEY_ALT)) == 0) {
+		t = NULL;
+		if (((MyGetKeyState() & WKEY_ALT) == 0) == magneticSnap) {
 			//Lock to endpoint if one is available and under pointer
 			if ((t = OnTrack(&pos, FALSE, TRUE)) != NULL && t != Da.selectTrack) {
 				if (QueryTrack(t,Q_HAS_VARIABLE_ENDPOINTS)) {    //Circle/Helix find if there is an open slot and where
@@ -2437,7 +2438,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 			BOOL_T found = FALSE;
 			int end = Da.state==POS_1?0:1;
 			if(!QueryTrack(Da.trk[0],Q_CORNU_CAN_MODIFY) && !QueryTrack(Da.trk[0],Q_CAN_ADD_ENDPOINTS)) {
-				InfoMessage(_("Can't Split - So Locked to End Point"));
+				InfoMessage(_("Track can't be split - so locked to endpoint"));
 				return C_CONTINUE;
 			}
 			if (Da.trk[0] != OnTrack(&pos, FALSE, TRUE)) {
@@ -2482,7 +2483,7 @@ STATUS_T CmdCornu( wAction_t action, coOrd pos )
 				if (Da.cmdType == cornuCmdCreateTrack)
 					InfoMessage( _("Pick other end of Cornu") );
 				else
-					InfoMessage( _("Select Flextrack ends or anchors and Drag, Enter to approve, Esc to Cancel") );
+					InfoMessage( _("Select flextrack ends or anchors and drag, Enter to approve, Esc to Cancel") );
 				Da.ep1Segs_da_cnt = createEndPoint(Da.ep1Segs, Da.pos[0],FALSE,TRUE,TRUE,FALSE,0.0,0.0,zero,NULL);
 				return C_CONTINUE;
 			}
@@ -2622,7 +2623,6 @@ static STATUS_T cmdCornuCreate(
 				wAction_t action,
 				coOrd pos ) {
 	static int createState = 0;
-	cornuParm_t cp;
 	int rc = 0;
 
 	switch(action&0xFF) {
