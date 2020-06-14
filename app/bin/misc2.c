@@ -60,6 +60,8 @@ EXPORT DIST_T trackGauge;
 EXPORT long labelScale = 8;
 EXPORT long labelEnable = (LABELENABLE_ENDPT_ELEV|LABELENABLE_CARS);
 EXPORT long labelWhen = 2;
+EXPORT long colorTrack = 0;
+EXPORT long colorDraw = 0;
 EXPORT long colorLayers = 0;
 EXPORT long zoomCorner = 0;
 EXPORT long hideSelectionWindow = 0;
@@ -718,7 +720,7 @@ static void ScaleChange( long changes )
 
 EXPORT void Misc2Init( void )
 {
-	AddParam( "SCALE ", AddScale );
+	AddParam( "SCALE ", AddScale, NULL);
 	wPrefGetInteger( "draw", "label-when", &labelWhen, labelWhen );
 	RegisterChangeNotification( ScaleChange );
 	wPrefGetInteger( "misc", "include same gauge turnouts", &includeSameGaugeTurnouts, 1 );

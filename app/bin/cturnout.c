@@ -57,6 +57,7 @@ static int curTurnoutInx = -1;
 
 static int log_turnout = 0;
 static int log_traverseTurnout = 0;
+static int log_suppressCheckPaths = 0;
 
 static wMenu_p turnoutPopupM;
 
@@ -175,6 +176,29 @@ EXPORT turnoutInfo_t * CreateNewTurnout(
 	return to;
 }
 
+/**
+ * Delete a turnout parameter from the list and free the related memory
+ *
+ * \param [IN] to turnout definition to be deleted 
+ */
+
+BOOL_T
+DeleteTurnout(void *toInfo)
+{
+	turnoutInfo_t * to = (turnoutInfo_t *)toInfo;
+	MyFree(to->title);
+	MyFree(to->segs);
+	MyFree(to->endPt);
+	MyFree(to->paths);
+	if (to->special) {
+		DYNARR_FREE(DIST_T, to->u.curved.radii);
+	}
+
+	MyFree(to);
+	return(TRUE);
+}
+
+
 /** 
  * Check to find out to what extent the contents of the parameter file can be used with 
  * the current layout scale / gauge. 
@@ -245,6 +269,35 @@ EXPORT wIndex_t CheckPaths(
 	int segInx[2], segEp[2];
 	int segTrkLast = -1;
 	
+	// Check that each track segment is on at least one path
+	int suppressCheckPaths = log_suppressCheckPaths > 0 ? logTable(log_suppressCheckPaths).level : 0;
+	if ( suppressCheckPaths == 0 ) {
+		char trkSegInx = 0;
+		for ( int inx = 0; inx<segCnt; inx++ ) {
+			if ( IsSegTrack( &segs[inx] ) ) {
+				trkSegInx++;
+				char * cp = paths;
+				while ( *cp ) {
+					// path is: 'N' 'A' 'M' 'E' 0 1 2 0 3 4 0 0
+					// skip name
+					for ( ; *cp; cp++ );
+					cp++;
+					// check each path component 
+					for ( ; cp[0] || cp[1];  cp++ )
+						if ( abs(*cp) == trkSegInx )
+							 break;
+					if ( *cp )	// we broke early
+						break;
+					cp += 2;; // Skip 2nd 0
+				}
+				if ( !*cp ) {	// we looked and didn't find
+					InputError( "Track segment %d not on Path",  FALSE, inx+1 );
+					return -1;;
+				}
+			}
+		}
+	}
+
 typedef struct {
 	trkSeg_p seg;
 	int indx;
@@ -2973,6 +3026,7 @@ EXPORT void InitCmdTurnout( wMenu_p menu )
 	ParamRegister( &turnoutPG );
 	log_turnout = LogFindIndex( "turnout" );
 	log_traverseTurnout = LogFindIndex( "traverseTurnout" );
+	log_suppressCheckPaths = LogFindIndex( "suppresscheckpaths" );
 	if ( turnoutPopupM == NULL ) {
 		turnoutPopupM = MenuRegister( "Turnout Rotate" );
 		AddRotateMenu( turnoutPopupM, TurnoutRotate );
@@ -2985,7 +3039,7 @@ EXPORT void InitTrkTurnout( void )
 	T_TURNOUT = InitObject( &turnoutCmds );
 
 	/*InitDebug( "Turnout", &debugTurnout );*/
-	AddParam( "TURNOUT ", ReadTurnoutParam );
+	AddParam( "TURNOUT ", ReadTurnoutParam, DeleteTurnout);
 }
 
 #ifdef TEST
