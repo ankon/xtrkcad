@@ -359,13 +359,14 @@ After the first track is selected, an entry field for prefered radius will be sh
 
 \n Move the mouse pointer over the endpoint of the other track then \e{Left-Click} and hold the mouse button down. A track connecting the two endpoints will appear. 
 
+\lcont{
+
 If the track appears in black (and you are happy with the curve as its drawn), release the mouse button.
 
 If the radius snap-anchor is active, and the position of the cursor is close to a position where the Join is exactly the desired radius, a blue circle will be shown. 
 Releasing the button while it shows will snap the Join to the desired radius. If Easements are enabled as well, this fixed radius Join track will be joined to by easements.
 
 
-\lcont{
 
 \u000
 
