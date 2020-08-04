@@ -34,21 +34,27 @@ struct sCatalogEntry {
     char *fullFileName[MAXFILESPERCONTENT];		/**< fully qualified file name */
     char *contents;								/**< content field of parameter file */
 };
-
 typedef struct sCatalogEntry CatalogEntry;
 
 struct sCatalog {
 	CatalogEntry *head;							/**< The entries */
 };
-
 typedef struct sCatalog Catalog;
 
-struct sIndexEntry {
-    CatalogEntry *value;						/**< catalog entry having the key word in contents */
-    char *keyWord;								/**< keyword */
-};
 
+/** 
+An index entry. This struct holds a keyword pointer and an array of pointers to  
+CatalogEntry
+It is managed as a linked list
+*/
+struct sIndexEntry {
+	struct sIndexEntry *next;
+	struct sIndexEntry *prev;
+    char *keyWord;								/**< keyword */
+	dynArr_t *references;						/**< references to the CatalogEntry */
+};
 typedef struct sIndexEntry IndexEntry;
+
 
 struct sParameterLib {
     Catalog *catalog;							/**< list of files cataloged */
@@ -56,19 +62,23 @@ struct sParameterLib {
     unsigned wordCount;							/**< How many words indexed */
     unsigned parameterFileCount;					/**< */
 };
-
 typedef struct sParameterLib
 		ParameterLib;							/**< core data structure for the catalog */
 
+enum WORDSTATE {
+	SEARCHED,
+	DISCARDED,
+};
+
 struct sSearchResult {
-	CatalogEntry ** result;
+	Catalog subCatalog;
 	unsigned totalFound;
 	struct sSingleResult{
 		char *keyWord;
 		unsigned count;
+		enum WORDSTATE state;
 	} *kw;
 };
-
 typedef struct sSearchResult SearchResult;
 
 Catalog *InitCatalog(void);
@@ -78,7 +88,7 @@ void DeleteLibrary(ParameterLib *tracklib);
 bool GetParameterFiles(ParameterLib *trackLib, char *directory);
 int GetParameterFileInfo(int files, char ** fileName, void * data);
 unsigned CreateLibraryIndex(ParameterLib *trackLib);
-unsigned SearchLibrary(ParameterLib *library, char *searchExpression, SearchResult **totalResult);
+unsigned SearchLibrary(ParameterLib *library, char *searchExpression, SearchResult *totalResult);
 void SearchResultDiscard(SearchResult *res);
 unsigned CountCatalogEntries(Catalog *catalog);
 void EmptyCatalog(Catalog *catalog);
