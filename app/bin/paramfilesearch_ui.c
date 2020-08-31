@@ -271,15 +271,12 @@ static void SearchUiDoSearch(void * ptr)
 			MyFree(statistics);
 
 			SearchFileListLoad(&(currentResults->subCatalog));
-//			SearchDiscardResult(currentResults);
 			wControlActive((wControl_p)CLEARBUTTON, TRUE);
 		} else {
 			wListClear(RESULTLIST);
 			wControlActive((wControl_p)SELECTALLBUTTON, FALSE);
 			wMessageSetValue(MESSAGETEXT, _("No matches found."));
 		}
-
-//		MyFree((void *)currentResults);
 	} else {
 		SearchUiDefault();
 	}

@@ -73,11 +73,7 @@ long FAR PASCAL _export pushEdit(
 		LONG lParam )
 {
 
-#ifdef WIN32
 	long inx = GetWindowLong( hWnd, GWL_ID );
-#else
-	short inx = GetWindowWord( hWnd, GWW_ID );
-#endif
 	wString_p b = (wString_p)mswMapIndex(inx);
 
 	switch (message)
@@ -118,12 +114,8 @@ void wStringSetValue(
 {
 	WORD len = (WORD)strlen( arg );
 	SendMessage( b->hWnd, WM_SETTEXT, 0, (DWORD)arg );
-#ifdef WIN32
 	SendMessage( b->hWnd, EM_SETSEL, 0, -1 );
 	SendMessage( b->hWnd, EM_SCROLLCARET, 0, 0L );
-#else
-	SendMessage( b->hWnd, EM_SETSEL, 0, MAKELPARAM(len,len) );
-#endif
 	SendMessage( b->hWnd, EM_SETMODIFY, FALSE, 0L );
 }
 
@@ -272,19 +264,11 @@ wString_p wStringCreate(
 	if (option & BO_READONLY)
 		style |= ES_READONLY;
 
-#ifdef WIN32
 	b->hWnd = CreateWindowEx( WS_EX_CLIENTEDGE, "EDIT", NULL,
 						ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | style,
 						b->x, b->y,
 						width, mswEditHeight,
 						((wControl_p)parent)->hWnd, (HMENU)index, mswHInst, NULL );
-#else
-	b->hWnd = CreateWindow( "EDIT", NULL,
-						ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | style,
-						b->x, b->y,
-						width, mswEditHeight,
-						((wControl_p)parent)->hWnd, (HMENU)index, mswHInst, NULL );
-#endif
 	if (b->hWnd == NULL) {
 		mswFail("CreateWindow(STRING)");
 		return b;
@@ -507,10 +491,7 @@ wInteger_p wIntegerCreate(
 		return b;
 	}
 
-#ifdef CONTROL3D
-	Ctl3dSubclassCtl( b->hWnd);
-#endif
-		  
+	  
 	newEditProc = MakeProcInstance( (XWNDPROC)pushEdit, mswHInst );
 	oldEditProc = (XWNDPROC)GetWindowLong(b->hWnd, GWL_WNDPROC );
 	SetWindowLong( b->hWnd, GWL_WNDPROC, (LONG)newEditProc );
@@ -731,9 +712,6 @@ wFloat_p wFloatCreate(
 		return b;
 	}
 
-#ifdef CONTROL3D
-	Ctl3dSubclassCtl( b->hWnd);
-#endif
 	
 	newEditProc = MakeProcInstance( (XWNDPROC)pushEdit, mswHInst );
 	oldEditProc = (XWNDPROC)GetWindowLong(b->hWnd, GWL_WNDPROC );
