@@ -27,6 +27,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#ifdef WINDOWS
+#include <io.h>
+#define access _access
+#else 
+#include <unistd.h>
+#endif
 
 #include "common.h"
 #include "compound.h"
@@ -159,6 +167,28 @@ void SetParamFileState(int index)
 }
 
 /**
+ * Check whether file exists and is readable
+ *
+ * \param  file The file.
+ *
+ * \returns True if it succeeds, false if it fails.
+ */
+ 
+#ifdef WINDOWS
+#define R_OK 0x4
+#endif
+
+static bool
+CheckFileReadable(const char *file)
+{
+	if(!access( file, R_OK )) {
+			return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+/**
  * Read a single parameter file and update the parameter file list
  *
  * \param fileName full path for parameter file
@@ -168,22 +198,19 @@ void SetParamFileState(int index)
 int
 ReadParamFile(const char *fileName)
 {
-	bool success = ReadParams(0, NULL, fileName);
-
-	if (success) {
+	if (!CheckFileReadable(fileName)) {
+		return(-1);
+	} else {
 		DYNARR_APPEND(paramFileInfo_t, paramFileInfo_da, 10);
 		curParamFileIndex = paramFileInfo_da.cnt - 1;
 		paramFileInfo(curParamFileIndex).name = MyStrdup(fileName);
 		paramFileInfo(curParamFileIndex).valid = TRUE;
-		paramFileInfo(curParamFileIndex).deleted = FALSE;
+		paramFileInfo(curParamFileIndex).deleted = !ReadParams(0, NULL, fileName);
 		paramFileInfo(curParamFileIndex).contents = MyStrdup(curContents);
 
 		SetParamFileState(curParamFileIndex);
-		return (curParamFileIndex);
-	} else {
-		// param file could not be read
-		return(-1);
 	}
+	return (curParamFileIndex);
 }
 
 /**
@@ -250,8 +277,8 @@ bool ReadParams(
 		/* Reset the locale settings */
 		RestoreLocale(oldLocale);
 
-		//NoticeMessage(MSG_OPEN_FAIL, _("Continue"), NULL, _("Parameter"), paramFileName,
-		//	strerror(errno));
+		NoticeMessage(MSG_OPEN_FAIL, _("Continue"), NULL, _("Parameter"), paramFileName,
+			strerror(errno));
 
 		return FALSE;
 	}

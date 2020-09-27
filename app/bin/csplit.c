@@ -101,7 +101,7 @@ static void CreateSplitAnchor(coOrd pos, track_p t, BOOL_T end) {
 static STATUS_T CmdSplitTrack( wAction_t action, coOrd pos )
 {
 	track_p trk0, trk1;
-	EPINX_T ep0;
+	EPINX_T ep0 = 0;
 	int oldTrackCount;
 	int inx, mode, quad;
 	ANGLE_T angle;
@@ -211,6 +211,8 @@ static STATUS_T CmdSplitTrack( wAction_t action, coOrd pos )
 		onTrackInSplit = TRUE;
 		if ((trk0 = OnTrack( &pos, FALSE, TRUE ))!=NULL && CheckTrackLayerSilent( trk0 )) {
 			ep0 = PickEndPoint( pos, trk0 );
+			if ( ep0 < 0 )
+				break;
 			if (IsClose(FindDistance(GetTrkEndPos(trk0,ep0),pos)) && (GetTrkEndTrk(trk0,ep0)!=NULL)) {
 				CreateSplitAnchor(GetTrkEndPos(trk0,ep0),trk0,TRUE);
 			} else if (QueryTrack(trk0,Q_IS_TURNOUT)) {
@@ -248,10 +250,8 @@ static STATUS_T CmdSplitTrack( wAction_t action, coOrd pos )
 static STATUS_T CmdSplitDraw( wAction_t action, coOrd pos )
 {
 	track_p trk0, trk1;
-	EPINX_T ep0;
+	EPINX_T ep0 = 0;
 	int oldTrackCount;
-	int inx, mode, quad;
-	ANGLE_T angle;
 
 	switch (action) {
 	case C_START:

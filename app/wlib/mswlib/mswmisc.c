@@ -1490,6 +1490,10 @@ void wSetCursor(wDraw_p win,
     case wCursorAppStart:
     	SetCursor(LoadCursor(NULL, IDC_APPSTARTING));
         break;
+
+    case wCursorNone:
+    	SetCursor(NULL);
+    	break;
     }
 
     curCursor = cursor;
@@ -2163,7 +2167,7 @@ void wHelp(
 {
     char *pszHelpTopic;
     HWND hwndHelp;
-	char *theTopic = "index";
+	const char *theTopic = "index";
 
 	if (topic) {
 		theTopic = topic;
