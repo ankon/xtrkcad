@@ -317,10 +317,11 @@ FilterKeyword(char *word)
     return (false);
 }
 
-int KeyWordCmp(IndexEntry *a, IndexEntry *b)
+int KeyWordCmp(void *a, void *b)
 {
-    return XtcStricmp(a->keyWord, b->keyWord);
+    return XtcStricmp(((IndexEntry *)a)->keyWord,((IndexEntry *)b)->keyWord);
 }
+
 
 /**
  * Standardize spelling: remove some typical spelling problems. It is assumed that the word
@@ -419,8 +420,7 @@ CreateKeywordIndex(ParameterLib *library)
     }
     *wordListPtr = '\0';
 
-    DL_SORT(index, KeyWordCmp);
-
+	DL_SORT(index, KeyWordCmp);
     library->index = index;
     library->words = wordList;
 
