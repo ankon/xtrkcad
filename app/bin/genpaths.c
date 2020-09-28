@@ -151,12 +151,12 @@ EXPORT wIndex_t GetPathsLength( PATHPTR_T paths )
  * \param trk IN
  * \param paths IN
  */
-EXPORT void * SetPaths( track_p trk, PATHPTR_T paths )
+EXPORT void SetPaths( track_p trk, PATHPTR_T paths )
 {
 	struct extraData * xx = GetTrkExtraData( trk );
 	if ( paths == NULL ) {
 		// Structure, but just to be safe
-		paths = "\0\0\0";
+		paths = (PATHPTR_T)"\0\0\0";
 	}
 	wIndex_t pathLen = GetPathsLength( paths );
 #ifdef NEWPATH
