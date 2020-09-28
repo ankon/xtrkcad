@@ -152,8 +152,7 @@ EXPORT turnoutInfo_t * CreateNewTurnout(
 		to->pathOverRide = TRUE;
 	if ( options & COMPOUND_OPTION_PATH_NOCOMBINE )
 		to->pathNoCombine = TRUE;
-	wIndex_t pathsLen = GetPathsLength( paths );
-	to->paths = (PATHPTR_T)memdup( paths, pathsLen * (sizeof *to->paths) );
+	SetParamPaths( to, paths );
 	to->paramFileIndex = curParamFileIndex;
 	if (curParamFileIndex == PARAM_CUSTOM)
 		to->contentsLabel = MyStrdup("Custom Turnouts");
@@ -194,7 +193,11 @@ DeleteTurnout(void *toInfo)
 	MyFree(to->title);
 	MyFree(to->segs);
 	MyFree(to->endPt);
+#ifdef NEWPATH
+	MyFree(to->saved_paths);
+#else
 	MyFree(to->paths);
+#endif
 	if (to->special) {
 		switch(to->special) {
 		case TOcurved:
@@ -1755,7 +1758,11 @@ static BOOL_T QueryTurnout( track_p trk, int query )
 		else
 			return FALSE;
 	case Q_CAN_NEXT_POSITION:
-		return ( GetTrkEndPtCnt(trk) > 2 );
+		{
+			PATHPTR_T path = GetPaths( trk );
+			for ( path += strlen((char*)path) + 1; path[0] || path[1]; path++ );
+			return ( path[2] != 0 );
+		}
 	case Q_CORNU_CAN_MODIFY:
 		return FALSE;
 	default:
@@ -2512,7 +2519,10 @@ nextEnd:;
 	/*
 	 * copy data */
 
-	newTrk = NewCompound( T_TURNOUT, 0, Dto.pos, Dto.angle, curTurnout->title, tempEndPts_da.cnt, &tempEndPts(0), NULL, curTurnout->paths, curTurnout->segCnt, curTurnout->segs );
+	newTrk = NewCompound( T_TURNOUT, 0, Dto.pos, Dto.angle,
+		curTurnout->title, tempEndPts_da.cnt, &tempEndPts(0), NULL, 
+		GetParamPaths( curTurnout ),
+		curTurnout->segCnt, curTurnout->segs );
 	xx = GetTrkExtraData(newTrk);
 	xx->customInfo = curTurnout->customInfo;
 	if (connection((int)curTurnoutEp).trk) {

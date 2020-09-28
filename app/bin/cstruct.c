@@ -136,7 +136,7 @@ EXPORT turnoutInfo_t * CreateNewStructure(
 	else
 		to->contentsLabel = curSubContents;
 	to->endCnt = 0;
-	to->paths = (PATHPTR_T)"";
+//	SetParamPaths( to, (PATHPTR_T)"" );
 	if (updateList && structureListL != NULL) {
 		FormatCompoundTitle( LABEL_TABBED|LABEL_MANUF|LABEL_PARTNO|LABEL_DESCR, to->title );
 		if (message[0] != '\0')
@@ -736,7 +736,7 @@ static void NewStructure( void )
 	xx->segCnt = curStructure->segCnt;
 	memcpy( xx->segs, curStructure->segs, xx->segCnt * sizeof *(trkSeg_p)0 );
 	xx->title = curStructure->title;
-	SetPaths( trk, "" );
+//	SetPaths( trk, "" );
 #endif
 	switch(curStructure->special) {
 		case TOnormal:
