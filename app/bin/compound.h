@@ -142,7 +142,7 @@ extern turnoutInfo_t * curStructure;
 /* genpaths.c */
 PATHPTR_T GetPaths( track_p trk );
 wIndex_t GetPathsLength( PATHPTR_T paths );
-void * SetPaths( track_p trk, PATHPTR_T paths );
+void SetPaths( track_p trk, PATHPTR_T paths );
 PATHPTR_T GetCurrPath( track_p trk );
 long GetCurrPathIndex( track_p trk );
 void SetCurrPathIndex( track_p trk, long position );
