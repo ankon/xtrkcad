@@ -115,6 +115,7 @@ SET(SOURCES
 	file2uri.h
 	fileio.c
 	filenoteui.c
+	genpaths.c
 	i18n.c
 	layout.c
 	levenshtein.c

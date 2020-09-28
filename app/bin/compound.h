@@ -26,6 +26,8 @@
 #include "common.h"
 #include "track.h"
 
+#define NEWPATH
+
 typedef enum { TOnormal, TOadjustable, TOpierInfo, TOpier, TOcarDesc, TOlast, TOcurved } TOspecial_e;
 
 typedef struct {
@@ -58,7 +60,11 @@ typedef struct turnoutInfo_t{
 		trkSeg_p segs;
 		wIndex_t endCnt;
 		trkEndPt_t * endPt;
+#ifdef NEWPATH
+		PATHPTR_T saved_paths;
+#else
 		PATHPTR_T paths;
+#endif
 		int paramFileIndex;
 		char * customInfo;
 		DIST_T barScale;
@@ -90,7 +96,12 @@ struct extraData {
 		char * customInfo;
 		TOspecial_e special;
 		turnoutInfo_u u;
+#ifdef NEWPATH
+		PATHPTR_T saved_paths;
+		PATHPTR_T new_paths;
+#else
 		PATHPTR_T paths;
+#endif
 		PATHPTR_T currPath;
 		long currPathIndex;
 		wIndex_t segCnt;
@@ -128,13 +139,17 @@ extern turnoutInfo_t * curStructure;
 #define COMPOUND_OPTION_PATH_NOCOMBINE	(0x0200)
 
 
-/* compound.c */
+/* genpaths.c */
 PATHPTR_T GetPaths( track_p trk );
 wIndex_t GetPathsLength( PATHPTR_T paths );
 void * SetPaths( track_p trk, PATHPTR_T paths );
 PATHPTR_T GetCurrPath( track_p trk );
 long GetCurrPathIndex( track_p trk );
 void SetCurrPathIndex( track_p trk, long position );
+PATHPTR_T GetParamPaths( turnoutInfo_t * to );
+void SetParamPaths( turnoutInfo_t * to, PATHPTR_T paths );
+
+/* compound.c */
 
 #define FIND_TURNOUT	(1<<11)
 #define FIND_STRUCT		(1<<12)
