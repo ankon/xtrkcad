@@ -38,6 +38,7 @@
 #include "layout.h"
 #include "messages.h"
 #include "param.h"
+#include "cselect.h"
 #include "include/paramfile.h"
 #include "track.h"
 #include "trackx.h"
@@ -321,7 +322,6 @@ EXPORT wIndex_t CheckPaths(
 	if ((segCnt == 0) || !segs) return -1;
 	int pc, ps;
 	PATHPTR_T pp = 0;
-	int inx;
 
 	int segInx[2], segEp[2];
 	int segTrkLast = -1;
@@ -360,8 +360,6 @@ EXPORT wIndex_t CheckPaths(
 
 	for ( pc=0,pp=paths; *pp; pp+=2,pc++ ) {
 		for ( ps=0,pp+=strlen((char *)pp)+1; pp[0]!=0 || pp[1]!=0; pp++,ps++ ) {
-			int old_inx;
-			EPINX_T old_EP;
 			if (pp[0]!=0 && ps==0) {  // First or only one
 			}
 			if (pp[0]!=0 && pp[1]!=0 ) {
@@ -1806,7 +1804,6 @@ EXPORT void AdvanceTurnoutPositionIndicator(
 		ANGLE_T *angleR )
 {
 	struct extraData * xx = GetTrkExtraData(trk);
-	PATHPTR_T path;
 	traverseTrack_t trvtrk;
 	DIST_T dist;
 
@@ -2851,18 +2848,19 @@ LOG( log_turnout, 1, ( "RMOVE post @ %0.3fx%0.3f\n", Dto.pos.x, Dto.pos.y ) );
 		return C_CONTINUE;
 
 	case C_REDRAW:
+		wSetCursor(mainD.d,defaultCursor);
 		if (Dto.state) {
 			DrawSegs( &tempD, Dto.pos, Dto.angle,
-				curTurnout->segs, curTurnout->segCnt, trackGauge, wDrawColorBlue );
+				curTurnout->segs, curTurnout->segCnt, trackGauge, selectedColor );
 		}
 		if (anchors_da.cnt>0) {
 			DrawSegs( &tempD, zero, 0.0, &anchors(0), anchors_da.cnt, trackGauge, wDrawColorBlack );
+			wSetCursor(mainD.d,wCursorNone);
 		}
 		if (Dto.state == 2)
-			DrawLine( &tempD, Dto.rot0, Dto.rot1, 0, wDrawColorBlack );
+			DrawLine( &tempD, Dto.rot0, Dto.rot1, 0, wDrawColorBlue );
 		return C_CONTINUE;
 
-	case C_CANCEL:
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		Dto.state = 0;
 		Dto.trk = NULL;

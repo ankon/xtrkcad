@@ -54,8 +54,6 @@
 
 #define SETMOVEMODE "MOVEMODE"
 
-#define defaultCursor wCursorCross
-
 EXPORT wIndex_t selectCmdInx;
 EXPORT wIndex_t moveCmdInx;
 EXPORT wIndex_t rotateCmdInx;
@@ -2241,7 +2239,7 @@ static STATUS_T CmdRotate(
 				DIST_T width = tempD.scale*0.15;
 				DrawLine( &tempD, base, orig, 0, wDrawColorBlue );
 				if (drawnAngle) {
-					DrawLine( &tempD, orig_base, orig, width/2, wDrawColorBlue );
+					DrawLine( &tempD, orig_base, orig, (wDrawWidth)width/2, wDrawColorBlue );
 					ANGLE_T a = DifferenceBetweenAngles(FindAngle(orig, orig_base),FindAngle(orig, base));
 
 					DIST_T dist = FindDistance(orig,base);
@@ -3120,7 +3118,6 @@ static STATUS_T CmdSelect(
 		}
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		switch (mode) {
-		rc = C_CONTINUE;
 		case MOVE:
 			if (SelectedTracksAreFrozen() || (selectedTrackCount==0)) {
 				rc = C_TERMINATE;

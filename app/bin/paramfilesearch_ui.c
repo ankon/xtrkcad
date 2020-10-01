@@ -40,7 +40,6 @@
 
 static ParameterLib *trackLibrary;			/**< Track Library          */
 static Catalog *currentCat;					/**< catalog being shown    */
-static SearchResult *currentSearch;			/**< current search results */
 
 /* define the search / browse dialog */
 
@@ -248,12 +247,8 @@ static void SearchUiDoSearch(void * ptr)
     SearchResult *currentResults = MyMalloc(sizeof(SearchResult));
     char * search;
 
+	strcpy(searchUiQuery, wStringGetValue((wString_p)searchUiPG.paramPtr[I_QUERYSTRING].control));
     search = StringTrim(searchUiQuery);
-
-    if (currentSearch) {
-		SearchDiscardResult(currentSearch);
-		MyFree((void *)currentSearch);
-    } 
 
 	if (search[0]) {
 		result = SearchLibrary(trackLibrary, search, currentResults);
@@ -280,6 +275,7 @@ static void SearchUiDoSearch(void * ptr)
 	} else {
 		SearchUiDefault();
 	}
+	MyFree(currentResults);
 }
 
 /**

@@ -2307,7 +2307,7 @@ EXPORT STATUS_T ExtendTrackFromOrig( track_p trk, wAction_t action, coOrd pos )
 			valid = TRUE;
 			if (action == C_MOVE)
 				InfoMessage( _("Curve: Length=%s Radius=%0.3f Arc=%0.3f"),
-						FormatDistance( d ), FormatDistance(tempSegs(0).u.c.radius), PutAngle( fabs(a) ) );
+						FormatDistance( d ), FormatDistance(tempSegs(0).u.c.radius), PutAngle( tempSegs(0).u.c.a1 ));
 			return C_CONTINUE;
 		} else {
 			d = FindDistance( end_pos, pos );
@@ -3459,7 +3459,7 @@ EXPORT void AddTrkDetails(drawCmd_p d,track_p trk,coOrd pos, DIST_T length, wDra
 					ANGLE_T angle;
 				} pos_angle_t;
 
-	DYNARR_SET(pos_angle_t,pos_array,division+1);
+	DYNARR_SET(pos_angle_t,pos_array,(int)division+1);
 	DYNARR_N(pos_angle_t,pos_array,0).pos = GetTrkEndPos(trk,0);
 	DYNARR_N(pos_angle_t,pos_array,0).angle = NormalizeAngle(GetTrkEndAngle(trk,0)+180.0);
 	for (int i=1;i<pos_array.cnt;i++) {
