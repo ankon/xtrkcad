@@ -80,13 +80,13 @@ static paramData_t structurePLs[] = {
 #define I_HIDE	(2)
 	{	PD_TOGGLE, &hideStructureWindow, "hide", PDO_DLGCMDBUTTON, /*CAST_AWAY_CONST*/(void*)hideLabels, NULL, BC_NOBORDER },
 #define I_MSGSCALE		(3)
-	{	PD_MESSAGE, NULL, NULL, 0, (void*)80 },
+	{	PD_MESSAGE, NULL, "mess1", 0, (void*)80 },
 #define I_MSGWIDTH		(4)
-	{	PD_MESSAGE, NULL, NULL, 0, (void*)80 },
+	{	PD_MESSAGE, NULL, "mess2", 0, (void*)80 },
 #define I_MSGHEIGHT		(5)
-	{	PD_MESSAGE, NULL, NULL, 0, (void*)80 } };
-static paramGroup_t structurePG = { "structure", 0, structurePLs, sizeof structurePLs/sizeof structurePLs[0] };
-
+	{	PD_MESSAGE, NULL, "mess3", 0, (void*)80 } };
+static paramGroup_t structurePG = { "structure", PGO_DIALOGTEMPLATE, structurePLs, sizeof structurePLs/sizeof structurePLs[0] };
+#endif
 
 
 /****************************************
@@ -493,9 +493,9 @@ static void ShowPierL( void )
 		controls[0] = (wControl_p)pierL;
 		controls[1] = NULL;
 		labels[0] = N_("Pier Number");
-		InfoSubstituteControls( controls, labels );
+		InfoSubstituteControls( controls, labels, pierPG.nameStr );
 	} else {
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 	}
 }
 
@@ -913,7 +913,7 @@ EXPORT STATUS_T CmdStructureAction(
 	case C_CANCEL:
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		Dst.state = 0;
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 		HotBarCancel();
 		/*wHide( newTurn.reg.win );*/
 		return C_TERMINATE;
@@ -925,7 +925,7 @@ EXPORT STATUS_T CmdStructureAction(
 	case C_OK:
 		DYNARR_RESET(trkSeg_t,anchors_da);
 		NewStructure();
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 		return C_TERMINATE;
 
 	case C_FINISH:

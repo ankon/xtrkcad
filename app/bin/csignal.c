@@ -235,10 +235,10 @@ static struct {
 
 typedef enum { NM, PS, OR, HD } signalDesc_e;
 static descData_t signalDesc[] = {
-    /* NM */ { DESC_STRING, N_("Name"),     &signalProperties.name, sizeof(signalProperties.name) },
-    /* PS */ { DESC_POS,    N_("Position"), &signalProperties.pos },
-    /* OR */ { DESC_ANGLE,  N_("Angle"),    &signalProperties.orient },
-    /* HD */ { DESC_LONG,   N_("Number Of Heads"), &signalProperties.heads },
+    /* NM */ { DESC_STRING, N_("Name"),     &signalProperties.name, "name", sizeof(signalProperties.name) },
+    /* PS */ { DESC_POS,    N_("Position"), &signalProperties.pos , "position"},
+    /* OR */ { DESC_ANGLE,  N_("Angle"),    &signalProperties.orient, "angle" },
+    /* HD */ { DESC_LONG,   N_("Number Of Heads"), &signalProperties.heads, "numberofheads" },
     { DESC_NULL } };
 
 static void UpdateSignalProperties ( track_p trk, int inx, descData_p
@@ -322,7 +322,7 @@ static void DescribeSignal (track_p trk, char * str, CSIZE_T len )
     signalProperties.heads = xx->numHeads;
     signalDesc[HD].mode = DESC_RO;
     signalDesc[NM].mode = DESC_NOREDRAW;
-    DoDescribe( _("Signal"), trk, signalDesc, UpdateSignalProperties );
+    DoDescribe( _("Signal"), "describe-signal", trk, signalDesc, UpdateSignalProperties );
 }
 
 static void DeleteSignal ( track_p trk )
@@ -525,7 +525,7 @@ static paramData_t signalEditPLs[] = {
 #define I_SIGNALASPECTDELETE (8)
     /*8*/ { PD_BUTTON, (void*)AspectDelete, "delete", 0, NULL, N_("Delete Aspect") },
 };
-static paramGroup_t signalEditPG = { "signalEdit", 0, signalEditPLs, sizeof signalEditPLs/sizeof signalEditPLs[0] };
+static paramGroup_t signalEditPG = { "signalEdit", F_USETEMPLATE, signalEditPLs, sizeof signalEditPLs/sizeof signalEditPLs[0] };
 static wWin_p signalEditW;
 
 static paramIntegerRange_t rm1_999999 = { -1, 999999 };
@@ -539,7 +539,7 @@ static paramData_t aspectEditPLs[] = {
     /*2*/ { PD_LONG,   &signalAspectEditIndex, "index", PDO_NOPREF, &rm1_999999, N_("Aspect Index"), BO_READONLY },
 };
 
-static paramGroup_t aspectEditPG = { "aspectEdit", 0, aspectEditPLs, sizeof aspectEditPLs/sizeof aspectEditPLs[0] };
+static paramGroup_t aspectEditPG = { "aspectEdit", F_USETEMPLATE, aspectEditPLs, sizeof aspectEditPLs/sizeof aspectEditPLs[0] };
 static wWin_p aspectEditW;
 
 
@@ -664,7 +664,7 @@ static void EditAspectDialog ( wIndex_t inx )
         aspectEditW = ParamCreateDialog (&aspectEditPG,
                                          MakeWindowTitle(_("Edit aspect")),
                                          _("Ok"), aspectEditOK,
-                                         wHide, TRUE, NULL,F_BLOCK,NULL);
+                                         wHide, TRUE, NULL,F_BLOCK|F_USETEMPLATE,NULL);
     }
     ParamLoadControls( &aspectEditPG );
     wShow( aspectEditW );
@@ -733,7 +733,7 @@ static void EditSignalDialog()
                                          MakeWindowTitle(_("Edit signal")),
                                          _("Ok"), SignalEditOk, 
                                          SignalEditCancel, TRUE, NULL, 
-                                         F_RESIZE|F_RECALLSIZE|F_BLOCK,
+                                         F_RESIZE|F_RECALLSIZE|F_BLOCK|F_USETEMPLATE,
                                          SignalEditDlgUpdate );
     }
     if (signalCreate_P) {

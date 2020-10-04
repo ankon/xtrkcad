@@ -159,6 +159,7 @@ static int verbose = 0;
 
 static wMenuList_p winList_mi;
 static BOOL_T inMainW = TRUE;
+static BOOL_T MainWindowTemplated = FALSE;
 
 static long stickySet = 0;
 static long stickyCnt = 0;
@@ -574,7 +575,7 @@ EXPORT void ErrorMessage(char * format, ...) {
 	format = ParseMessage(format);
 	vsprintf(message2, format, ap);
 	va_end(ap);
-	InfoSubstituteControls( NULL, NULL);
+	InfoSubstituteControls( NULL, NULL, NULL);
 	SetMessage(message2);
 	wBeep();
 	inError = TRUE;
@@ -890,7 +891,7 @@ static void NextWindow(void) {
 }
 
 EXPORT void SelectFont(void) {
-	wSelectFont(_("XTrackCAD Font"));
+	wSelectFont(_("XTrackCAD Font"), mainW);
 }
 
 /*****************************************************************************
@@ -1426,8 +1427,8 @@ static void DoCommandBIndirect(void * cmdInxP) {
 	DoCommandB((void*) (intptr_t) cmdInx);
 }
 
-EXPORT void LayoutSetPos(wIndex_t inx) {
-	wPos_t w, h, offset;
+EXPORT void LayoutSetPos(wIndex_t inx, wBool_t force) {
+	wPos_t w, h;
 	static wPos_t toolbarRowHeight = 0;
 	static wPos_t width;
 	static int lastGroup;
@@ -1445,6 +1446,42 @@ EXPORT void LayoutSetPos(wIndex_t inx) {
 		layerButtNumber = 0;
 		toolbarHeight = 0;
 	}
+
+	if(MainWindowTemplated) {
+		BOOL_T seperator = FALSE;
+		if (buttonList[inx].control) {
+			currGroup = buttonList[inx].group & ~BG_BIGGAP;
+			if (currGroup != lastGroup && (buttonList[inx].group & BG_BIGGAP)) {
+				seperator = currGroup+1;
+			}
+			if (currGroup != lastGroup) {
+				lastGroup = currGroup;
+			}
+			if (force) {
+				if ((buttonList[inx].group & ~BG_BIGGAP) != BG_LAYER) {
+					wControlShow(buttonList[inx].control, FALSE);
+				}
+			} else {
+				if ((toolbarSet & (1 << currGroup))
+					&& (programMode != MODE_TRAIN
+						|| (buttonList[inx].options
+								& (IC_MODETRAIN_TOO | IC_MODETRAIN_ONLY)))
+					&& (programMode == MODE_TRAIN
+							|| (buttonList[inx].options & IC_MODETRAIN_ONLY) == 0)
+					&& ((buttonList[inx].group & ~BG_BIGGAP) != BG_LAYER
+							|| layerButtCnt++ <= layerCount)) {
+						wControlSetPos(buttonList[inx].control, 0,0);
+						wControlShow(buttonList[inx].control, TRUE);
+				} else {
+					wControlShow(buttonList[inx].control, FALSE);
+				}
+			}
+
+		}
+		return;
+	}
+
+
 
 	if (buttonList[inx].control) {
 		if (toolbarRowHeight <= 0)
@@ -1504,11 +1541,16 @@ EXPORT void LayoutToolBar( void * data )
 {
 	int inx;
 
+
 	for (inx = 0; inx < buttonCnt; inx++) {
-		LayoutSetPos(inx);
+		LayoutSetPos(inx, FALSE);
 	}
-	if (toolbarSet&(1<<BG_HOTBAR)) {
-		LayoutHotBar(data);
+	if (MainWindowTemplated) {
+		wButtonToolBarRedraw(mainW);
+	}
+
+	if (toolbarSet & (1 << BG_HOTBAR)) {
+		LayoutHotBar();
 	} else {
 		HideHotBar();
 	}
@@ -1568,7 +1610,7 @@ EXPORT void AddToolbarControl(wControl_p control, long options) {
 	buttonList[buttonCnt].y = 0;
 	buttonList[buttonCnt].control = control;
 	buttonList[buttonCnt].cmdInx = -1;
-	LayoutSetPos(buttonCnt);
+	LayoutSetPos(buttonCnt, TRUE);
 	buttonCnt++;
 }
 
@@ -1589,8 +1631,19 @@ EXPORT wButton_p AddToolbarButton(char * helpStr, wIcon_p icon, long options,
 			}
 		}
 	}
-	bb = wButtonCreate(mainW, 0, 0, helpStr, (char*) icon,
-	BO_ICON/*|((options&IC_CANCEL)?BB_CANCEL:0)*/, 0, action, context);
+	if (MainWindowTemplated) {
+		long opt = 0L;
+		if (options&IC_ABUT)
+			opt = BO_ABUT;
+		if (cmdGroup&BG_BIGGAP)
+			opt = BO_GAP;
+		bb = wButtonCreateForToolbar(mainW,0,0,helpStr, (char*) icon,
+				opt|BO_ICON|BO_USETEMPLATE, 0, action, context);
+	} else {
+		bb = wButtonCreate(mainW, 0, 0, helpStr, (char*) icon,
+		BO_ICON/*|((options&IC_CANCEL)?BB_CANCEL:0)*/, 0, action, context);
+
+	}
 	AddToolbarControl((wControl_p) bb, options);
 	return bb;
 }
@@ -1850,8 +1903,8 @@ static wWin_p stickyW;
 
 static void StickyOk(void *);
 static paramData_t stickyPLs[] = { { PD_TOGGLE, &stickySet, "set", 0,
-		stickyLabels } };
-static paramGroup_t stickyPG = { "sticky", PGO_RECORD, stickyPLs,
+		stickyLabels, NULL, BC_REBUILDBUTTONS} };
+static paramGroup_t stickyPG = { "sticky", PGO_DIALOGTEMPLATE | PGO_RECORD, stickyPLs,
 		sizeof stickyPLs / sizeof stickyPLs[0] };
 
 static void StickyOk(void * junk) {
@@ -1933,7 +1986,7 @@ static void DoAddElev(void *);
 static paramFloatRange_t rn1000_1000 = { -1000.0, 1000.0 };
 static paramData_t addElevPLs[] = { { PD_FLOAT, &addElevValueV, "value",
 		PDO_DIM, &rn1000_1000, NULL, 0 } };
-static paramGroup_t addElevPG = { "addElev", 0, addElevPLs, sizeof addElevPLs
+static paramGroup_t addElevPG = { "addelev", PGO_DIALOGTEMPLATE, addElevPLs, sizeof addElevPLs
 		/ sizeof addElevPLs[0] };
 
 static void DoAddElev(void * junk) {
@@ -2702,6 +2755,7 @@ static void CreateMenus(void) {
 	cmdGroup = BG_HOTBAR;
 	InitHotBar();
 
+
 #ifdef LATER
 #ifdef WINDOWS
 	wAttachAccelKey( wAccelKey_Pgdn, 0, (wAccelKeyCallBack_p)DoZoomUp, (void*)1 );
@@ -2927,10 +2981,14 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 	wGetDisplaySize(&displayWidth, &displayHeight);
 	mainW = wWinMainCreate(buffer, (displayWidth * 2) / 3,
 			(displayHeight * 2) / 3, "xtrkcadW", message, "main",
-			F_RESIZE | F_MENUBAR | F_NOTAB | F_RECALLPOS | F_RECALLSIZE | F_HIDE, MainProc,
+			F_RESIZE | F_MENUBAR | F_NOTAB | F_RECALLPOS | F_HIDE |F_USETEMPLATE, MainProc,
 			NULL);
 	if (mainW == NULL)
 		return NULL;
+
+	/* Test to see if the back-end supports templates */
+	if (wUITemplates())
+		MainWindowTemplated = TRUE;
 
 	InitAppDefaults();
 	drawColorBlack  = wDrawFindColor( wRGB(  0,  0,  0) );
@@ -3125,7 +3183,8 @@ EXPORT wWin_p wMain(int argc, char * argv[]) {
 			LayoutBackGroundInit(TRUE);     // If onStartup==1 and no initial file - Wipe Out Prior Background
 
 	}
-	MainRedraw();
+	programMode = MODE_DESIGN;
+	LayoutToolBar();
 	inMainW = FALSE;
 	return mainW;
 }

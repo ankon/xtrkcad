@@ -98,7 +98,7 @@ static paramData_t turnoutPLs[] = {
 #define I_HIDE		(3)
 #define turnoutHideT    ((wChoice_p)turnoutPLs[I_HIDE].control)
 	{   PD_TOGGLE, &hideTurnoutWindow, "hide", PDO_DLGCMDBUTTON, /*CAST_AWAY_CONST*/(void*)hideLabels, NULL, BC_NOBORDER } };
-static paramGroup_t turnoutPG = { "turnout", 0, turnoutPLs, sizeof turnoutPLs/sizeof turnoutPLs[0] };
+static paramGroup_t turnoutPG = { "turnout", PGO_DIALOGTEMPLATE, turnoutPLs, sizeof turnoutPLs/sizeof turnoutPLs[0] };
 #endif
 
 
@@ -2060,6 +2060,7 @@ static void TurnoutChange( long changes )
 	maxTurnoutDim.x += 2*trackGauge;
 	maxTurnoutDim.y += 2*trackGauge;
 	/*RescaleTurnout();*/
+	curTurnoutEp = 0;
 	RedrawTurnout();
 	return;
 }
@@ -2099,6 +2100,7 @@ static void TurnoutDlgUpdate(
 	to = (turnoutInfo_t*)wListGetItemContext( (wList_p)pg->paramPtr[inx].control, (wIndex_t)*(long*)valueP );
 	AddTurnout();
 	curTurnout = to;
+	curTurnoutEp = 0;
 	RedrawTurnout();
 /*	ParamDialogOkActive( &turnoutPG, FALSE ); */
 }
@@ -2144,7 +2146,8 @@ static void SelTurnoutEndPt(
 	if (action != C_DOWN) return;
 
 	curTurnoutEp = TOpickEndPoint( pos, curTurnout );
-	HilightEndPt();
+	//HilightEndPt();
+	RedrawTurnout();
 LOG( log_turnout, 3, (" selected (action=%d) %ld\n", action, curTurnoutEp ) )
 }
 #endif
@@ -2915,6 +2918,7 @@ static STATUS_T CmdTurnout(
 		if (turnoutIndex > 0 && turnoutPtr) {
 			curTurnout = turnoutPtr;
 			wListSetIndex( turnoutListL, turnoutIndex );
+			curTurnoutEp = 0;
 			RedrawTurnout();
 		}
 		InfoMessage( _("Pick turnout and active End Point, then place on the layout"));

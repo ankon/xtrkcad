@@ -2898,9 +2898,9 @@ static void SetupTurnoutDesignerW( toDesignDesc_t * newDesign )
 		turnDesignPLs[I_TORDESC+1].winData =
 			(void*)(intptr_t)partnoWidth;
 		partnoWidth += wLabelWidth( " # " );
-		newTurnW = ParamCreateDialog( &turnDesignPG, _("Turnout Designer"), _("Print"), NewTurnPrint, NewTurnCancel, TRUE, TurnDesignLayout, F_BLOCK, NULL );
+		newTurnW = ParamCreateDialog( &turnDesignPG, _("Turnout Designer"), _("Print"), NewTurnPrint, NewTurnCancel, TRUE, TurnDesignLayout, F_BLOCK|F_USETEMPLATE, NULL );
 		for ( inx=0; inx<(sizeof designDescs/sizeof designDescs[0]); inx++ ) {
-			designDescs[inx]->lineC = wLineCreate( turnDesignPG.win, NULL, designDescs[inx]->lineCnt, designDescs[inx]->lines );
+			designDescs[inx]->lineC = wLineCreate( turnDesignPG.win, turnDesignPG.nameStr, designDescs[inx]->lineCnt, designDescs[inx]->lines );
 			wControlShow( (wControl_p)designDescs[inx]->lineC, FALSE );
 		}
 	}

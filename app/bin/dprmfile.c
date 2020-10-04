@@ -90,7 +90,7 @@ static paramData_t paramFilePLs[] = {
 
 };
 
-static paramGroup_t paramFilePG = { "prmfile", 0, paramFilePLs, sizeof paramFilePLs/sizeof paramFilePLs[0] };
+static paramGroup_t paramFilePG = { "prmfile", PGO_DIALOGTEMPLATE, paramFilePLs, sizeof paramFilePLs/sizeof paramFilePLs[0] };
 
 #define MESSAGETEXT ((wMessage_p)paramFilePLs[I_MESSAGE].control)
 

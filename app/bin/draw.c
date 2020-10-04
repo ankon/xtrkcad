@@ -114,7 +114,6 @@ EXPORT wDrawColor drawColorGrey80;
 EXPORT wDrawColor drawColorGrey90;
 
 
-
 EXPORT DIST_T pixelBins = 80;
 
 /****************************************************************************
@@ -564,6 +563,7 @@ EXPORT void DrawHilight( drawCmd_p d, coOrd p, coOrd s, BOOL_T add )
 		wDrawFilledRectangle( d->d, x, y, w, h, selectedColor, wDrawOptTemp|wDrawOptTransparent );
 
 }
+
 
 EXPORT void DrawHilightPolygon( drawCmd_p d, coOrd *p, int cnt )
 {
@@ -1046,6 +1046,7 @@ static wPos_t messageOrControlY = 0;
 static wControl_p curInfoControl[NUM_INFOCTL];
 static wPos_t curInfoLabelWidth[NUM_INFOCTL];
 
+
 /**
  * Determine the width of a mouse pointer position string ( coordinate plus label ).
  *
@@ -1112,18 +1113,18 @@ EXPORT void InitInfoBar( void )
 	boxH = infoHeight;
 		x = 2;
 		infoD.scale_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.scale_w, boxH );
-		infoD.scale_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarScale", infoD.scale_w-six, zoomLabel);
-		x += infoD.scale_w + 2;
+		infoD.scale_m = wStatusCreate( mainW, x+info_xm_offset, ym, "main-infoBarScale", "infoBarScale", infoD.scale_w-six, zoomLabel);
+		x += infoD.scale_w + 10;
 		infoD.posX_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.pos_w, boxH );
-		infoD.posX_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarPosX", infoD.pos_w-six, xLabel );
-		x += infoD.pos_w + 2;
+		infoD.posX_m = wStatusCreate( mainW, x+info_xm_offset, ym, "main-infoBarPosX", "infoBarPosX", infoD.pos_w-six, xLabel );
+		x += infoD.pos_w + 5;
 		infoD.posY_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.pos_w, boxH );
-		infoD.posY_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarPosY", infoD.pos_w-six, yLabel );
-		x += infoD.pos_w + 2;
+		infoD.posY_m = wStatusCreate( mainW, x+info_xm_offset, ym, "main-infoBarPosY", "infoBarPosY", infoD.pos_w-six, yLabel );
+		x += infoD.pos_w + 10;
 		messageOrControlX = x+info_xm_offset;									//Remember Position
 		messageOrControlY = ym;
 		infoD.info_b = wBoxCreate( mainW, x, yb, NULL, wBoxBelow, infoD.info_w, boxH );
-		infoD.info_m = wStatusCreate( mainW, x+info_xm_offset, ym, "infoBarStatus", infoD.info_w-six, "" );
+		infoD.info_m = wStatusCreate( mainW, x+info_xm_offset, ym, "main-infoBarStatus", "infoBarStatus", infoD.info_w-six, "" );
 }
 
 
@@ -1170,6 +1171,7 @@ static void SetInfoBar( void )
 		messageOrControlY = ym;
 		if (curInfoControl[0]) {
 			for ( inx=0; curInfoControl[inx]; inx++ ) {
+				wStatusAttachControl(mainW,curInfoControl[inx]);
 				x += curInfoLabelWidth[inx];
 				int y_this = ym + (textHeight/2) - (wControlGetHeight( curInfoControl[inx] )/2);
 				wControlSetPos( curInfoControl[inx], x, y_this );
@@ -1210,13 +1212,19 @@ EXPORT void InfoPos( coOrd pos )
 
 static wControl_p deferSubstituteControls[NUM_INFOCTL+1];
 static char * deferSubstituteLabels[NUM_INFOCTL];
+static char substitute_id[256];
 
 EXPORT void InfoSubstituteControls(
 		wControl_p * controls,
-		char ** labels )
+		char ** labels ,
+		char * id)
 {
 	wPos_t x, y;
 	int inx;
+
+	if (id)
+		wStatusRevealControlSet(mainW,id);  /* Unhide this set */
+
 	for ( inx=0; inx<NUM_INFOCTL; inx++ ) {
 		if (curInfoControl[inx]) {
 			wControlShow( curInfoControl[inx], FALSE );
@@ -1225,7 +1233,9 @@ EXPORT void InfoSubstituteControls(
 		curInfoLabelWidth[inx] = 0;
 		curInfoControl[inx] = NULL;
 	}
+
 	if ( inError && ( controls!=NULL && controls[0]!=NULL) ) {
+		sprintf(substitute_id, "%s",id);
 		memcpy( deferSubstituteControls, controls, sizeof deferSubstituteControls );
 		memcpy( deferSubstituteLabels, labels, sizeof deferSubstituteLabels );
 	}
@@ -2390,6 +2400,7 @@ LOG( log_pan, 1, ( "START %0.3fx%0.3f %0.3f+%0.3f\n", mapOrig.x, mapOrig.y, size
 	case C_RMOVE:
 		if ( mode != resizePan )
 			break;
+		//DrawHilight( &mapD, newOrig, size );
 		if (pos.x < 0)
 			pos.x = 0;
 		if (pos.x > mapD.size.x)
@@ -2569,7 +2580,7 @@ static void DoMouse( wAction_t action, coOrd pos )
 
 	inError = FALSE;
 	if ( deferSubstituteControls[0] )
-		InfoSubstituteControls( deferSubstituteControls, deferSubstituteLabels );
+		InfoSubstituteControls( deferSubstituteControls, deferSubstituteLabels, substitute_id );
 
 //	panCenter.y = mainD.orig.y + mainD.size.y/2;
 //	panCenter.x = mainD.orig.x + mainD.size.x/2;
@@ -2805,7 +2816,7 @@ static wBool_t PlaybackKey( char * line )
 static paramDrawData_t mapDrawData = { 100, 100, (wDrawRedrawCallBack_p)MapRedraw, DoMapPan, &mapD };
 static paramData_t mapPLs[] = {
 	{	PD_DRAW, NULL, "canvas", 0, &mapDrawData } };
-static paramGroup_t mapPG = { "map", PGO_NODEFAULTPROC, mapPLs, sizeof mapPLs/sizeof mapPLs[0] };
+static paramGroup_t mapPG = { "map", PGO_NODEFAULTPROC|PGO_DIALOGTEMPLATE, mapPLs, sizeof mapPLs/sizeof mapPLs[0] };
 
 static void MapDlgUpdate(
 		paramGroup_p pg,
@@ -2879,7 +2890,7 @@ EXPORT void DrawInit( int initialZoom )
 	h = h - (toolbarHeight+max(textHeight,infoHeight)+10);
 	if ( w <= 0 ) w = 1;
 	if ( h <= 0 ) h = 1;
-	tempD.d = mainD.d = wDrawCreate( mainW, 0, toolbarHeight, "", BD_TICKS|BD_MODKEYS,
+	tempD.d = mainD.d = wDrawCreate( mainW, 0, toolbarHeight, "main-maindraw", BD_TICKS|BO_USETEMPLATE,
 												w, h, &mainD,
 				(wDrawRedrawCallBack_p)MainLayoutCB, DoMousew );
 

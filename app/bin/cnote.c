@@ -38,7 +38,7 @@ static paramData_t notePLs[] = {
 #define noteT			((wText_p)notePLs[I_NOTETEXT].control)
     {	PD_TEXT, NULL, "text", PDO_DLGRESIZE, &noteTextData }
 };
-static paramGroup_t notePG = { "note", 0, notePLs, sizeof notePLs/sizeof notePLs[0] };
+static paramGroup_t notePG = { "note", PGO_DIALOGTEMPLATE, notePLs, sizeof notePLs/sizeof notePLs[0] };
 
 
 void ClearNote(void)

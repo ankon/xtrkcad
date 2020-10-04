@@ -134,7 +134,7 @@ static paramData_t displayPLs[] = {
 	{ PD_LONG, &trainPause, "trainpause", PDO_NOPSHUPD, &i10_1000 , N_("Train Update Delay"), 0, 0 },
 	{ PD_TOGGLE, &hideTrainsInTunnels, "hideTrainsInTunnels", PDO_NOPSHUPD, hideTrainsInTunnelsLabels, "", BC_HORZ }
  };
-static paramGroup_t displayPG = { "display", PGO_RECORD|PGO_PREFMISC, displayPLs, sizeof displayPLs/sizeof displayPLs[0] };
+static paramGroup_t displayPG = { "display", PGO_DIALOGTEMPLATE |PGO_RECORD|PGO_PREFMISC, displayPLs, sizeof displayPLs/sizeof displayPLs[0] };
 
 
 static void DisplayOk( void * junk )
@@ -249,7 +249,7 @@ EXPORT paramData_t cmdoptPLs[] = {
 	{ PD_RADIO, &selectMode, "selectmode", PDO_NOPSHUPD, selectLabels, N_("Select Mode"), 0},
 	{ PD_TOGGLE, &selectZero, "selectzero", PDO_NOPSHUPD, selectZeroLabels, "", 0 }
 	};
-static paramGroup_t cmdoptPG = { "cmdopt", PGO_RECORD|PGO_PREFMISC, cmdoptPLs, sizeof cmdoptPLs/sizeof cmdoptPLs[0] };
+static paramGroup_t cmdoptPG = { "cmdopt", PGO_DIALOGTEMPLATE | PGO_RECORD|PGO_PREFMISC, cmdoptPLs, sizeof cmdoptPLs/sizeof cmdoptPLs[0] };
 
 static void CmdoptOk( void * junk )
 {
@@ -321,7 +321,7 @@ static paramData_t prefPLs[] = {
 	{ PD_LONG, &autosaveChkPoints, "autosave", PDO_NOPSHUPD|PDO_FILE, &i0_99, N_("Autosave Checkpoint Frequency") },
 	{ PD_RADIO, &onStartup, "onstartup", PDO_NOPSHUPD, startOptions, N_("On Program Startup"), 0, NULL }
 	};
-static paramGroup_t prefPG = { "pref", PGO_RECORD|PGO_PREFMISC, prefPLs, sizeof prefPLs/sizeof prefPLs[0] };
+static paramGroup_t prefPG = { "pref", PGO_DIALOGTEMPLATE |PGO_RECORD|PGO_PREFMISC, prefPLs, sizeof prefPLs/sizeof prefPLs[0] };
 
 
 typedef struct {
@@ -536,7 +536,7 @@ static paramData_t colorPLs[] = {
 	{ PD_COLORLIST, &profilePathColor, "profile", PDO_NOPSHUPD, NULL, N_("Profile Path"), 0, (void*)(CHANGE_MAIN) },
 	{ PD_COLORLIST, &exceptionColor, "exception", PDO_NOPSHUPD, NULL, N_("Exception Track"), 0, (void*)(CHANGE_MAIN) },
 	{ PD_COLORLIST, &tieColor, "tie", PDO_NOPSHUPD, NULL, N_("Track Ties"), 0, (void*)(CHANGE_MAIN) } };
-static paramGroup_t colorPG = { "rgbcolor", PGO_RECORD|PGO_PREFGROUP, colorPLs, sizeof colorPLs/sizeof colorPLs[0] };
+static paramGroup_t colorPG = { "rgbcolor", PGO_DIALOGTEMPLATE | PGO_RECORD | PGO_PREFGROUP, colorPLs, sizeof colorPLs/sizeof colorPLs[0] };
 
 
 

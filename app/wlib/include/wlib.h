@@ -63,7 +63,7 @@ typedef struct wFont_t      * wFont_p;
 typedef struct wBitmap_t	* wBitmap_p;
 typedef struct wStatus_t    * wStatus_p;
 typedef int wDrawWidth;
-typedef int wDrawColor;
+typedef long wDrawColor;
 
 typedef struct {
 	const char * name;
@@ -73,12 +73,13 @@ typedef struct {
 extern long debugWindow;
 extern long wDebugFont;
 
+
 /*------------------------------------------------------------------------------
  *
  * Bitmap Controls bitmap.c
  */
 
-wControl_p wBitmapCreate(wWin_p parent, wPos_t x, wPos_t y, long options, wIcon_p iconP);
+wControl_p wBitmapCreate(wWin_p parent, wPos_t x, wPos_t y, char * helpStr, long options, wIcon_p iconP);
 wIcon_p wIconCreateBitMap(wPos_t w, wPos_t h, const char *bits, wDrawColor color);
 wIcon_p wIconCreatePixMap(char *pm[]);
 void wIconSetColor(wIcon_p ip, wDrawColor color);
@@ -126,9 +127,11 @@ typedef void (*wChoiceCallBack_p)( long, void * );
 #define BC_HORZ 	(1L<<22)
 #define BC_NONE 	(1L<<19)
 #define BC_NOBORDER 	(1L<<15)
+#define BC_REBUILDBUTTONS (1L<<16)
 
 void wButtonSetLabel(wButton_p bb, const char *labelStr);
 void wButtonSetBusy(wButton_p bb, int value);
+wButton_p wButtonCreateForToolbar(wWin_p parent, wPos_t x, wPos_t y, const char *helpStr, const char *labelStr, long option, wPos_t width, wButtonCallBack_p action, void *data);
 wButton_p wButtonCreate(wWin_p parent, wPos_t x, wPos_t y, const char *helpStr, const char *labelStr, long option, wPos_t width, wButtonCallBack_p action, void *data);
 void wRadioSetValue(wChoice_p bc, long value);
 long wRadioGetValue(wChoice_p bc);
@@ -136,12 +139,14 @@ void wToggleSetValue(wChoice_p bc, long value);
 long wToggleGetValue(wChoice_p b);
 wChoice_p wRadioCreate(wWin_p parent, wPos_t x, wPos_t y, const char *helpStr, const char *labelStr, long option, const char **labels, long *valueP, wChoiceCallBack_p action, void *data);
 wChoice_p wToggleCreate(wWin_p parent, wPos_t x, wPos_t y, const char *helpStr, const char *labelStr, long option, const char **labels, long *valueP, wChoiceCallBack_p action, void *data);
-
+void wButtonToolBarRedraw(wWin_p parent);
 
 /*------------------------------------------------------------------------------
  *
  * System Interface
  */
+
+wBool_t wUITemplates();
 
 void wInitAppName(char *appName);
 
@@ -192,6 +197,7 @@ typedef enum {	wCursorNormal,
 		wCursorIBeam,
 		wCursorCross,
 		wCursorQuestion } wCursor_t;
+
 void wSetCursor( wDraw_p, wCursor_t );
 #define defaultCursor wCursorCross
 
@@ -200,6 +206,7 @@ const char * wMemStats( void );
 #define WKEY_SHIFT	(1<<1)
 #define WKEY_CTRL	(1<<2)
 #define WKEY_ALT	(1<<3)
+#define WKEY_CMD    (1<<4)
 int wGetKeyState(		void );
 
 void wGetDisplaySize(		wPos_t*, wPos_t* );
@@ -231,6 +238,9 @@ typedef enum {
 typedef void (*wWinCallBack_p)( wWin_p, winProcEvent, void *, void * );
 
 /* Creation Options */
+#define F_DESCTEMPLATE (1L<<16)
+#define F_DESCADDTEMPLATE (1L<<17)
+#define F_USETEMPLATE (1L<<18)
 #define F_AUTOSIZE	(1L<<1)
 #define F_HEADER 	(1L<<2)
 #define F_RESIZE 	(1L<<3)
@@ -244,7 +254,7 @@ typedef void (*wWinCallBack_p)( wWin_p, winProcEvent, void *, void * );
 #define F_HIDE		(1L<<13)
 #define F_MAXIMIZE  (1L<<14)
 #define F_RESTRICT  (1L<<15)
-#define F_NOTTRANSIENT (1L<<16)
+#define F_CONSTRAINRESIZE (1L<<19)
 
 wWin_p wWinMainCreate(	        const char *, wPos_t, wPos_t, const char *, const char *, const char *,
 				long, wWinCallBack_p, void * );
@@ -273,6 +283,8 @@ int wCreateSplash( char *appName, char *appVer );
 int wSetSplashInfo( char *msg );
 void wDestroySplash( void );
 
+void wlibHideAllRevealsExcept(wWin_p win,char * id);
+void wlibRedraw(wWin_p win);
 /*------------------------------------------------------------------------------
  *
  * Controls in general
@@ -284,8 +296,15 @@ void wDestroySplash( void );
 #define BO_READONLY	(1L<<2)
 #define BO_NOTAB	(1L<<8)
 #define BO_BORDER	(1L<<9)
-#define BO_ENTER    (1L<<10)
-#define BO_REPEAT   (1L<<11)
+#define BO_USETEMPLATE (1L<<3)
+#define BO_GRID       (1L<<13)
+#define BO_DESCTEMPLATE (1L<<10)
+#define BO_DESCADDTEMPLATE (1L<<11)
+#define BO_REVEAL   (1L<<4)
+#define BO_TOOLBAR  (1L<<5)
+#define BO_ABUT     (1L<<6)
+#define BO_GAP      (1L<<7)
+#define BO_ENTER    (1L<<14)
 
 wPos_t wLabelWidth(		const char * );
 const char * wControlGetHelp(		wControl_p );
@@ -296,6 +315,8 @@ wPos_t wControlGetHeight(	wControl_p );
 wPos_t wControlGetPosX(		wControl_p );
 wPos_t wControlGetPosY(		wControl_p );
 void wControlSetPos(		wControl_p, wPos_t, wPos_t );
+void wControlSetDescribeGrid( wControl_p, wWin_p, int col, int row);
+void wControlResetDescribeGrid(     wWin_p);
 void wControlSetFocus(		wControl_p );
 void wControlActive(		wControl_p, wBool_t );
 void wControlSetBalloon(	wControl_p, wPos_t, wPos_t, const char * );
@@ -369,7 +390,7 @@ wList_p wListCreate(		wWin_p, wPos_t, wPos_t, const char *, const char *, long,
 				long, wPos_t, int, wPos_t *, wBool_t *, const char **, long *, wListCallBack_p, void * );
 wList_p wDropListCreate(	wWin_p, wPos_t, wPos_t, const char *, const char *, long,
 				long, wPos_t, long *, wListCallBack_p, void * );
-				
+
 wList_p wComboListCreate(wWin_p parent, wPos_t x, wPos_t y, const char *helpStr, const char *labelStr, long option, long number, wPos_t width, long *valueP, wListCallBack_p action, void *data);	
 void wListClear(wList_p b);
 void wListSetIndex(wList_p b, int element);
@@ -405,7 +426,7 @@ void wListSetEditable(		wList_p, wBool_t );
 #define wMessageSetFont( x ) ( x & (BM_LARGE | BM_SMALL ))
 
 #define wMessageCreate( w, p1, p2, l, p3, m ) wMessageCreateEx( w, p1, p2, l, p3, m, 0 )
-wMessage_p wMessageCreateEx(	wWin_p, wPos_t, wPos_t, const char *,
+wMessage_p wMessageCreateEx(	wWin_p, wPos_t, wPos_t, const char *, const char *,
 				wPos_t, const char *, long );
 
 void wMessageSetValue(		wMessage_p, const char * );
@@ -513,9 +534,11 @@ typedef int wAction_t;
 #define wActionScrollRight (17)
 #define wActionLast		wActionScrollRight
 
-
-#define wRGB(R,G,B)\
-	(long)(((((long)(R)<<16))&0xFF0000L)|((((long)(G))<<8)&0x00FF00L)|(((long)(B))&0x0000FFL))
+/* Remember to set the A to full on in RGB */
+#define wRGB(R,G,B) \
+	(long)((0xFF000000L)|((((long)(R)<<16))&0xFF0000L)|((((long)(G))<<8)&0x00FF00L)|(((long)(B))&0x0000FFL))
+#define wRGBA(R,G,B,A) \
+	(long)(((((long)(A)<<24))&0xFF000000L)|((((long)(R)<<16))&0xFF0000L)|((((long)(G))<<8)&0x00FF00L)|(((long)(B))&0x0000FFL))
 
 
 /* Creation CallBacks */
@@ -527,7 +550,8 @@ typedef void (*wDrawActionCallBack_p)(	wDraw_p, void*, wAction_t, wPos_t, wPos_t
 #define BD_DIRECT	(1L<<26)
 #define BD_NOCAPTURE (1L<<27)
 #define BD_NOFOCUS  (1L<<28)
-#define BD_MODKEYS  (1L<<29)
+#define BD_RESIZEABLE (1L<<29)
+#define BD_MODKEYS  (1L<<30)
 
 /* Create: */
 wDraw_p wDrawCreate(		wWin_p, wPos_t, wPos_t, const char *, long,
@@ -593,7 +617,7 @@ void wDrawShowBackground(   wDraw_p, wPos_t pos_x, wPos_t pos_y, wPos_t width, w
  * Fonts
  */
 void wInitializeFonts();
-void wSelectFont(		const char * );
+void wSelectFont(		const char *, wWin_p win );
 wFontSize_t wSelectedFontSize(	void );
 void wSetSelectedFontSize(wFontSize_t size);
 #define F_TIMES	(1)
@@ -784,15 +808,30 @@ wStatus_p wStatusCreate(
     wWin_p	parent,
     wPos_t	x,
     wPos_t	y,
+	const char * helpStr,
     const char 	* labelStr,
     wPos_t	width,
     const char	*message );
+
+wStatus_p wStatusGridCreate(
+    wWin_p	parent,
+    int	pos,
+    const char 	* labelStr,
+    const char	*message);
+
+void wStatusBarInit(wWin_p parent);
+void wStatusBarAddStatus(wStatus_p status, int pos, wBool_t expand);
 
 wPos_t wStatusGetWidth(const char *testString);
 wPos_t wStatusGetHeight(long flags);
 
 void wStatusSetValue(wStatus_p b, const char * arg);
 void wStatusSetWidth(wStatus_p b, wPos_t width);
+
+void wStatusClearControls(wWin_p win);
+void wStatusAttachControl(wWin_p win, wControl_p b);
+void wStatusRevealControlSet(wWin_p win, char *id);
+
 
 /*-------------------------------------------------------------------------------
  * User Preferences

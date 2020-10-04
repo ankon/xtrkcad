@@ -718,7 +718,7 @@ static paramData_t profilePLs[] = {
 #define I_PRINTBUTTON 5
     {	PD_BUTTON, (void*)DoProfilePrint, "print", 0, NULL, N_("Print") }
 };
-static paramGroup_t profilePG = { "profile", 0, profilePLs, sizeof profilePLs/sizeof profilePLs[0] };
+static paramGroup_t profilePG = { "profile", PGO_DIALOGTEMPLATE, profilePLs, sizeof profilePLs/sizeof profilePLs[0] };
 
 #define CHANGEBUTTON  ((wButton_p)profilePLs[I_CHANGEBUTTON].control)
 #define RESETBUTTON  ((wButton_p)profilePLs[I_RESETBUTTON].control)

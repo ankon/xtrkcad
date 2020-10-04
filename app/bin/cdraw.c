@@ -1057,6 +1057,7 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 	trkSeg_p segPtr;
 	int inx;
 	char * title = NULL;
+	char * template_id = "describe-draw";
 	char * polyType = NULL;
 
 
@@ -1287,7 +1288,7 @@ static void DescribeDraw( track_p trk, char * str, CSIZE_T len )
 
 
 
-	DoDescribe( title, trk, drawDesc, UpdateDraw );
+	DoDescribe( title, template_id, trk, drawDesc, UpdateDraw );
 	if ( segPtr->type==SEG_BENCH && drawDesc[BE].control0!=NULL && drawDesc[OR].control0!=NULL) {
 		BenchLoadLists( (wList_p)drawDesc[BE].control0, (wList_p)drawDesc[OR].control0 );
 		wListSetIndex( (wList_p)drawDesc[BE].control0, drawData.benchChoice );
@@ -2608,7 +2609,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 			sprintf( labelName, _("%s Color"), _(objectName[drawCmdContext.Op]) );
 			labels[0] = labelName;
 			ParamLoadControls( &drawPG );
-			InfoSubstituteControls( controls, labels );
+			InfoSubstituteControls( controls, labels, drawPG.nameStr );
 			drawColorPD.option &= ~PDO_NORECORD;
 			break;
 		case OP_BENCH:
@@ -2625,7 +2626,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 			ParamLoadControls( &drawPG );
 			BenchUpdateOrientationList( (long)wListGetItemContext( (wList_p)drawBenchChoicePD.control, benchChoice ), (wList_p)drawBenchOrientPD.control );
 			wListSetIndex( (wList_p)drawBenchOrientPD.control, benchOrient );
-			InfoSubstituteControls( controls, labels );
+			InfoSubstituteControls( controls, labels, drawPG.nameStr );
 			drawBenchColorPD.option &= ~PDO_NORECORD;
 			drawBenchChoicePD.option &= ~PDO_NORECORD;
 			drawBenchOrientPD.option &= ~PDO_NORECORD;
@@ -2642,14 +2643,15 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 				wListAddValue( (wList_p)drawDimArrowSizePD.control, _("Large"), NULL, NULL );
 			}
 			ParamLoadControls( &drawPG );
-			InfoSubstituteControls( controls, labels );
+			InfoSubstituteControls( controls, labels, drawPG.nameStr );
 			drawDimArrowSizePD.option &= ~PDO_NORECORD;
 			break;
 		case OP_TBLEDGE:
+			InfoSubstituteControls( NULL, NULL, NULL);
 			InfoMessage( _("Drag to create Table Edge") );
 			break;
 		default:
-			InfoSubstituteControls( NULL, NULL );
+			InfoSubstituteControls( NULL, NULL, NULL );
 			infoSubst = FALSE;
 		}
 		ParamGroupRecord( &drawPG );
@@ -2676,7 +2678,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 			drawCmdContext.Color = lineColor;
 		}
 		if ( infoSubst ) {
-			InfoSubstituteControls( NULL, NULL );
+			InfoSubstituteControls( NULL, NULL, NULL );
 			infoSubst = FALSE;
 		}
 		/* no break */
@@ -2781,7 +2783,7 @@ static STATUS_T CmdDraw( wAction_t action, coOrd pos )
 		return rc;
 
 	case C_CANCEL:
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 		if (drawCmdContext.Op == OP_BEZLIN) return CmdBezCurve(act2, pos);
 		return DrawGeomMouse( action, pos, &drawCmdContext);
 	case C_TEXT:
