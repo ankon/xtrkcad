@@ -247,10 +247,10 @@ static struct {
 		} trntblData;
 typedef enum { OR, RA, EC, LY } trntblDesc_e;
 static descData_t trntblDesc[] = {
-/*OR*/	{ DESC_POS, N_("Origin: X"), &trntblData.orig },
-/*RA*/	{ DESC_DIM, N_("Diameter"), &trntblData.diameter },
-/*EC*/	{ DESC_LONG, N_("# EndPt"), &trntblData.epCnt },
-/*LY*/	{ DESC_LAYER, N_("Layer"), &trntblData.layerNumber },
+/*OR*/	{ DESC_POS, N_("Origin: X,Y"), &trntblData.orig, "origin" },
+/*RA*/	{ DESC_DIM, N_("Diameter"), &trntblData.diameter, "diameter" },
+/*EC*/	{ DESC_LONG, N_("# EndPt"), &trntblData.epCnt, "endpts" },
+/*LY*/	{ DESC_LAYER, N_("Layer"), &trntblData.layerNumber, "layer" },
 		{ DESC_NULL } };
 
 
@@ -298,7 +298,7 @@ static void DescribeTurntable( track_p trk, char * str, CSIZE_T len )
 		trntblData.epCnt>0?DESC_RO:0;
 	trntblDesc[EC].mode = DESC_RO;
 	trntblDesc[LY].mode = DESC_NOREDRAW;
-	DoDescribe( _("Turntable"), trk, trntblDesc, UpdateTurntable );
+	DoDescribe( _("Turntable"), "describe-turntable", trk, trntblDesc, UpdateTurntable );
 }
 
 static void DeleteTurntable( track_p t )
@@ -855,7 +855,7 @@ static STATUS_T CmdTurntable( wAction_t action, coOrd pos )
 		controls[0] = turntableDiameterPD.control;
 		controls[1] = NULL;
 		labels[0] = N_("Diameter");
-		InfoSubstituteControls( controls, labels );
+		InfoSubstituteControls( controls, labels, turntablePG.nameStr );
 		/*InfoMessage( "Place Turntable");*/
 		state = 0;
 		return C_CONTINUE;
@@ -869,7 +869,7 @@ static STATUS_T CmdTurntable( wAction_t action, coOrd pos )
 		controls[0] = turntableDiameterPD.control;
 		controls[1] = NULL;
 		labels[0] = N_("Diameter");
-		InfoSubstituteControls( controls, labels );
+		InfoSubstituteControls( controls, labels, turntablePG.nameStr );
 		ParamLoadData( &turntablePG );
 		pos0 = pos;
 		state = 1;
@@ -886,7 +886,7 @@ static STATUS_T CmdTurntable( wAction_t action, coOrd pos )
 		t = NewTurntable( pos, turntableDiameter/2.0 );
 		UndoEnd();
 		DrawNewTrack(t);
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 		sprintf( message, "turntable-diameter-%s", curScaleName );
 		wPrefSetFloat( "misc", message, turntableDiameter );
 		state = 0;
@@ -899,7 +899,7 @@ static STATUS_T CmdTurntable( wAction_t action, coOrd pos )
 		return C_CONTINUE;
 
 	case C_CANCEL:
-		InfoSubstituteControls( NULL, NULL );
+		InfoSubstituteControls( NULL, NULL, NULL );
 		return C_CONTINUE;
 
 	default:

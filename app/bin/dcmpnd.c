@@ -58,15 +58,15 @@ static dynArr_t updateTitles_da;
 static void UpdateTitleIgnore( void* junk );
 static wIndex_t updateTitleInx;
 static paramData_t updateTitlePLs[] = {
-	{	PD_MESSAGE, "This file contains Turnout and Structure Titles which should be updated." },
-	{	PD_MESSAGE, "This dialog allows you to change the definitions in this file." },
-	{	PD_MESSAGE, "To replace the old name, choose a definition from the list." },
-	{	PD_MESSAGE, "If the required definition is not loaded you can use the Load button" },
-	{	PD_MESSAGE, "to invoke the Parameter Files dialog to load the required Parameter File." },
-	{	PD_MESSAGE, "If you choose Cancel then the Titles will not be changed and some" },
-	{	PD_MESSAGE, "features (Price List and Label selection) may not be fully functional." },
-	{	PD_MESSAGE, "You can use the List Labels control on the Preferences dialog to" },
-	{	PD_MESSAGE, "control the format of the list entries" },
+	{	PD_MESSAGE, "This file contains Turnout and Structure Titles which should be updated.", "mess1" },
+	{	PD_MESSAGE, "This dialog allows you to change the definitions in this file.", "mess2" },
+	{	PD_MESSAGE, "To replace the old name, choose a definition from the list.", "mess3" },
+	{	PD_MESSAGE, "If the required definition is not loaded you can use the Load button", "mess4" },
+	{	PD_MESSAGE, "to invoke the Parameter Files dialog to load the required Parameter File.", "mess5" },
+	{	PD_MESSAGE, "If you choose Cancel then the Titles will not be changed and some", "mess6" },
+	{	PD_MESSAGE, "features (Price List and Label selection) may not be fully functional.", "mess7" },
+	{	PD_MESSAGE, "You can use the List Labels control on the Preferences dialog to", "mess8" },
+	{	PD_MESSAGE, "control the format of the list entries", "mess9" },
 #define I_UPDATESTR		(9)
 	{	PD_STRING, NULL, "old", PDO_NOPREF, (void*)400, NULL, BO_READONLY },
 #define I_UPDATELIST	(10)
@@ -313,11 +313,11 @@ static void RefreshSkip( void * );
 static paramListData_t refreshSpecialListData = { 30, 600, 0, NULL, NULL };
 static paramData_t refreshSpecialPLs[] = {
 #define REFRESH_M1		(0)
-		{ PD_MESSAGE, NULL, NULL, 0/*PDO_DLGRESIZEW*/, (void*)380 },
+		{ PD_MESSAGE, NULL, "mess1", 0/*PDO_DLGRESIZEW*/, (void*)380 },
 #define REFRESH_M2		(1)
-		{ PD_MESSAGE, NULL, NULL, 0/*PDO_DLGRESIZEW*/, (void*)380 },
+		{ PD_MESSAGE, NULL, "mess2", 0/*PDO_DLGRESIZEW*/, (void*)380 },
 #define REFRESH_S		(2)
-		{ PD_MESSAGE, NULL, NULL, 0/*PDO_DLGRESIZEW*/, (void*)380 },
+		{ PD_MESSAGE, NULL, "mess3", 0/*PDO_DLGRESIZEW*/, (void*)380 },
 #define REFRESH_L		(3)
 		{ PD_LIST, &refreshSpecialInx, "list", PDO_LISTINDEX|PDO_NOPREF|PDO_DLGRESIZE, &refreshSpecialListData, NULL, BO_READONLY },
 		{ PD_BUTTON, (void*)RefreshSkip, "skip", PDO_DLGCMDBUTTON, NULL, N_("Skip") } };
@@ -452,7 +452,7 @@ static paramData_t renamePLs[] = {
 /*0*/ { PD_STRING, renameManuf, "manuf", PDO_NOPREF | PDO_STRINGLIMITLENGTH, (void*)350, N_("Manufacturer"), 0, 0, sizeof(renameManuf)},
 /*1*/ { PD_STRING, renameDesc, "desc", PDO_NOPREF | PDO_STRINGLIMITLENGTH, (void*)230, N_("Description"), 0, 0, sizeof(renameDesc)},
 /*2*/ { PD_STRING, renamePartno, "partno", PDO_NOPREF|PDO_DLGHORZ|PDO_DLGIGNORELABELWIDTH | PDO_STRINGLIMITLENGTH, (void*)100, N_("#"), 0, 0, sizeof(renamePartno)} };
-static paramGroup_t renamePG = { "rename", 0, renamePLs, sizeof renamePLs/sizeof renamePLs[0] };
+static paramGroup_t renamePG = { "rename", PGO_DIALOGTEMPLATE, renamePLs, sizeof renamePLs/sizeof renamePLs[0] };
 
 
 EXPORT BOOL_T CompoundCustomSave(
@@ -561,7 +561,7 @@ static int CompoundCustMgmProc(
 		return TRUE;
 	case CUSTMGM_GET_TITLE:
 		ParseCompoundTitle( to->title, &mP, &mL, &pP, &pL, &nP, &nL );
-		sprintf( message, "\t%.*s\t%s\t%.*s\t%.*s", mL, mP, GetScaleName(to->scaleInx), nL, nP, pL, pP );
+		sprintf( message, "%.*s\t%s\t%.*s\t%.*s", mL, mP, GetScaleName(to->scaleInx), nL, nP, pL, pP );
 		return TRUE;
 	}
 	return FALSE;

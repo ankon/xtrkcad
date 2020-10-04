@@ -350,7 +350,7 @@ static paramGroup_t * layout_pg_p;
 static wBool_t file_changed;
 
 bool haveBackground = false;
-BOOL_T backgroundVisible = TRUE;
+static BOOL_T backgroundVisible = TRUE;
 
 char * noname = "";
 
@@ -499,7 +499,7 @@ static paramData_t layoutPLs[] = {
 
 };
 
-static paramGroup_t layoutPG = { "layout", PGO_RECORD | PGO_PREFMISC, layoutPLs, sizeof layoutPLs / sizeof layoutPLs[0] };
+static paramGroup_t layoutPG = { "layout", PGO_DIALOGTEMPLATE | PGO_RECORD | PGO_PREFMISC, layoutPLs, sizeof layoutPLs / sizeof layoutPLs[0] };
 
 /**
 * Apply the changes entered to settings
@@ -661,6 +661,11 @@ LayoutDlgUpdate(
     }
     if (inx == BACKGROUNDSCREEN) {
     	SetLayoutBackGroundScreen(*(int *)valueP);
+    	if (GetLayoutBackGroundScreen() == 100 )
+    		backgroundVisible = FALSE;
+    	else
+    		backgroundVisible = TRUE;
+    	wControlActive((wControl_p)backgroundB, backgroundVisible);
     	MainRedraw();
     }
     if (inx == BACKGROUNDANGLE) {
@@ -721,6 +726,7 @@ LayoutBackGroundInit(BOOL_T clear) {
 	} else {
 		haveBackground = false;
 		wDrawSetBackground(  mainD.d, NULL, NULL);
+		backgroundVisible = FALSE;
 	}
 }
 

@@ -1671,7 +1671,7 @@ EXPORT void CarItemLoadList( void * junk )
 	wListSetIndex( (wList_p)newCarPLs[0].control, 0 );
 	strcpy( newCarLabel1, _("Select") );
 	ParamLoadControl( &newCarPG, 0 );
-	InfoSubstituteControls( newCarControls, newCarLabels );
+	InfoSubstituteControls( newCarControls, newCarLabels, newCarPG.nameStr );
 	wWinGetSize( mainW, &w, &h );
 	w -= wControlGetPosX( newCarControls[0] ) + 4;
 	if ( w > 20 )
@@ -1717,13 +1717,13 @@ static char * CarItemHotbarProc(
 			ParamLoadControls( &newCarPG );
 			ParamGroupRecord( &newCarPG );
 
-			InfoSubstituteControls( newCarControls, newCarLabels );
+			InfoSubstituteControls( newCarControls, newCarLabels, newCarPG.nameStr );
 			wWinGetSize( mainW, &w, &h );
 			w -= wControlGetPosX( newCarControls[0] ) + 4;
 			if ( w > 20 )
 				wListSetSize( (wList_p)newCarControls[0], w, wControlGetHeight( newCarControls[0] ) );
 		} else {
-			InfoSubstituteControls( NULL, NULL );
+			InfoSubstituteControls( NULL, NULL, NULL );
 			cp = CarItemDescribe( item, 0, NULL );
 			InfoMessage( cp );
 		}
@@ -2266,7 +2266,7 @@ static paramData_t carDlgPLs[] = {
 
 #define D                       (C+9)
 #define I_CD_MSG                (D+0)
-	{ PD_MESSAGE, NULL, NULL, PDO_DLGNOLABELALIGN|PDO_DLGRESETMARGIN|PDO_DLGBOXEND, (void*)450 },
+	{ PD_MESSAGE, NULL, "mess1", PDO_DLGNOLABELALIGN|PDO_DLGRESETMARGIN|PDO_DLGBOXEND, (void*)450 },
 #define I_CD_NEW                (D+1)
 	{ PD_MENU, NULL, "new-menu", PDO_DLGCMDBUTTON, NULL, N_("New"), 0, (void*)0 },
 	{ PD_MENUITEM, (void*)CarDlgNewDesc, "new-part-mi", 0, NULL, N_("Car Part"), 0, (void*)0 },
@@ -4406,7 +4406,7 @@ static paramData_t carInvPLs[] = {
 	{ PD_BUTTON, (void*)CarInvDlgExportCsv, "export", 0, NULL, N_("Export") },
 #define I_CI_PRINT		(S+6)
 	{ PD_BUTTON, (void*)CarInvDlgSaveText, "savetext", 0, NULL, N_("List") } };
-static paramGroup_t carInvPG = { "carinv", 0, carInvPLs, sizeof carInvPLs/sizeof carInvPLs[0] };
+static paramGroup_t carInvPG = { "carinv", PGO_DIALOGTEMPLATE, carInvPLs, sizeof carInvPLs/sizeof carInvPLs[0] };
 
 static carItem_p CarInvDlgFindCurrentItem( void )
 {

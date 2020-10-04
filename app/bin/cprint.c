@@ -168,7 +168,7 @@ static paramData_t printPLs[] = {
 /*26*/ { PD_MESSAGE, N_("selected"), NULL, 0, (void*)80 }
 };
 
-static paramGroup_t printPG = { "print", PGO_PREFMISCGROUP, printPLs, sizeof printPLs/sizeof printPLs[0] };
+static paramGroup_t printPG = { "print", PGO_PREFMISCGROUP | PGO_DIALOGTEMPLATE, printPLs, sizeof printPLs/sizeof printPLs[0] };
 
 static struct {
 	double top, right, bottom, left;
