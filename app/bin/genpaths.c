@@ -32,7 +32,7 @@
  * Major data types and structures
  *
  * PathData:
- * Holds the input segment and end points and flags
+ * Holds the input segment and end points, working variables and flags
  *
  * PATHELEM_T:
  * An 'int'.
@@ -40,11 +40,25 @@
  * the upper bits are the index into the segPathMap
  * If negative, indicates a end point index
  *
- * segPathMap:
- * For each segment, contains the end points and angles and
+ * The following are members of PathData:
+ *
+ * .segLink[#segments], .epLink[#EndPts]:
+ * For each segment and EndPt, contains the end points and angles and
  * the set of segments each end point is connected to (PATHELEM_T)
  *
- * epPtr 
+ * .loop[#segments]
+ * During subPath walking, check if we already processed this segment
+ *
+ * .subPaths[]
+ * Contains the segments (PATHELEM_T) traversed between EndPts.
+ * paths which do not terminate on an EndPt (bumpers) are assigned dummy EPs
+ *
+ * .conflictMap[#subPaths^2]
+ * For each pair of subPaths, do they have any segments in common?
+ *
+ * .subPathGroups[]
+ * Contains lists of subPath indicies which do not contain any common segments
+ *
  */
 #include <ctype.h>
 #include <math.h>
@@ -60,33 +74,55 @@
 
 #ifdef NEWPATH
 int log_genpaths = -1;
+// Debug levels:
+// 1 - old and new paths even if the same
+// 2 - major table
+// 3 - minor tables
+// 4 - more minor actions
+// 5 - recursive trace
+// 6 - checking code
+
+// Pref value "misc.EnablePathGeneration"
 long lEnablePathGeneration = 0;
 
 typedef int PATHELEM_T;
+
 typedef struct {
 	coOrd pos;
 	ANGLE_T angle;
-	dynArr_t epPath_da;
-	} epData_t, * epData_p;
+	dynArr_t nextSeg_da;
+	} segLink_t, * segLink_p;
 
 typedef struct {
-	coOrd pos[2];
-	ANGLE_T ang[2];
-	wBool_t checked;
-	dynArr_t nextSeg_da[2];
-} segPathMap_t, * segPathMap_p;
-segPathMap_p segPathMap;
-
-typedef struct {
-	wIndex_t segCnt;
-	trkSeg_p segPtr;
-	wIndex_t epCnt;
-	epData_p epPtr;
 	wBool_t pathOverRide;
 	wBool_t pathNoCombine;
 	ANGLE_T pathAngle;
+	ANGLE_T pathDistance;
+	wIndex_t segCnt;
+	trkSeg_p segPtr;
+	wIndex_t epCnt;
+	segLink_p endPtLinkP;
+	segLink_p segLinkP;
+	dynArr_t subPaths_da;
+	wBool_t * loopP;
+	dynArr_t subPathGroup_da;
+	wBool_t * conflictMapP;
 	} pathData_t, * pathData_p;
 
+#define SegLink( segInx, segDir ) (pdP->segLinkP[ (segInx)*2+(segDir) ] )
+#define EPLink( segInx ) (pdP->endPtLinkP[ segInx ] ) 
+#define SegLinkElem( linkP, elemInx ) DYNARR_N( PATHELEM_T, (linkP).nextSeg_da, elemInx );
+#define SubPaths(N) DYNARR_N( PATHELEM_T *, pdP->subPaths_da, N )
+#define SubPathGroup(N) DYNARR_N( SUBPATHGROUP_T *, pdP->subPathGroup_da, N )
+#define SegLinkElemAdd( slP, elem ) \
+	DYNARR_APPEND( PATHELEM_T, slP->nextSeg_da, 10 ); \
+	DYNARR_LAST( PATHELEM_T, slP->nextSeg_da ) = elem;
+#define SubPathAdd( pSubPath ) \
+	DYNARR_APPEND( PATHELEM_T*, pdP->subPaths_da, 10 ); \
+	DYNARR_LAST( PATHELEM_T*, pdP->subPaths_da ) =  pSubPath;
+#define SubPathGroupAdd( pSubPath ) \
+	DYNARR_APPEND( SUBPATHGROUP_T *, pdP->subPathGroup_da, 10 ); \
+	DYNARR_LAST( SUBPATHGROUP_T *, pdP->subPathGroup_da ) = pSubPath;
 
 
 wBool_t bUseSavedPaths = FALSE;
@@ -287,24 +323,28 @@ void SetParamPaths( turnoutInfo_t * to, PATHPTR_T paths )
 
 #ifdef NEWPATH
 static PATHPTR_T GeneratePaths( pathData_p );
+static void CheckAlignment( pathData_p pdP, segLink_p sl0P, PATHELEM_T elem0, segLink_p sl1P, PATHELEM_T elem1 );
 static wBool_t ComparePaths( PATHPTR_T, PATHPTR_T );
 static void DumpPaths( PATHPTR_T pPath );
 
 static void GeneratePathSegments( pathData_p );
 static void GeneratePathEndPts( pathData_p );
 
-static void DumpSegPathMap( pathData_p );
+static void DumpSegLinkMap( pathData_p );
 
 static void GenerateSubPaths( pathData_p );
 static void CombineSubPaths( pathData_p );
 
 static PATHPTR_T CreatePaths( pathData_p );
 
-typedef struct WalkSetPathMap_s WalkSetPathMap_t, *WalkSetPathMap_p;
-static void WalkSegPathMap( int depth, WalkSetPathMap_p tsP, int inx, int cnt );
-static void AppendSubPath( int depth, WalkSetPathMap_p tsP );
+static void CleanupPaths( pathData_p );
+
+typedef struct WalkSegLinkMap_s WalkSegLinkMap_t, *WalkSegLinkMap_p;
+static void WalkSegLinkMap( pathData_p pdP, int depth, WalkSegLinkMap_p slmP, int inx, int cnt );
+static void AppendSubPath( pathData_p pdP, int depth, WalkSegLinkMap_p slmP );
 static wBool_t CompareSubPathEndPts( PATHELEM_T * path1, PATHELEM_T * path2 );
-static void DumpSubPath( wIndex_t inx );
+static DIST_T MaxConnectionDistance( pathData_p pdP, PATHELEM_T * pSubPath );
+static void DumpSubPath( pathData_p pdP, wBool_t bAdd, wIndex_t inx );
 
 static wIndex_t SubPathLength( PATHELEM_T * path, wBool_t bInclEP );
 
@@ -320,7 +360,6 @@ static void WalkSubPaths( pathData_p pdP, int subPathInx, WalkSubPaths_p wspP );
 typedef int SUBPATHGROUP_T;
 static wBool_t SubsumesSubPathGroup( SUBPATHGROUP_T * spg1, SUBPATHGROUP_T * spg2 );
 int CmpSubPathGroups( const void * ptr1, const void * ptr2 );
-static void SortSubPathGroups( pathData_p pdP );
 
 static char indent[] = " . . . . . . . . . . . . . . . . . . .";
 
@@ -354,15 +393,15 @@ static PATHPTR_T GenerateTrackPaths( track_p trk )
 	pathData.segCnt = xx->segCnt;
 	pathData.segPtr = xx->segs;
 	pathData.epCnt = GetTrkEndPtCnt(trk);
-	pathData.epPtr = (epData_p)MyMalloc( pathData.epCnt * sizeof *(epData_p)NULL );
+	pathData.endPtLinkP = (segLink_p)MyMalloc( pathData.epCnt * sizeof *(segLink_p)NULL );
 	for ( wIndex_t epInx = 0; epInx < pathData.epCnt; epInx ++ ) {
-		epData_p epPtr = &pathData.epPtr[epInx];
-		epPtr->pos = GetTrkEndPos( trk, epInx );
-		epPtr->pos.x -= xx->orig.x;
-		epPtr->pos.y -= xx->orig.y;
-		epPtr->angle = GetTrkEndAngle( trk, epInx );
-		Rotate( &epPtr->pos, zero, -xx->angle );
-		epPtr->angle = NormalizeAngle( epPtr->angle - xx->angle );
+		segLink_p endPtLinkP = &pathData.endPtLinkP[epInx];
+		endPtLinkP->pos = GetTrkEndPos( trk, epInx );
+		endPtLinkP->pos.x -= xx->orig.x;
+		endPtLinkP->pos.y -= xx->orig.y;
+		endPtLinkP->angle = GetTrkEndAngle( trk, epInx );
+		Rotate( &endPtLinkP->pos, zero, -xx->angle );
+		endPtLinkP->angle = NormalizeAngle( endPtLinkP->angle - xx->angle );
 	}
 	pathData.pathNoCombine = xx->pathNoCombine;
 	PATHPTR_T pPath = GeneratePaths( &pathData );
@@ -405,11 +444,11 @@ static PATHPTR_T GenerateParamPaths( turnoutInfo_t * to )
 	pathData.segCnt = to->segCnt;
 	pathData.segPtr = to->segs;
 	pathData.epCnt = to->endCnt;
-	pathData.epPtr = (epData_p)MyMalloc( pathData.epCnt * sizeof *(epData_p)NULL );
+	pathData.endPtLinkP = (segLink_p)MyMalloc( pathData.epCnt * sizeof *(segLink_p)NULL );
 	for ( wIndex_t epInx = 0; epInx < pathData.epCnt; epInx ++ ) {
-		epData_p epPtr = &pathData.epPtr[epInx];
-		epPtr->pos = to->endPt[epInx].pos;
-		epPtr->angle = to->endPt[epInx].angle;
+		segLink_p endPtLinkP = &pathData.endPtLinkP[epInx];
+		endPtLinkP->pos = to->endPt[epInx].pos;
+		endPtLinkP->angle = to->endPt[epInx].angle;
 	}
 	pathData.pathNoCombine = to->pathNoCombine;
 	pathData.pathOverRide = to->pathOverRide;
@@ -441,18 +480,24 @@ static PATHPTR_T GeneratePaths( pathData_p pdP )
 {
 	if ( pdP->pathAngle == 0 )
 		pdP->pathAngle = 5.0;
+	if ( pdP->pathDistance == 0.0 )
+		pdP->pathDistance = 0.10;
 
 	GeneratePathSegments( pdP );
 	
 	GeneratePathEndPts( pdP );
 
-	DumpSegPathMap( pdP );
+	DumpSegLinkMap( pdP );
 
 	GenerateSubPaths( pdP );
 
 	CombineSubPaths( pdP );
 
-	return CreatePaths( pdP );
+	PATHPTR_T pPaths = CreatePaths( pdP );
+
+	CleanupPaths( pdP );
+
+	return pPaths;
 }
 
 /*****************************************************************************
@@ -464,7 +509,7 @@ static PATHPTR_T GeneratePaths( pathData_p pdP )
 
 /* GeneratePathSegments()
  *
- * Build SegPathMap
+ * Build segment/endpt links
  * - compute each segment's end point Position and Angle
  * - for each segment's end point, find any other close segments
  *
@@ -472,53 +517,36 @@ static PATHPTR_T GeneratePaths( pathData_p pdP )
  */
 static void GeneratePathSegments( pathData_p pdP )
 {
-	segPathMap = (segPathMap_p)MyMalloc( pdP->segCnt * sizeof *(segPathMap_p)NULL );
-	LOG( log_genpaths, 3, ( "GeneratePathSegments - segPathMap\n For each segment, find its EndPt pos and angle\n" ) );
+	pdP->segLinkP = (segLink_p)MyMalloc( pdP->segCnt * 2 * sizeof *(segLink_p)NULL );
+	LOG( log_genpaths, 2, ( "GeneratePathSegments - .segLink\n For each segment, using its end pos and angle find the segments it's connected to\n" ) );
 	for ( int segInx=0; segInx < pdP->segCnt; segInx++ ) {
 		if ( !IsSegTrack( &pdP->segPtr[segInx] ) )
 			continue;
 		for ( int dir = 0; dir < 2; dir++ )
-			segPathMap[segInx].pos[dir] = GetSegEndPt( &pdP->segPtr[segInx], dir, FALSE, &segPathMap[segInx].ang[dir] );
-		LOG( log_genpaths, 3, ( " S%d [%0.3f %0.3f] A%0.3f - [%0.3f %0.3f] A%0.3f\n", segInx+1,
-		segPathMap[segInx].pos[0].x,
-		segPathMap[segInx].pos[0].y,
-		segPathMap[segInx].ang[0],
-		segPathMap[segInx].pos[1].x,
-		segPathMap[segInx].pos[1].y,
-		segPathMap[segInx].ang[1] ) );
+			SegLink( segInx, dir ).pos = GetSegEndPt( &pdP->segPtr[segInx], dir, FALSE, &SegLink( segInx, dir ).angle );
+		LOG( log_genpaths, 3, ( "    S%d [%0.3f %0.3f] A%0.3f - [%0.3f %0.3f] A%0.3f = D%0.3f\n", segInx+1,
+		SegLink( segInx, 0 ).pos.x,
+		SegLink( segInx, 0 ).pos.y,
+		SegLink( segInx, 0 ).angle,
+		SegLink( segInx, 1 ).pos.x,
+		SegLink( segInx, 1 ).pos.y,
+		SegLink( segInx, 1 ).angle,
+	        FindDistance( SegLink( segInx, 0 ).pos, SegLink( segInx, 1 ).pos ) ) );
 	}
 
 	// find connections
-	LOG( log_genpaths, 3, ( "Connections - segPathMap\n For each segment, find the segments it attaches to\n" ) );
+	LOG( log_genpaths, 2, ( "   For each segment, find the segments it attaches to\n" ) );
 	for ( int segInx0 = 0; segInx0 < pdP->segCnt; segInx0++ ) {
 		if ( ! IsSegTrack( &pdP->segPtr[segInx0] ) )
 			continue;
-		segPathMap_p segPathMapP0 = & segPathMap[segInx0];
 		for ( int segInx1 = segInx0+1; segInx1 < pdP->segCnt; segInx1++ ) {
 			if ( ! IsSegTrack( &pdP->segPtr[segInx1] ) )
 				continue;
-			segPathMap_p segPathMapP1 = & segPathMap[segInx1];
 			for ( int dir0 = 0; dir0 < 2; dir0++ ) {
 				for ( int dir1 = 0; dir1 < 2; dir1++ ) {
-					ANGLE_T ang = 
-						segPathMapP0->ang[dir0] -
-						segPathMapP1->ang[dir1];
-					ang = NormalizeAngle( ang + 180.0 + pdP->pathAngle/2.0 ); 
-					if ( ang > pdP->pathAngle ) {
-						continue;
-					}
-					DIST_T dist = FindDistance(
-						segPathMapP0->pos[dir0],
-						segPathMapP1->pos[dir1] );
-					if ( dist > connectDistance ) {
-						continue;
-					}
-					LOG( log_genpaths, 3, ( " S%d.%d = S%d.%d D:%0.3f A:%0.3f\n",
-						segInx0+1, dir0, segInx1+1, dir1, dist, fabs( ang - pdP->pathAngle/2.0 ) ) );
-					DYNARR_APPEND( PATHELEM_T, segPathMapP0->nextSeg_da[dir0], 10 );
-					DYNARR_LAST( PATHELEM_T, segPathMapP0->nextSeg_da[dir0] ) = (segInx1+1)*2 + dir1;
-					DYNARR_APPEND( PATHELEM_T, segPathMapP1->nextSeg_da[dir1], 10 );
-					DYNARR_LAST( PATHELEM_T, segPathMapP1->nextSeg_da[dir1] ) = (segInx0+1)*2 + dir0;
+					CheckAlignment( pdP,
+						&SegLink(segInx0,dir0), (segInx0+1)*2+dir0,
+						&SegLink(segInx1,dir1), (segInx1+1)*2+dir1 );
 				}
 			}
 		}
@@ -528,55 +556,80 @@ static void GeneratePathSegments( pathData_p pdP )
 
 /* GeneratePathEndPts()
  *
- * Add EndPoints to the SegPathMap
+ * Add EndPoints to the .endPtLinkP
  *
  * \param pdP IN/OUT genpaths work area
  */
 static void GeneratePathEndPts( pathData_p pdP )
 {
-	LOG( log_genpaths, 3, ( "GenerateEndPoints - .epPtr\n For each EndPt, find the segments it attaches to\n" ) );
+	LOG( log_genpaths, 2, ( "GenerateEndPoints - .endPtLink\n For each EndPt, find the segments it attaches to\n" ) );
 	wIndex_t eCnt = pdP->epCnt;
 
 	for ( wIndex_t eInx = 0; eInx < eCnt; eInx++ ) {
-		LOG( log_genpaths, 3, ( " EP%d [%0.3f %0.3f] A%0.3f", eInx+1, pdP->epPtr[eInx].pos.x, pdP->epPtr[eInx].pos.y, pdP->epPtr[eInx].angle ) );
+		LOG( log_genpaths, 3, ( "    EP%d [%0.3f %0.3f] A%0.3f:\n", eInx+1,
+			EPLink(eInx).pos.x, EPLink(eInx).pos.y, EPLink(eInx).angle ) );
 		for ( int segInx0 = 0; segInx0 < pdP->segCnt; segInx0++ ) {
 			if ( ! IsSegTrack( &pdP->segPtr[segInx0] ) )
 				continue;
 			for ( int dir0 = 0; dir0 < 2; dir0++ ) {
-				segPathMap_p segPathMapP = & segPathMap[segInx0];
-				ANGLE_T ang = 
-					segPathMapP->ang[dir0] -
-					pdP->epPtr[eInx].angle;
-				ang = NormalizeAngle( ang + 5.0/2.0 ); 
-				if ( ang > 5.0 )
-					continue;
-				DIST_T dist = FindDistance(
-					segPathMapP->pos[dir0],
-					pdP->epPtr[eInx].pos );
-				if ( dist > connectDistance )
-					continue;
-				LOG( log_genpaths, 3, ( " = S%d.%d", segInx0+1, dir0 ) );
-				DYNARR_APPEND( PATHELEM_T, segPathMapP->nextSeg_da[dir0], 10 );
-				DYNARR_LAST( PATHELEM_T, segPathMapP->nextSeg_da[dir0] ) = -(eInx+1);
-				DYNARR_APPEND( PATHELEM_T, pdP->epPtr[eInx].epPath_da, 10 );
-				DYNARR_LAST( PATHELEM_T, pdP->epPtr[eInx].epPath_da ) = (segInx0+1)*2+dir0;
-
+				CheckAlignment( pdP,
+					&EPLink(eInx), -(eInx+1),
+					&SegLink(segInx0,dir0), (segInx0+1)*2+dir0 );
 			}
 		}
-		LOG( log_genpaths, 3, ( "\n" ) );
 	}
 }
 
+/* CheckAlignment
+ *
+ * Check if the 2 end points are close and aligned
+ * If so add the PATHELEM_T to .nextSeg_da
+ *
+ * \param pdP N/OUT/ genpaths work area
+ * \param sl0P IN
+ * \param elem0 IN
+ * \param sl1P IN
+ * \param elem1 IN
+ */
+static void CheckAlignment( pathData_p pdP, segLink_p sl0P, PATHELEM_T elem0, segLink_p sl1P, PATHELEM_T elem1  )
+{
+	ANGLE_T ang = 
+		sl0P->angle -
+		sl1P->angle;
+	if ( elem0 > 0 )
+		ang += 180.0;
+	ang = NormalizeAngle( ang + pdP->pathAngle/2.0 ); 
+	if ( ang > pdP->pathAngle ) {
+		return;
+	}
+	DIST_T dist = FindDistance(
+		sl0P->pos,
+		sl1P->pos );
+	if ( dist > pdP->pathDistance ) {
+		return;
+	}
+	SegLinkElemAdd( sl0P, elem1 );
+	SegLinkElemAdd( sl1P, elem0 );
+	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 2 ) {
+		if ( elem0 > 0 )
+			LogPrintf( "  S%d.%d = ", elem0>>1, elem0&0x01 );
+		else
+			LogPrintf( "  EP%d = ", -elem0 );
+		LogPrintf( "S%d.%d", elem1>>1, elem1&0x01 );
+		LogPrintf( " D:%0.3f A:%0.3f\n",
+			dist, fabs( ang - pdP->pathAngle/2.0 ) );
+	}
+}
 
-static void DumpSegPathMap( pathData_p pdP )
+static void DumpSegLinkMap( pathData_p pdP )
 {
 	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 2 ) {
 		wIndex_t eCnt = pdP->epCnt;
-		LogPrintf( "SegPathMap:\n" );
+		LogPrintf( ".segLink Map:\n" );
 		for ( int segInx0 = 0; segInx0 < pdP->segCnt; segInx0++ ) {
 			for ( int dir0 = 0; dir0 < 2; dir0++ ) {
-				for (int n = 0; n<segPathMap[segInx0].nextSeg_da[dir0].cnt; n++ ) {
-					PATHELEM_T elem = DYNARR_N( PATHELEM_T, segPathMap[segInx0].nextSeg_da[dir0], n );
+				for (int n = 0; n<SegLink(segInx0,dir0).nextSeg_da.cnt; n++ ) {
+					PATHELEM_T elem = SegLinkElem( SegLink(segInx0,dir0), n );
 					if ( elem >= 0 )
 						LogPrintf( " S%d.%d - S%ld.%ld\n", segInx0+1, dir0, elem>>1, elem&0x1 );
 					else
@@ -593,65 +646,63 @@ static void DumpSegPathMap( pathData_p pdP )
  *
  */
 
-struct WalkSetPathMap_s {
-	WalkSetPathMap_p prev;
+struct WalkSegLinkMap_s {
+	WalkSegLinkMap_p prev;
 	PATHELEM_T elem;
 	};
 
-dynArr_t subPaths_da;
-#define subPaths(N) DYNARR_N( PATHELEM_T *, subPaths_da, N )
 wIndex_t bumperEndPt;
 
-/* GenerateSubPaths()
- *
+/* GenerateSubPaths() *
  * Find the SubPaths that connection EndPoints
  *
  * \param pdP IN/OUT genpaths work area
  */
 static void GenerateSubPaths( pathData_p pdP )
 {
-	LOG( log_genpaths, 3, ( "GenerateSubPaths - subPaths < segPathMap\n For each EndPt, walk its segment tree and add the branch to subPaths\n" ) );
+	LOG( log_genpaths, 2, ( "GenerateSubPaths - .subPaths\n For each EndPt, walk its segment tree and add the branch to subPaths\n" ) );
 	wIndex_t eCnt = pdP->epCnt;
+	pdP->loopP = (wBool_t*)MyMalloc( pdP->segCnt * sizeof *(wBool_t*)NULL );
 	bumperEndPt = eCnt;
-	DYNARR_RESET( PATHELEM_T*, subPaths_da );
+	DYNARR_RESET( PATHELEM_T*, pdP->subPaths_da );
 	for ( wIndex_t eInx = 0; eInx < eCnt; eInx++ ) {
-		for ( int segInx0 = 0; segInx0<pdP->segCnt; segInx0++ )
-			segPathMap[segInx0].checked = FALSE;
-		WalkSetPathMap_t ts0;
-		ts0.prev = NULL;
-		ts0.elem = -(eInx+1);
-		int epCnt = pdP->epPtr[eInx].epPath_da.cnt;
+		memset( pdP->loopP, 0, pdP->segCnt * sizeof *(wBool_t*)NULL );
+		WalkSegLinkMap_t slm0;
+		slm0.prev = NULL;
+		slm0.elem = -(eInx+1);
+		int epCnt = EPLink(eInx).nextSeg_da.cnt;
 		for (int epInx = 0; epInx<epCnt; epInx++ ) {
-			PATHELEM_T elem = DYNARR_N( PATHELEM_T, pdP->epPtr[eInx].epPath_da, epInx );
-			WalkSetPathMap_t ts1;
-			ts1.prev = &ts0;
-			ts1.elem = elem;
+			PATHELEM_T elem = SegLinkElem( EPLink(eInx), epInx );
+			WalkSegLinkMap_t slm1;
+			slm1.prev = &slm0;
+			slm1.elem = elem;
 			LOG( log_genpaths, 5, ( ". [1] EP%d% d/%d\n", eInx+1, epInx+1, epCnt ) );
-			WalkSegPathMap( 2, &ts1, epInx, epCnt );
+			WalkSegLinkMap( pdP, 2, &slm1, epInx, epCnt );
 		}
 	}
 }
 
 
-/* WalkSegPathMap()
+/* WalkSegLinkMap()
  *
- * Recursively walk the SetPathMap from each EndPoint to end of a branch
+ * Recursively walk the SegLinkMap from each EndPoint to end of a branch
  *
- * 'tsP' is a linked list of segments to the root for the current path
+ * 'slmP' is a linked list of segments to the root for the current path
  * If the current node is an EndPoint we are done with this branch of the tree
  * and can append the SubPath to the list (if not a Loop or Duplicate)
  * If the node has no nextSeg, then we append a fake EndPoint and append.
- * If the node is 'checked, then there is a loop and we stop.
+ * If 'pdP->loopP[segInx]' is true, then there is a loop and we stop.
  *
+ * \param pdP IN/OUT genpaths work area
  * \param depth IN recursion depth
- * \param tsP IN current node on the linked list of Segments
+ * \param slmP IN current node on the linked list of Segments
  * \param inx IN debug
  * \param cnt IN debug
  */
-static void WalkSegPathMap( int depth, WalkSetPathMap_p tsP, int inx, int cnt )
+static void WalkSegLinkMap( pathData_p pdP, int depth, WalkSegLinkMap_p slmP, int inx, int cnt )
 {
 	int segInx, dir;
-	PATHELEM_T elem = tsP->elem;
+	PATHELEM_T elem = slmP->elem;
 	if ( elem > 0 ) {
 		segInx = (int)(elem>>1)-1;
 		dir = (int)elem&0x1;
@@ -662,25 +713,25 @@ static void WalkSegPathMap( int depth, WalkSetPathMap_p tsP, int inx, int cnt )
 	if ( elem < 0 ) {
 		// Hit EndPt
 		// Terminate path
-		AppendSubPath( depth, tsP );
+		AppendSubPath( pdP, depth, slmP );
 		return;
 	}
-	if ( segPathMap[segInx].nextSeg_da[1-dir].cnt == 0 ) {
+	if ( SegLink(segInx,1-dir).nextSeg_da.cnt == 0 ) {
 		// Hit bumper - append a fake endPt
-		WalkSetPathMap_t ts1;
-		ts1.prev = tsP;
-		ts1.elem =  -(++bumperEndPt);
+		WalkSegLinkMap_t slm1;
+		slm1.prev = slmP;
+		slm1.elem =  -(++bumperEndPt);
 		depth++;
-		LOG( log_genpaths, 5, ( "%.*s [%d] %d/%d EP%d\n", depth*2, indent, depth, 1, 1, -ts1.elem ) );
-		AppendSubPath( depth, &ts1 );
+		LOG( log_genpaths, 5, ( "%.*s [%d] %d/%d EP%d\n", depth*2, indent, depth, 1, 1, -slm1.elem ) );
+		AppendSubPath( pdP, depth, &slm1 );
 		return;
 	}
-	if ( segPathMap[segInx].checked ) {
+	if ( pdP->loopP[segInx] ) {
 		// hit a loop
 		if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 5 ) {
 			LogPrintf( "%.*s = Loop: %d", depth*2, indent, segInx+1 );
-			for ( ; tsP; tsP=tsP->prev ) {
-				elem = tsP->elem;
+			for ( ; slmP; slmP=slmP->prev ) {
+				elem = slmP->elem;
 				if ( elem < 0 )
 					LogPrintf( " EP%d", - elem );
 				else
@@ -690,15 +741,16 @@ static void WalkSegPathMap( int depth, WalkSetPathMap_p tsP, int inx, int cnt )
 		}
 		return;
 	}
-	segPathMap[segInx].checked = TRUE;
-	WalkSetPathMap_t ts;
-	ts.prev = tsP;
-	int segCnt = segPathMap[segInx].nextSeg_da[1-dir].cnt;
+	pdP->loopP[segInx] = TRUE;
+	WalkSegLinkMap_t slm;
+	slm.prev = slmP;
+	int segCnt = SegLink(segInx,1-dir).nextSeg_da.cnt;
 	for (int n = 0; n<segCnt; n++ ) {
-		PATHELEM_T elem = DYNARR_N( PATHELEM_T, segPathMap[segInx].nextSeg_da[1-dir], n );
-		ts.elem = elem;
-		WalkSegPathMap( depth+1, &ts, n, segCnt );
+		PATHELEM_T elem = SegLinkElem( SegLink(segInx,1-dir), n );
+		slm.elem = elem;
+		WalkSegLinkMap( pdP, depth+1, &slm, n, segCnt );
 	}
+	pdP->loopP[segInx] = FALSE;
 }
 
 
@@ -708,34 +760,49 @@ static void WalkSegPathMap( int depth, WalkSetPathMap_p tsP, int inx, int cnt )
  * Check if it a duplicate
  * Append it to SubPaths[]
  *
+ * \param pdP
  * \param depth IN
- * \param tsP IN
+ * \param slmP IN
  */
 
-static void AppendSubPath( int depth, WalkSetPathMap_p tsP )
+static void AppendSubPath( pathData_p pdP, int depth, WalkSegLinkMap_p slmP )
 {
+	wIndex_t ep1 = 0;
+	if ( slmP->elem < 0 )
+		ep1 = - slmP->elem;
 	PATHELEM_T *pSubPath = (PATHELEM_T*)MyMalloc( (depth+2) * sizeof *(PATHELEM_T*)NULL );
 	int depth1 = depth;
 	pSubPath[depth] = 0;
 	pSubPath[depth+1] = 0;
 	for ( depth--; depth >= 0; depth-- ) {
-		pSubPath[depth] = tsP->elem;
-		tsP = tsP->prev;
+		pSubPath[depth] = slmP->elem;
+		slmP = slmP->prev;
 	}
-	for ( wIndex_t inx = 0; inx < subPaths_da.cnt; inx++ ) {
-		if ( CompareSubPathEndPts( pSubPath, subPaths(inx) ) ) {
-			LOG( log_genpaths, 5, ("%.*s = Duplicate\n", depth1*2, indent ) );
-			MyFree( pSubPath );
+	ASSERT( pSubPath[0] < 0 );
+
+	for ( wIndex_t inx = 0; inx < pdP->subPaths_da.cnt; inx++ ) {
+		if ( CompareSubPathEndPts( pSubPath, SubPaths(inx) ) ) {
+			DIST_T d1 = MaxConnectionDistance( pdP, pSubPath );
+			DIST_T d2 = MaxConnectionDistance( pdP, SubPaths(inx) );
+			if ( d1 < d2 ) {
+				// New subPpath has smaller connection gaps, probably due to short segments
+				// Replace the old subPath with the new
+				LOG( log_genpaths, 5, ("%.*s = Replace\n", depth1*2, indent ) );
+				DumpSubPath( pdP, FALSE, inx );
+				MyFree( SubPaths(inx) );
+				SubPaths(inx) = pSubPath;
+				DumpSubPath( pdP, TRUE, inx );
+			} else {
+				LOG( log_genpaths, 5, ("%.*s = Duplicate\n", depth1*2, indent ) );
+				MyFree( pSubPath );
+			}
 			return;
 		}
 	}
-	DYNARR_APPEND( PATHELEM_T*, subPaths_da, 10 );
-	DYNARR_LAST( PATHELEM_T*, subPaths_da ) =  pSubPath;
+	SubPathAdd( pSubPath );
 
 	LOG( log_genpaths, 5 , ( "%.*s = Appending\n", depth1*2, indent ) );
-	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 3 ) {
-		DumpSubPath( subPaths_da.cnt-1 );
-	}
+	DumpSubPath( pdP, TRUE, pdP->subPaths_da.cnt-1 );
 }
 
 
@@ -754,6 +821,30 @@ static wBool_t CompareSubPathEndPts( PATHELEM_T * path1, PATHELEM_T * path2 )
 	return FALSE;
 }
 
+
+static DIST_T MaxConnectionDistance( pathData_p pdP, PATHELEM_T * pSubPath )
+{
+	DIST_T maxD = 0.0;
+	for ( ; pSubPath[1]; pSubPath++ ) {
+		PATHELEM_T elem = pSubPath[0];
+		coOrd pos1;
+		if ( elem < 0)
+			pos1 = EPLink((-elem)-1).pos;
+		else
+			pos1 = SegLink((elem>>1)-1, 1-(elem&0x01)).pos;
+		coOrd pos2;
+		elem = pSubPath[1];
+		if ( elem < 0)
+			pos2 = EPLink((-elem)-1).pos;
+		else
+			pos2 = SegLink((elem>>1)-1, (elem&0x01)).pos;
+		DIST_T curD = FindDistance( pos1, pos2 );
+		if ( curD > maxD )
+			maxD = curD;
+	}
+	return maxD;
+}
+
 
 /*****************************************************************************
  *
@@ -766,9 +857,6 @@ struct WalkSubPaths_s {
 	WalkSubPaths_p prev;
 	int subPathInx;
 	};
-wBool_t * pConflictMap = NULL;
-dynArr_t subPathGroup_da;
-#define SubPathGroup(N) DYNARR_N( SUBPATHGROUP_T *, subPathGroup_da, N )
 
 /* CombineSubPaths()
  *
@@ -780,56 +868,55 @@ dynArr_t subPathGroup_da;
 static void CombineSubPaths( pathData_p pdP )
 {
 	// Make subpaths simplier
-	for ( int inx0 = 0; inx0 < subPaths_da.cnt; inx0++ ) 
-		FlipSubPath( subPaths(inx0) );
+	for ( int inx0 = 0; inx0 < pdP->subPaths_da.cnt; inx0++ ) 
+		FlipSubPath( SubPaths(inx0) );
 
-	DYNARR_RESET( SUBPATHGROUP_T*, subPathGroup_da );
+	DYNARR_RESET( SUBPATHGROUP_T*, pdP->subPathGroup_da );
 	if ( pdP->pathNoCombine && !bSuppressNoCombine ) {
 		// append each subPath as a separate subPathGroup member
-		for ( int inx = 0; inx<subPaths_da.cnt; inx++ ) {
+		for ( int inx = 0; inx<pdP->subPaths_da.cnt; inx++ ) {
 			SUBPATHGROUP_T * pSubPath = (SUBPATHGROUP_T*)MyMalloc( 2 * sizeof *(SUBPATHGROUP_T*)NULL );
 			pSubPath[0] = inx+1;
 			pSubPath[1] = 0;
-			DYNARR_APPEND( SUBPATHGROUP_T *, subPathGroup_da, 10 );
-			DYNARR_LAST( SUBPATHGROUP_T *, subPathGroup_da ) = pSubPath;
+			SubPathGroupAdd( pSubPath );
 		}
 		return;	
 	}
 
 	// Build a map of conflicting subPaths
-	int nPaths = subPaths_da.cnt;
-	pConflictMap = (wBool_t*)MyMalloc( nPaths * nPaths * sizeof *pConflictMap ); 
+	int nPaths = pdP->subPaths_da.cnt;
+	pdP->conflictMapP = (wBool_t*)MyMalloc( nPaths * nPaths * sizeof *pdP->conflictMapP ); 
 	for ( int inx1 = 0; inx1 < nPaths; inx1++ ) {
-		pConflictMap[inx1+inx1*nPaths] = TRUE;
+		pdP->conflictMapP[inx1+inx1*nPaths] = TRUE;
 		for ( int inx2 = inx1+1; inx2 < nPaths; inx2++ ) {
-			pConflictMap[inx2*nPaths+inx1] =
-			pConflictMap[inx1*nPaths+inx2] =
-				ConflictingSubPaths( subPaths(inx1), subPaths(inx2) );
+			pdP->conflictMapP[inx2*nPaths+inx1] =
+			pdP->conflictMapP[inx1*nPaths+inx2] =
+				ConflictingSubPaths( SubPaths(inx1), SubPaths(inx2) );
 		}
 	}
+	LOG( log_genpaths, 2, ( "CombineSubPaths - .subPathGroups\n Generate a list of all distinct subpath combinations\n" ) );
 	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 3 ) {
-		LogPrintf( "CombineSubPaths - \n Generate a list of all distinct subpath combinations\n ConflictMap:\n" );
-		printf( "    %.*s\n", nPaths*2, " 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0" );
+		LogPrintf( "  ConflictMap:\n" );
+		printf( "      %.*s\n", nPaths*2, " 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0" );
 		for ( int inx1 = 0; inx1 < nPaths; inx1++ ) {
-			printf( "%3d ", inx1+1 );
+			printf( "  %3d ", inx1+1 );
 			for ( int inx2 = 0; inx2 < nPaths; inx2++ )
-				printf( " %s", inx1==inx2?"o":pConflictMap[inx1*nPaths+inx2]?"X":"+" );
+				printf( " %s", inx1==inx2?"o":pdP->conflictMapP[inx1*nPaths+inx2]?"X":"+" );
 			printf("\n");
 		}
 	}
 
 
 	WalkSubPaths( pdP, 0, NULL );
-	MyFree( pConflictMap );
 
-	SortSubPathGroups( pdP );
+	qsort( pdP->subPathGroup_da.ptr, pdP->subPathGroup_da.cnt, sizeof *(SUBPATHGROUP_T**)NULL, CmpSubPathGroups );
 
-	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 3 ) {
-		LogPrintf( "SubPathGroups:\n" );
-		for ( int inx=0; inx<subPathGroup_da.cnt; inx++ ) {
+	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 2 ) {
+		LogPrintf( "  sorted .subPathGroups:\n" );
+		for ( int inx=0; inx<pdP->subPathGroup_da.cnt; inx++ ) {
 			SUBPATHGROUP_T * pSPG = SubPathGroup(inx);
 			if ( pSPG != NULL ) {
-				LogPrintf( " SPG%d=(", inx+1 );
+				LogPrintf( "+  SPG%d=(", inx+1 );
 				for ( ; *pSPG; pSPG++ )
 					LogPrintf( " SP%d", *pSPG );
 				LogPrintf( " )\n" );
@@ -895,7 +982,7 @@ static wBool_t ConflictingSubPaths( PATHELEM_T * path1, PATHELEM_T * path2 )
 
 static void WalkSubPaths( pathData_p pdP, int subPathInx, WalkSubPaths_p wspP )
 {
-	if ( subPathGroup_da.cnt > 1000 ) {
+	if ( pdP->subPathGroup_da.cnt > 1000 ) {
 		printf( "WalkSubPaths recursion limit\n" );
 		return;
 	}
@@ -911,14 +998,14 @@ static void WalkSubPaths( pathData_p pdP, int subPathInx, WalkSubPaths_p wspP )
 	for ( WalkSubPaths_p p = wspP; p; p = p->prev ) {
 		if ( p->subPathInx < 0 )
 			continue;
-		bConflict = pConflictMap[ p->subPathInx*subPaths_da.cnt+subPathInx ];
+		bConflict = pdP->conflictMapP[ p->subPathInx*pdP->subPaths_da.cnt+subPathInx ];
 		if ( bConflict ) {
-			LOG( log_genpaths, 4, (" SP%d SP%d: CONFLICT\n", subPathInx+1, p->subPathInx+1, bConflict?"Conflict":"OK" ) );
+			LOG( log_genpaths, 5, (" SP%d SP%d: CONFLICT\n", subPathInx+1, p->subPathInx+1, bConflict?"Conflict":"OK" ) );
 			break;
 		}
 	}
 	subPathInx++; // subPathInx is 1-based
-	if ( subPathInx >= subPaths_da.cnt ) {
+	if ( subPathInx >= pdP->subPaths_da.cnt ) {
 		// Reached the bottom
 		WalkSubPaths_t wsp0;
 		if ( !bConflict ) {
@@ -935,15 +1022,15 @@ static void WalkSubPaths( pathData_p pdP, int subPathInx, WalkSubPaths_p wspP )
 		for ( WalkSubPaths_p p = wspP; p; p=p->prev, nSubPaths-- )
 			pSubPaths[nSubPaths-1] = p->subPathInx+1;
 		if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 4 ) {
-			LogPrintf( " SPG%d=(", subPathGroup_da.cnt );
+			LogPrintf( " SPG%d=(", pdP->subPathGroup_da.cnt+1 );
 			for ( int * pInx = pSubPaths; *pInx; pInx++ )
 				LogPrintf( " SP%d", *pInx );
 			LogPrintf( " )\n" );
 		}
 
 		// Check if the new group subsumes any previous groups
-		for ( int inx=0; inx<subPathGroup_da.cnt; inx++ ) {
-			SUBPATHGROUP_T * * ppSubPaths1 = &DYNARR_N( SUBPATHGROUP_T *, subPathGroup_da, inx );
+		for ( int inx=0; inx<pdP->subPathGroup_da.cnt; inx++ ) {
+			SUBPATHGROUP_T * * ppSubPaths1 = &SubPathGroup( inx );
 			if ( *ppSubPaths1 == NULL )
 				continue;
 			if ( SubsumesSubPathGroup( *ppSubPaths1, pSubPaths ) ) {
@@ -954,8 +1041,7 @@ static void WalkSubPaths( pathData_p pdP, int subPathInx, WalkSubPaths_p wspP )
 		}
 
 		// Append new SubPathGroup
-		DYNARR_APPEND( SUBPATHGROUP_T *, subPathGroup_da, 10 );
-		DYNARR_LAST( SUBPATHGROUP_T *, subPathGroup_da ) = pSubPaths;
+		SubPathGroupAdd( pSubPaths );
 		return;
 	}
 
@@ -981,10 +1067,7 @@ static wBool_t SubsumesSubPathGroup( SUBPATHGROUP_T * spg1, SUBPATHGROUP_T * spg
 {
 	// Assume: subPathGroups are ordered
 	for ( ; *spg1; spg1++ ) {
-		//printf("SPG1:%p=%d\n", spg1, *spg1 );
-		for ( ; *spg2 && *spg1 != *spg2; spg2++ ) {
-			//printf( "SPG2:%p=%d\n", spg2, *spg2 );
-		}
+		for ( ; *spg2 && *spg1 != *spg2; spg2++ );
 		if ( *spg2 == 0 )
 			return FALSE;
 	}
@@ -1032,12 +1115,6 @@ int CmpSubPathGroups( const void * ptr1, const void * ptr2 )
 	return 0;
 }
 
-static void SortSubPathGroups( pathData_p pdP )
-{
-	qsort( subPathGroup_da.ptr, subPathGroup_da.cnt, sizeof *(SUBPATHGROUP_T**)NULL, CmpSubPathGroups );
-}
-
-
 
 /*****************************************************************************
  *
@@ -1055,26 +1132,26 @@ static PATHPTR_T CreatePaths( pathData_p pdP )
 	int len = 0;
 	PATHPTR_T pPath0 = NULL;
 	PATHPTR_T pPath1 = NULL;
-	for ( int inx=0; inx<subPathGroup_da.cnt; inx++ ) {
+	for ( int inx=0; inx<pdP->subPathGroup_da.cnt; inx++ ) {
 		SUBPATHGROUP_T * pSPG = SubPathGroup(inx);
 		if ( SubPathGroup(inx) == NULL )
 			continue;
 		len += 1 + (inx>=100?3:inx>=10?2:1) + 1;
 		for ( ; *pSPG; pSPG++ )
-			len += SubPathLength( subPaths(*pSPG-1), FALSE );
+			len += SubPathLength( SubPaths(*pSPG-1), FALSE );
 	}
 	len++;
 	pPath0 = pPath1 = (PATHPTR_T)MyMalloc( len * sizeof *(PATHPTR_T)NULL );
 
-	for ( int inx = 0; inx < subPathGroup_da.cnt; inx++ ) {
+	for ( int inx = 0; inx < pdP->subPathGroup_da.cnt; inx++ ) {
 		SUBPATHGROUP_T * pSPG = SubPathGroup(inx);
 		if ( pSPG == NULL )
 			continue;
-		sprintf( pPath1, "P%d", inx );
-		pPath1 += strlen( pPath1 );
+		sprintf( (char*)pPath1, "P%d", inx );
+		pPath1 += strlen( (char*)pPath1 );
 		for ( ; *pSPG; pSPG++ ) {
 			*pPath1++ = '\0';
-			for ( PATHELEM_T * peP = subPaths(*pSPG-1); peP[0]; peP++ ) {
+			for ( PATHELEM_T * peP = SubPaths(*pSPG-1); peP[0]; peP++ ) {
 				if ( *peP < 0 )
 					continue;
 				*pPath1 = *peP/2;
@@ -1102,13 +1179,35 @@ static wIndex_t SubPathLength( PATHELEM_T * path, wBool_t bInclEP )
 }
 
 
+static void CleanupPaths( pathData_p pdP )
+{
+	// cleanup endPtLink
+	for ( segLink_p slP = pdP->endPtLinkP; slP < pdP->endPtLinkP+pdP->epCnt; slP++ )
+		DYNARR_FREE( PATHELEM_T, slP->nextSeg_da );
+	// cleanup segLink
+	for ( segLink_p slP = pdP->segLinkP; slP < pdP->segLinkP+pdP->segCnt*2; slP++ )
+		DYNARR_FREE( PATHELEM_T, slP->nextSeg_da );
+	// cleanup subPaths
+	for ( wIndex_t inx = 0; inx<pdP->subPaths_da.cnt; inx++ ) {
+		if ( SubPaths(inx) )
+			MyFree( SubPaths(inx) );
+	}
+	DYNARR_FREE( PARAMELEM_T *, pdP->subPaths_da );
+	MyFree( pdP->loopP );
+	// cleanup subPathGroups
+	for ( wIndex_t inx = 0; inx<pdP->subPathGroup_da.cnt; inx++ )
+		if ( SubPathGroup(inx) )
+			MyFree( SubPathGroup(inx) );
+	DYNARR_FREE( SUBPATHGROUP_T, pdP->subPathGroup_da );
+	MyFree( pdP->conflictMapP );
+}
+
 
 /*****************************************************************************
  *
  * Testing: compare new and old paths
  *
  */
-
 
 /* ComparePaths()
  *
@@ -1150,7 +1249,7 @@ static void DecomposePath( dynArr_t * subPath_daP, PATHPTR_T pPath )
 {
 	memset( subPath_daP, 0, sizeof subPath_daP );
 	while ( *pPath ) {
-		pPath = pPath + strlen(pPath) + 1;
+		pPath = pPath + strlen((char*)pPath) + 1;
 		DYNARR_APPEND( dynArr_t, *subPath_daP, 10 );
 		dynArr_t * pPath_daP = &DYNARR_LAST( dynArr_t, *subPath_daP );
 		memset( pPath_daP, 0, sizeof *(dynArr_t*)NULL );
@@ -1235,7 +1334,7 @@ static void DumpPaths( PATHPTR_T pPath )
 {
 	for ( ; *pPath; ) {
 		LogPrintf( "	P \"%s\"", pPath );
-		for ( pPath += strlen( pPath ) + 1; pPath[0] || pPath[1]; pPath++ )
+		for ( pPath += strlen( (char*)pPath ) + 1; pPath[0] || pPath[1]; pPath++ )
 			LogPrintf( " %d", pPath[0] );
 		LogPrintf( "\n" );
 		pPath += 2;
@@ -1243,22 +1342,23 @@ static void DumpPaths( PATHPTR_T pPath )
 }
 
 
-static void DumpSubPath( wIndex_t inx )
+static void DumpSubPath( pathData_p pdP, wBool_t bAdd, wIndex_t inx )
 {
-	PATHELEM_T * path = subPaths( inx );
-	if ( path == NULL )
-		return;
-	LogPrintf( "+ SP%d:", inx+1 );
-	for ( ; path[0] || path[1]; path++ ) {
-		PATHELEM_T elem = *path;
-		if ( elem == 0 )
-			LogPrintf( " ??0" );
-		else if ( elem < 0 )
-			LogPrintf( " E%ld", -elem );
-		else 
-			LogPrintf(" S%ld.%ld.%ld", elem&0x1, elem>>1, 1-(elem&0x1) );
+	PATHELEM_T * path = SubPaths( inx );
+	ASSERT( path != NULL );
+	if ( log_genpaths >= 1 && logTable(log_genpaths).level >= 2 ) {
+		LogPrintf( "%s SP%d:", bAdd?"+":"-", inx+1 );
+		for ( ; path[0] || path[1]; path++ ) {
+			PATHELEM_T elem = *path;
+			if ( elem == 0 )
+				LogPrintf( " ??0" );
+			else if ( elem < 0 )
+				LogPrintf( " E%ld", -elem );
+			else 
+				LogPrintf(" S%ld.%ld.%ld", elem&0x1, elem>>1, 1-(elem&0x1) );
+		}
+		LogPrintf( "\n" );
 	}
-	LogPrintf( "\n" );
 }
 
 #endif
